@@ -35,6 +35,18 @@ Default install prefix: `/opt/pifm` (override with `PIFM_PREFIX`).
 
 Optional: `PI_FM_RDS_SRC=/path/to/PiFmRds` builds/installs the binary during install.
 
+Clean-room / lifecycle-only (no RF intent):
+
+```bash
+sudo PIFM_TX_BACKEND=mock ./scripts/install.sh
+```
+
+Host non-RF gate before claiming a candidate ready:
+
+```bash
+./scripts/run-validation.sh
+```
+
 ## 4. Configure
 
 Edit `/opt/pifm/config/appliance.json` (copied from `examples/config.example.json`

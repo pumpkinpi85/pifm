@@ -12,7 +12,9 @@ ALLOWLIST_REL = {
     "PROJECT_MASTER.md",
     "CHANGELOG.md",
     "docs/clean-room-validation.md",
+    "docs/canonical-convergence.md",
     "docs/supported-pis.md",
+    "docs/evidence/clean-room-phase-a.template.md",
     "appliance/tests/test_publication_sanitize.py",
     "appliance/tests/test_ux.py",
 }
@@ -20,9 +22,12 @@ ALLOWLIST_REL = {
 FORBIDDEN = [
     "192.168.1.190",
     "/home/pi/piFM",
+    "/home/pi/pifm",
     "/home/pi/cabinet",
     "commissioning-",
     "nathankoops",
+    "imager.service",
+    "48aeca95",
 ]
 
 FORBIDDEN_CONTENT = [

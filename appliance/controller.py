@@ -330,7 +330,7 @@ class Controller:
                 "switch_pin": cfg["switch_pin"],
                 "network": self.network.status(),
                 "product_name": cfg.get("product_name", "piFM Pirate Radio"),
-                "software_version": cfg.get("software_version", "0.4.0"),
+                "software_version": cfg.get("software_version", "0.4.1"),
                 "hardware_profile": cfg.get("hardware_profile", "raspberry-pi-a-plus"),
                 "gpio_enabled": bool(cfg.get("gpio_enabled")),
                 "broadcast": checklist,

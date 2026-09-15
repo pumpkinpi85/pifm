@@ -45,6 +45,8 @@ that repository.
 
 ## Status
 
-Public candidate derived from a privately developed reference appliance.
+Public candidate **0.4.1** (P1A desk complete): sanitized extract plus host
+non-RF validation gate and convergence prep.
 This tree is **not** the historical commissioning archive.
-GitHub publication is not performed in P0.
+GitHub publication is not performed until separately authorized.
+Physical clean-room Phase A (spare Pi) is the next hardware step.

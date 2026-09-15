@@ -3,7 +3,7 @@
 **Durable project authority.** A new contributor or Cursor session should be able
 to understand piFM from this file without the private reference-station history.
 
-Version of this document: **0.4.0 public candidate (P0)**
+Version of this document: **0.4.1 P1A (clean-room software validation prep)**
 
 ---
 
@@ -155,8 +155,12 @@ candidate only** — no public push until separately authorized.
 
 ## 18. CURRENT PROJECT STATUS
 
-**P0 public skeleton extract complete** for this tree: generic appliance,
-GPL-3.0, docs, installer, example config, and tests (local candidate only).
+**P1A complete (software / desk):** P0 public candidate plus host non-RF
+validation gate, sanitization hardening, clean-room evidence template, and
+canonical-convergence / migration prep. Still a **local candidate only**.
+
+Physical clean-room Phase A on a spare/fresh Pi has **not** been executed in
+this repository session. No public GitHub push yet.
 
 ## 19. KNOWN LIMITATIONS
 
@@ -164,9 +168,11 @@ GPL-3.0, docs, installer, example config, and tests (local candidate only).
 - Pi 5 not supported without a proven RP1-capable backend
 - Optional panel LED/switch not required for core product
 - RF filtering/matching not measured by this software project
+- Reference-station software cutover awaits station inventory + spare-Pi Phase A
 
 ## 20. NEXT APPROVED PHASE
 
-**P1 — Clean-room non-RF validation** on a spare/fresh Raspberry Pi (not the
-personal reference A+), then publication readiness review before any push to
+**P1B — Clean-room non-RF validation on a spare/fresh Raspberry Pi** (not the
+personal reference A+), using `docs/clean-room-validation.md` and the Phase A
+evidence template. Then publication readiness review before any push to
 **github.com/pumpkinpi85/pifm**.

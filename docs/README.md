@@ -12,6 +12,8 @@
 | [architecture.md](architecture.md) | Software structure |
 | [rf-and-law.md](rf-and-law.md) | Responsible RF use |
 | [clean-room-validation.md](clean-room-validation.md) | Fresh-Pi validation procedure |
+| [canonical-convergence.md](canonical-convergence.md) | Desk prep to replace personal/reference deploys |
+| [evidence/clean-room-phase-a.template.md](evidence/clean-room-phase-a.template.md) | Phase A evidence form (copy; do not commit filled private data) |
 | [diagrams/README.md](diagrams/README.md) | Original diagram specifications |
 | [hardware/](hardware/) | GPIO / RF / optional controls |
 

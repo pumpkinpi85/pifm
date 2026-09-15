@@ -17,6 +17,7 @@ daemon stacks, chatty polling, unbounded logging, or re-transcoding on every pla
 - Prefer extending `appliance/` with stdlib Python and vanilla web assets.
 - Use `tx_backend=mock` or `fake` for automated tests — never require RF in CI.
 - Production configuration targets `pi_fm_rds` with **OFF AIR** default.
+- Before claiming a candidate ready: `./scripts/run-validation.sh`
 - Read [PROJECT_MASTER.md](PROJECT_MASTER.md) before large changes.
 
 ## Pull requests

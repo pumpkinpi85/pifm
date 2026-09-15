@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.1 — P1A clean-room software validation & convergence prep
+
+Desk-side P1A on the public candidate (no RF, no public GitHub push):
+
+- Host validation gate: `scripts/run-validation.sh` (full mock/fake + sanitization suite)
+- Clean-room Phase A evidence template under `docs/evidence/`
+- Canonical convergence / generic migration notes (`docs/canonical-convergence.md`)
+- Installer supports `PIFM_TX_BACKEND=mock` for non-RF clean-room lifecycle installs
+- systemd `Restart=always` (port sanitized from private reference deploy fix)
+- Hardened publication sanitization token list
+- Version bump to 0.4.1
+
+Physical clean-room Phase A on a spare Pi, reference-station cutover, and
+publication to github.com/pumpkinpi85/pifm remain later authorized steps.
+
 ## 0.4.0 — public candidate (P0)
 
 First sanitized public-repository candidate extracted from a privately developed

@@ -8,11 +8,15 @@ PREFIX="${PIFM_PREFIX:-/opt/pifm}"
 SERVICE_USER="${PIFM_USER:-pi}"
 PI_FM_RDS_SRC="${PI_FM_RDS_SRC:-}"
 PI_FM_RDS_BIN="${PI_FM_RDS_BIN:-/usr/local/bin/pi_fm_rds}"
+# Production default is pi_fm_rds. Use PIFM_TX_BACKEND=mock for clean-room
+# lifecycle-only installs (no RF). Never use this script to start transmitting.
+TX_BACKEND="${PIFM_TX_BACKEND:-pi_fm_rds}"
 
 echo "piFM install"
 echo "  source:  $ROOT"
 echo "  prefix:  $PREFIX"
 echo "  user:    $SERVICE_USER"
+echo "  tx:      $TX_BACKEND"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Re-run with sudo so systemd and /opt can be configured." >&2
@@ -47,16 +51,19 @@ from pathlib import Path
 p = Path("$PREFIX/config/appliance.json")
 cfg = json.loads(p.read_text())
 cfg["pi_fm_rds_path"] = "$PI_FM_RDS_BIN"
-cfg["tx_backend"] = "pi_fm_rds"
+cfg["tx_backend"] = "$TX_BACKEND"
+if cfg["tx_backend"] not in ("mock", "pi_fm_rds", "fake"):
+    raise SystemExit("PIFM_TX_BACKEND must be mock, pi_fm_rds, or fake")
 p.write_text(json.dumps(cfg, indent=2) + "\n")
 PY
 fi
 
-if [[ ! -x "$PI_FM_RDS_BIN" ]]; then
+if [[ "$TX_BACKEND" == "pi_fm_rds" && ! -x "$PI_FM_RDS_BIN" ]]; then
   if [[ -z "$PI_FM_RDS_SRC" ]]; then
     echo "WARNING: $PI_FM_RDS_BIN not found."
     echo "Build PiFmRds (see docs/installation.md), install the binary to $PI_FM_RDS_BIN,"
     echo "or set PI_FM_RDS_SRC to a checkout and re-run."
+    echo "For non-RF clean-room lifecycle only: PIFM_TX_BACKEND=mock ./scripts/install.sh"
   else
     echo "Building pi_fm_rds from $PI_FM_RDS_SRC"
     make -C "$PI_FM_RDS_SRC/src" clean
