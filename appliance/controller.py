@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional
 
 from .config import Config
 from .events import EventLog
+from .build_info import resolve_build_identity
+from .hardware_profile import resolve_hardware_profile
 from .library import Library
 from .network import NetworkManager
 from .state import State, StateError, StateMachine  # StateError used by API callers
@@ -286,6 +288,16 @@ class Controller:
                 now_playing = cur
                 up_next = nxt
             emergency_stop = True
+            build = resolve_build_identity(
+                self.config.root,
+                software_version=str(cfg.get("software_version") or ""),
+                hardware_profile=str(cfg.get("hardware_profile") or ""),
+            )
+            hw = resolve_hardware_profile(
+                self.config.root,
+                profile_id=str(cfg.get("hardware_profile") or ""),
+                include_detection=True,
+            )
             return {
                 "state": self.sm.state.value,
                 "fault_reason": self.sm.fault_reason,
@@ -330,8 +342,16 @@ class Controller:
                 "switch_pin": cfg["switch_pin"],
                 "network": self.network.status(),
                 "product_name": cfg.get("product_name", "piFM Pirate Radio"),
-                "software_version": cfg.get("software_version", "0.4.1"),
-                "hardware_profile": cfg.get("hardware_profile", "raspberry-pi-a-plus"),
+                "software_version": build["software_version"],
+                "git_sha": build["git_sha"],
+                "build_time": build["build_time"],
+                "build_dirty": build["build_dirty"],
+                "build_identified": build["build_identified"],
+                "build_label": build["build_label"],
+                "hardware_profile": hw["hardware_profile"],
+                "hardware_profile_found": hw["hardware_profile_found"],
+                "hardware_profile_doc": hw["hardware_profile_doc"],
+                "board_hints": hw["board_hints"],
                 "gpio_enabled": bool(cfg.get("gpio_enabled")),
                 "broadcast": checklist,
                 "queue_fingerprint": list(self._queue),

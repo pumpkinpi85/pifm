@@ -482,6 +482,8 @@
     if (!box) return;
     box.textContent = [
       "Version: " + (s.software_version || "—"),
+      "Build: " + (s.build_label || s.git_sha || "—"),
+      "Hardware: " + (s.hardware_profile || "—"),
       "Transmitter: " + (s.dev_harness ? "test harness (mock)" : "FM transmitter"),
       "GPIO: " + (s.gpio_enabled ? "enabled" : "disabled"),
       "Product: " + (s.product_name || "piFM Pirate Radio")
