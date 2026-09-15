@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>piFM Pirate Radio</title>
+  <link rel="stylesheet" href="/css/app.css?v=11" />
+</head>
+<body>
+  <div id="devHarnessBanner" class="dev-harness" hidden data-testid="dev-harness">
+    DEVELOPMENT / TEST HARNESS — mock transmitter (no FM). Not the production station.
+  </div>
+  <div class="shell">
+    <header class="masthead">
+      <div>
+        <div class="flagline">BROADCAST DECK</div>
+        <h1>piFM <span>PIRATE RADIO</span></h1>
+        <p class="tagline">Your music. Your station. On the air.</p>
+      </div>
+      <div class="mast-status">
+        <div id="netLamp" class="lamp">NET</div>
+        <div id="txLamp" class="lamp">OFF</div>
+        <button type="button" id="btnStopBroadcastHeader" class="mast-stop" data-testid="stop-broadcast-header" hidden>
+          STOP BROADCAST
+        </button>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Main">
+      <button type="button" class="tab active" data-tab="broadcast">Broadcast</button>
+      <button type="button" class="tab" data-tab="music">Music</button>
+      <button type="button" class="tab" data-tab="station">Station</button>
+      <button type="button" class="tab" data-tab="system">System</button>
+      <button type="button" class="tab" data-tab="help">Help</button>
+    </nav>
+
+    <section id="view-broadcast" class="view active">
+      <div class="panel deck-hero">
+        <div class="freq-hero">
+          <span id="freqBig" class="freq">89.9</span>
+          <span class="mhz">FM</span>
+        </div>
+        <div class="label">BROADCAST STATE</div>
+        <div id="broadcastState" class="broadcast-state off" data-testid="broadcast-state">OFF AIR</div>
+        <div id="statusBadge" class="status-badge ready" hidden>READY</div>
+        <p id="readyHint" class="ready-hint" hidden>Ready</p>
+      </div>
+
+      <div id="blockerBox" class="blocker" hidden data-testid="blocker-panel"></div>
+
+      <div class="panel player" data-testid="compact-player">
+        <div class="player-main">
+          <div class="player-mode" id="nowLabel" data-testid="player-mode">READY</div>
+          <div id="nowTrack" class="now-title">Ready to broadcast</div>
+          <div id="nowPlaylist" class="meta player-playlist">Choose a playlist to get started.</div>
+        </div>
+        <div class="player-upnext">
+          <span class="label" id="upNextLabel">THEN</span>
+          <div id="nowNext" class="meta">—</div>
+        </div>
+        <div class="player-transport" role="group" aria-label="Program controls">
+          <button type="button" data-act="prev" class="transport-side" title="Previous track" aria-label="Previous track">
+            <span class="glyph" aria-hidden="true">◀</span> PREV
+          </button>
+          <button type="button" data-act="playpause" id="btnPlayPause" class="transport-play" title="Play or pause the music program" aria-label="Play">
+            <span class="glyph play-glyph" aria-hidden="true">▶</span>
+            <span class="play-label">PLAY</span>
+          </button>
+          <button type="button" data-act="next" class="transport-side" title="Next track" aria-label="Next track">
+            NEXT <span class="glyph" aria-hidden="true">▶</span>
+          </button>
+        </div>
+        <p class="explain player-hint">Pause keeps the FM broadcast alive. Ending transmission uses Lower the Black Flag.</p>
+      </div>
+
+      <div class="panel tx-panel">
+        <div class="label">BROADCAST CONTROL</div>
+        <div class="tx-actions">
+          <button type="button" id="btnGoOnAir" class="tx-btn raise-flag" data-testid="go-on-air" disabled>
+            <span class="flag-skull" aria-hidden="true">☠</span>
+            RAISE THE BLACK FLAG
+            <span class="tx-sub">GO ON AIR</span>
+          </button>
+          <button type="button" id="btnStopBroadcast" class="tx-btn stop-btn stop-secondary" data-testid="stop-broadcast">
+            LOWER THE BLACK FLAG
+            <span class="tx-sub">STOP BROADCAST</span>
+          </button>
+        </div>
+        <p class="explain center" id="txExplain">
+          <strong>Raise the Black Flag</strong> starts your music and the FM transmitter.
+          <strong>Lower the Black Flag</strong> always ends transmission — including after a fault.
+        </p>
+      </div>
+
+      <div class="panel">
+        <div class="label">SHIP'S LOG</div>
+        <p class="explain">Recent operator events. Technical details live under System → Diagnostics.</p>
+        <div id="operatorLog" class="log-list" data-testid="operator-log">
+          <div class="empty loading">Loading…</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-music" class="view">
+      <div class="panel">
+        <div class="label">ACTIVE PLAYLIST</div>
+        <p class="explain">Choosing or playing music does <strong>not</strong> start an FM broadcast.</p>
+        <div id="activePlSummary" class="active-pl">Loading…</div>
+        <div class="row music-flags">
+          <label class="check"><input type="checkbox" id="cfgShuffle" /> Shuffle</label>
+          <label class="check"><input type="checkbox" id="cfgRepeat" /> Repeat</label>
+          <button type="button" id="btnSaveMusicFlags" class="secondary">Save playback options</button>
+        </div>
+        <div class="row music-reset">
+          <button type="button" data-act="stop" class="secondary stop-music" data-testid="stop-music" title="Reset the music program without ending the FM broadcast">
+            Reset program
+          </button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="label">PLAYLISTS</div>
+        <div class="row">
+          <input id="newPlName" placeholder="New playlist name" aria-label="New playlist name" />
+          <button type="button" id="btnNewPl">Create</button>
+          <label class="check show-empty"><input type="checkbox" id="showEmptyPl" /> Show empty playlists</label>
+        </div>
+        <div id="plList" class="list" data-testid="playlist-list"><div class="empty loading">Loading…</div></div>
+        <div id="plDetail" class="list"></div>
+      </div>
+      <div class="panel">
+        <div class="label">QUEUE</div>
+        <div id="queueBox" class="list"><div class="empty loading">Loading…</div></div>
+      </div>
+      <div class="panel">
+        <div class="label">LIBRARY</div>
+        <div class="row">
+          <input id="libSearch" placeholder="Search artist, title, filename…" aria-label="Search library" />
+          <button type="button" id="btnReindex">Refresh music</button>
+          <label class="upload">Upload<input type="file" id="fileUpload" accept="audio/*,.mp3,.wav,.flac,.ogg,.m4a" /></label>
+        </div>
+        <div id="libList" class="list" data-testid="library-list"><div class="empty loading">Loading…</div></div>
+      </div>
+    </section>
+
+    <section id="view-station" class="view">
+      <div class="panel">
+        <div class="label">STATION</div>
+        <p class="explain">Saving station settings does <strong>not</strong> start broadcasting. Choose a frequency you are allowed to use.</p>
+        <label for="cfgFreq">Frequency (MHz)</label>
+        <input id="cfgFreq" type="number" step="0.1" min="87.1" max="108.2" />
+        <label for="cfgPs">Station name <span class="hint">(max 8 characters on radio displays)</span></label>
+        <input id="cfgPs" maxlength="8" />
+        <label for="cfgRt">Radio text <span class="hint">(scrolling text on capable radios)</span></label>
+        <input id="cfgRt" maxlength="64" />
+        <button type="button" id="btnSaveCfg">Save station</button>
+      </div>
+      <details class="panel advanced">
+        <summary>Advanced — RDS technical settings</summary>
+        <p class="explain">Most operators can ignore this section.</p>
+        <label for="cfgPi">Station code / RDS PI <span class="hint">(4 hex digits)</span></label>
+        <input id="cfgPi" maxlength="4" />
+        <button type="button" id="btnSaveAdvanced" class="secondary">Save advanced settings</button>
+      </details>
+    </section>
+
+    <section id="view-system" class="view">
+      <div class="panel">
+        <div class="label">NETWORK</div>
+        <div id="netSummary" class="bigstat">Loading…</div>
+        <p id="netDetail" class="meta"></p>
+      </div>
+      <div class="panel rf-quiet-panel">
+        <div class="label">INTERFERENCE TROUBLESHOOTING</div>
+        <p class="warn-box" data-testid="rf-quiet-warning">
+          <strong>Quiet network for interference test</strong> turns off the network connection.
+          It <strong>does not</strong> stop the FM broadcast.
+          You may lose access to this web page until the network returns.
+        </p>
+        <button type="button" id="btnRfQuiet" class="secondary">Quiet network for interference test</button>
+        <button type="button" id="btnRfRestore" class="ghost">Restore network now</button>
+      </div>
+      <div class="panel">
+        <div class="label">HEALTH</div>
+        <div id="healthBox" class="health-grid">Loading…</div>
+      </div>
+      <div class="panel" id="faultRecoveryPanel">
+        <div class="label">FAULT RECOVERY</div>
+        <p id="faultRecoveryText" class="meta">No fault — station is ready.</p>
+        <button type="button" id="btnClearFault">Clear error → return to ready</button>
+      </div>
+      <div class="panel">
+        <div class="label">APPLIANCE</div>
+        <pre id="applianceBox" class="mono"></pre>
+      </div>
+      <details class="panel advanced" open>
+        <summary>Diagnostics — engineering Ship's Log</summary>
+        <p class="explain">Raw lifecycle events for commissioning and support. Not needed for everyday broadcasting.</p>
+        <pre id="eventsBox" class="mono events" data-testid="diagnostics-log">Loading…</pre>
+      </details>
+    </section>
+
+    <section id="view-help" class="view">
+      <div class="panel help">
+        <div class="label">HOW TO BROADCAST</div>
+        <ol class="steps">
+          <li><strong>Choose your music</strong> on the Music page.</li>
+          <li><strong>Check your station and frequency</strong> on the Station page.</li>
+          <li>Return to <strong>Broadcast</strong> and press <strong>Raise the Black Flag · Go On Air</strong>.</li>
+        </ol>
+        <p class="explain">To end transmission: press <strong>Lower the Black Flag · Stop Broadcast</strong>.</p>
+      </div>
+      <div class="panel help">
+        <h3>Raise the Black Flag</h3>
+        <p>Starts the selected playlist and the FM transmitter together. You are on the air.</p>
+        <h3>Pause vs Lower the Black Flag</h3>
+        <p><strong>Pause</strong> holds silence on the carrier while staying on air.</p>
+        <p><strong>Lower the Black Flag / Stop Broadcast</strong> immediately ends FM transmission. Always available — including while starting, after a fault, or when state is unknown.</p>
+        <h3>Play / Previous / Next</h3>
+        <p>These change the music program. They do not start a broadcast by themselves.</p>
+        <h3>Quiet network vs Stop Broadcast</h3>
+        <p>Quiet network is an interference troubleshooting tool. It does not stop the FM broadcast.</p>
+        <h3>Needs Attention / Possible Transmission</h3>
+        <p>If the console shows <strong>Needs Attention</strong>, <strong>State Unknown</strong>, or <strong>Possible Transmission</strong>, press <strong>Lower the Black Flag</strong>, then use System → Fault Recovery if needed.</p>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <div id="faultLine" class="fault-banner" hidden></div>
+  <script src="/js/app.js?v=11"></script>
+</body>
+</html>
