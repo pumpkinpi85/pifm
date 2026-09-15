@@ -1,0 +1,21 @@
+[Unit]
+Description=piFM Pirate Radio appliance
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/opt/pifm
+Environment=PIFM_ROOT=/opt/pifm
+ExecStart=/usr/bin/python3 -m appliance
+Restart=on-failure
+RestartSec=3
+
+# Fresh start must be OFF AIR. Absolute STOP on service stop.
+TimeoutStopSec=30
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target
