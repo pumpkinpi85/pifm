@@ -1,0 +1,28 @@
+# piFM .gitignore
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Runtime data (never commit operator music or logs)
+data/library/**
+data/playlists/**
+data/logs/**
+data/audio/**
+!data/library/.gitkeep
+!data/playlists/.gitkeep
+!data/logs/.gitkeep
+
+config/appliance.json
+
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Local experimental outputs
+/tmp/
+*.wav
+!appliance/tests/**

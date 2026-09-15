@@ -1,0 +1,16 @@
+{
+  "id": "raspberry-pi-a-plus",
+  "display_name": "Raspberry Pi Model A+ (Rev 1.1)",
+  "status": "SUPPORTED",
+  "evidence": "physically_proven_reference_station",
+  "soc_family": "BCM2835",
+  "architecture": "armv6",
+  "rf_gpio_bcm": 4,
+  "rf_header_pin": 7,
+  "optional_led_bcm": 18,
+  "optional_switch_bcm": 5,
+  "pi_fm_rds_compat": "supported",
+  "rebuild_pi_fm_rds_required": true,
+  "default_network_iface": "eth0",
+  "notes": "Reference and minimum hardware target for piFM. GPIO FM via GPCLK0 on BCM4."
+}
