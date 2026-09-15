@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.2 — P1C canonical deployment & reference-hardware convergence
+
+Machinery for one-product authority (no physical cutover in this release):
+
+- Deployed build identity (`build_meta.json`, API `git_sha` / System Build line)
+- Persistent data contract (`docs/persistent-data.md`)
+- Station backup / exact-SHA stage-deploy / rollback tools (`scripts/`)
+- `pi_fm_rds` normalization helper → `/usr/local/bin/pi_fm_rds`
+- Hardware profile runtime resolution
+- Non-RF reference hardware validator
+- Cutover + legacy retirement procedures (documentation only)
+- Remote deploy/rollback against the reference A+ remains gated
+
 ## 0.4.1 — P1A clean-room software validation & convergence prep
 
 Desk-side P1A on the public candidate (no RF, no public GitHub push):

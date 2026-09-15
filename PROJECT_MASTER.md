@@ -3,7 +3,7 @@
 **Durable project authority.** A new contributor or Cursor session should be able
 to understand piFM from this file without the private reference-station history.
 
-Version of this document: **0.4.1 P1A (clean-room software validation prep)**
+Version of this document: **0.4.2 P1C (canonical deployment machinery)**
 
 ---
 
@@ -155,12 +155,10 @@ candidate only** — no public push until separately authorized.
 
 ## 18. CURRENT PROJECT STATUS
 
-**P1A complete (software / desk):** P0 public candidate plus host non-RF
-validation gate, sanitization hardening, clean-room evidence template, and
-canonical-convergence / migration prep. Still a **local candidate only**.
-
-Physical clean-room Phase A on a spare/fresh Pi has **not** been executed in
-this repository session. No public GitHub push yet.
+**P1C complete (software):** exact-SHA deploy/backup/rollback tooling, build
+identity, persistent-data contract, hardware-profile resolution, and non-RF
+reference validator. Still a **local candidate**; physical A+ cutover is **not**
+performed until separately authorized.
 
 ## 19. KNOWN LIMITATIONS
 
@@ -168,11 +166,12 @@ this repository session. No public GitHub push yet.
 - Pi 5 not supported without a proven RP1-capable backend
 - Optional panel LED/switch not required for core product
 - RF filtering/matching not measured by this software project
-- Reference-station software cutover awaits station inventory + spare-Pi Phase A
+- Reference station still on a personal home-directory install layout until cutover
+- Remote deploy scripts intentionally refuse mutating `ssh pifm` until ungated
 
 ## 20. NEXT APPROVED PHASE
 
-**P1B — Clean-room non-RF validation on a spare/fresh Raspberry Pi** (not the
-personal reference A+), using `docs/clean-room-validation.md` and the Phase A
-evidence template. Then publication readiness review before any push to
+**Authorized physical cutover** of the reference A+ to `/opt/pifm` using
+`docs/cutover-reference-station.md`, then non-RF validation, rollback proof,
+and only then any founder-authorized RF checks / publication review for
 **github.com/pumpkinpi85/pifm**.

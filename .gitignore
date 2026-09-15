@@ -17,6 +17,9 @@ data/audio/**
 
 config/appliance.json
 
+# Deploy stamp (generated on station; not a source artifact)
+build_meta.json
+
 .DS_Store
 *.swp
 .idea/

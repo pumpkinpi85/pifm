@@ -22,6 +22,15 @@ sudo install -m 755 pi_fm_rds /usr/local/bin/pi_fm_rds
 
 Always rebuild when changing Pi model/architecture.
 
+Or use the helper (still builds on-device for A+/ARMv6):
+
+```bash
+./scripts/install-pi-fm-rds.sh --src /path/to/PiFmRds
+```
+
+Canonical runtime path: `/usr/local/bin/pi_fm_rds` (see `examples/config.example.json`).
+Do not hard-code personal home-directory transmitter trees in product config.
+
 ## 3. Obtain piFM
 
 Clone this repository to a working path, then install:

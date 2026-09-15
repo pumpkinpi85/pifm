@@ -45,8 +45,8 @@ that repository.
 
 ## Status
 
-Public candidate **0.4.1** (P1A desk complete): sanitized extract plus host
-non-RF validation gate and convergence prep.
+Public candidate **0.4.2** (P1C): one-product deployment machinery for exact-SHA
+installs, build identity, and reference-hardware validation — without performing
+the physical A+ cutover until separately authorized.
 This tree is **not** the historical commissioning archive.
 GitHub publication is not performed until separately authorized.
-Physical clean-room Phase A (spare Pi) is the next hardware step.

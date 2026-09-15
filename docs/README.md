@@ -14,6 +14,10 @@
 | [clean-room-validation.md](clean-room-validation.md) | Fresh-Pi validation procedure |
 | [canonical-convergence.md](canonical-convergence.md) | Desk prep to replace personal/reference deploys |
 | [evidence/clean-room-phase-a.template.md](evidence/clean-room-phase-a.template.md) | Phase A evidence form (copy; do not commit filled private data) |
+| [persistent-data.md](persistent-data.md) | Application vs operator data contract |
+| [deployment.md](deployment.md) | Backup / exact-SHA deploy / rollback tools |
+| [cutover-reference-station.md](cutover-reference-station.md) | One-time `/home/…` → `/opt/pifm` procedure (do not run until authorized) |
+| [legacy-retirement.md](legacy-retirement.md) | Gates before retiring private/legacy trees |
 | [diagrams/README.md](diagrams/README.md) | Original diagram specifications |
 | [hardware/](hardware/) | GPIO / RF / optional controls |
 
