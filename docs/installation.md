@@ -44,6 +44,16 @@ Default install prefix: `/opt/pifm` (override with `PIFM_PREFIX`).
 
 Optional: `PI_FM_RDS_SRC=/path/to/PiFmRds` builds/installs the binary during install.
 
+The installer reports hardware readiness without changing boot settings. On a
+detected Model A+, explicitly opt into the backed-up headless/onboard-audio
+configuration with:
+
+```bash
+sudo PIFM_CONFIGURE_HARDWARE=1 ./scripts/install.sh
+```
+
+Review [hardware and first run](hardware-and-first-run.md) before applying it.
+
 Clean-room / lifecycle-only (no RF intent):
 
 ```bash
@@ -58,12 +68,9 @@ Host non-RF gate before claiming a candidate ready:
 
 ## 4. Configure
 
-Edit `/opt/pifm/config/appliance.json` (copied from `examples/config.example.json`
-on first install). Confirm:
-
-- `tx_backend`: `pi_fm_rds`
-- `pi_fm_rds_path`: path to your binary
-- frequency/RDS values lawful for your location
+Fresh installations open the short browser setup for detected hardware,
+frequency/RDS identity, and music. Advanced configuration remains available in
+`/opt/pifm/config/appliance.json`.
 
 ## 5. Open the Deck
 

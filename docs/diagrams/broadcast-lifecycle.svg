@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 290" role="img" aria-labelledby="title desc">
+  <title id="title">piFM broadcast lifecycle</title>
+  <desc id="desc">The founder raises the Black Flag, controls the program while on air, then lowers the flag to stop transmission.</desc>
+  <rect width="980" height="290" fill="#0c0d10"/>
+  <text x="40" y="42" fill="#e0b060" font-family="sans-serif" font-size="24">BROADCAST LIFECYCLE</text>
+  <g font-family="sans-serif" text-anchor="middle">
+    <rect x="35" y="85" width="190" height="90" rx="5" fill="#1b2030" stroke="#e0b060" stroke-width="3"/>
+    <text x="130" y="120" fill="#e8e4d8" font-size="17">Raise Black Flag</text>
+    <text x="130" y="146" fill="#e0b060" font-size="14">GO ON AIR</text>
+    <rect x="300" y="85" width="160" height="90" rx="5" fill="#2a1212" stroke="#c44b4b" stroke-width="3"/>
+    <text x="380" y="120" fill="#ffd0d0" font-size="20">ON AIR</text>
+    <text x="380" y="146" fill="#9aa3b5" font-size="14">single transmitter</text>
+    <rect x="535" y="85" width="180" height="90" rx="5" fill="#1b2030" stroke="#58647a" stroke-width="3"/>
+    <text x="625" y="120" fill="#e8e4d8" font-size="17">Program controls</text>
+    <text x="625" y="146" fill="#9aa3b5" font-size="14">play · pause · next</text>
+    <rect x="790" y="85" width="155" height="90" rx="5" fill="#1b2030" stroke="#5ecf8a" stroke-width="3"/>
+    <text x="867" y="120" fill="#e8e4d8" font-size="17">Lower Flag</text>
+    <text x="867" y="146" fill="#5ecf8a" font-size="14">STOP BROADCAST</text>
+  </g>
+  <g fill="none" stroke="#e8e4d8" stroke-width="3">
+    <path d="M225 130H300M460 130H535M715 130H790"/>
+  </g>
+  <text x="40" y="220" fill="#e8e4d8" font-family="sans-serif" font-size="15">Pause changes music; it does not stop RF.</text>
+  <text x="40" y="248" fill="#c44b4b" font-family="sans-serif" font-size="15">Lower the Black Flag is the absolute STOP and remains available during faults or unknown state.</text>
+</svg>

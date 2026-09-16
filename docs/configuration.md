@@ -12,6 +12,8 @@ See `examples/config.example.json`.
 | `frequency_mhz` | Operator-chosen FM frequency |
 | `rds_ps` / `rds_rt` / `rds_pi` | RDS identity |
 | `hardware_profile` | e.g. `raspberry-pi-a-plus` |
+| `hardware_profile_mode` | `auto` (recommended) or explicit `manual` override |
+| `setup_completed` | Fresh-install first-run state; pre-P1F configs default complete |
 | `network_iface` | e.g. `eth0` or `wlan0` |
 | `gpio_enabled` | Optional panel LED/switch (default false) |
 | `tx_pin` | Documented RF GPIO BCM (default 4) |

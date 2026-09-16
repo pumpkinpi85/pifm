@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 250" role="img" aria-labelledby="title desc">
+  <title id="title">piFM software and audio pipeline</title>
+  <desc id="desc">Music passes through FFmpeg and the WAV cache, PiFmRds, GPIO, then the external RF path.</desc>
+  <rect width="1000" height="250" fill="#0c0d10"/>
+  <text x="40" y="42" fill="#e0b060" font-family="sans-serif" font-size="24">AUDIO ’ RF PIPELINE</text>
+  <g fill="#1b2030" stroke="#58647a" stroke-width="2" font-family="sans-serif" text-anchor="middle">
+    <rect x="35" y="85" width="140" height="70" rx="5"/><rect x="230" y="85" width="180" height="70" rx="5"/>
+    <rect x="465" y="85" width="150" height="70" rx="5"/><rect x="670" y="85" width="120" height="70" rx="5"/>
+    <rect x="845" y="85" width="120" height="70" rx="5"/>
+    <text x="105" y="126" fill="#e8e4d8" font-size="17" stroke="none">Music</text>
+    <text x="320" y="116" fill="#e8e4d8" font-size="17" stroke="none">FFmpeg</text>
+    <text x="320" y="138" fill="#9aa3b5" font-size="13" stroke="none">seekable WAV cache</text>
+    <text x="540" y="126" fill="#e8e4d8" font-size="17" stroke="none">PiFmRds</text>
+    <text x="730" y="116" fill="#e8e4d8" font-size="17" stroke="none">GPIO 4</text>
+    <text x="730" y="138" fill="#9aa3b5" font-size="13" stroke="none">pin 7</text>
+    <text x="905" y="116" fill="#e8e4d8" font-size="17" stroke="none">RF path</text>
+    <text x="905" y="138" fill="#9aa3b5" font-size="13" stroke="none">external</text>
+  </g>
+  <g fill="none" stroke="#e0b060" stroke-width="3">
+    <path d="M175 120H230M410 120H465M615 120H670M790 120H845"/>
+  </g>
+  <text x="40" y="205" fill="#9aa3b5" font-family="sans-serif" font-size="14">Uploads and program controls remain OFF AIR until the operator explicitly raises the Black Flag.</text>
+</svg>

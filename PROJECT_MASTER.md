@@ -3,7 +3,7 @@
 **Durable project authority.** A new contributor or Cursor session should be able
 to understand piFM from this file without the private reference-station history.
 
-Version of this document: **0.4.3 P1E (PiFmRds timing calibration capability)**
+Version of this document: **0.5.0 P1F (hardware-first onboarding and music productization)**
 
 ---
 

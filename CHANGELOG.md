@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.5.0 — Hardware-first setup and Music workspace
+
+- Detects Raspberry Pi identity without guessing unknown boards and maps the
+  physically proven Model A+ to its canonical hardware profile.
+- Checks the A+ headless/onboard-audio prerequisites discovered during P1E and
+  provides an explicit, backed-up, reversible configuration command.
+- Adds a short Welcome → Hardware → Station → Music → Broadcast first run while
+  treating pre-P1F operator configurations as already complete.
+- Adds streaming multi-file browser import with progress, safe filenames,
+  FFmpeg/FFprobe decode validation, atomic writes, duplicate handling, and a
+  128 MiB per-file A+ limit.
+- Organizes Music into Library, Playlists, and Queue with playlist rename,
+  deletion/reference cleanup, drag-and-drop ordering, and persisted idle queue
+  reorder.
+- Adds original header, RF-path, audio-pipeline, and broadcast-lifecycle
+  diagrams.
+- Preserves OFF AIR defaults, absolute STOP, single-transmitter enforcement,
+  operator data, and Python 3.7 / ARMv6 compatibility.
+
 ## 0.4.3 — Canonical PiFmRds timing calibration
 
 - Add validated `pi_fm_rds_ppm` station configuration, defaulting to zero.

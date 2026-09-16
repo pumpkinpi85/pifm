@@ -28,6 +28,9 @@ Installation and configuration **do not** start broadcasting.
 
 - [PROJECT_MASTER.md](PROJECT_MASTER.md) — durable project authority
 - [docs/](docs/) — installation, hardware, operation, RF/law
+- [Hardware and first run](docs/hardware-and-first-run.md) — detection,
+  readiness, setup, original wiring/pipeline diagrams
+- [Music workspace](docs/music.md) — browser imports, playlists, and queue
 - [CONTRIBUTING.md](CONTRIBUTING.md) — including the A+ minimum-hardware rule
 - [SECURITY.md](SECURITY.md)
 
@@ -45,7 +48,8 @@ that repository.
 
 ## Status
 
-Public candidate **0.4.3** with canonical PiFmRds timing calibration: the A+ reference
-station runs this canonical product from `/opt/pifm`.
-Legacy personal trees remain pending authorized RF validation and retirement.
+P1F product candidate **0.5.0** adds hardware-first setup and browser music
+workflows to the proven canonical A+ appliance.
+The reference station runs the canonical product from `/opt/pifm`.
+Legacy personal trees remain read-only pending final retirement.
 GitHub publication is not performed until separately authorized.
