@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import atexit
+import fcntl
 import signal
 import sys
 import time
@@ -15,6 +17,19 @@ from .gpio_controls import GpioControls
 from .library import Library
 from .tx import kill_all_transmitters
 from .webapp import serve
+
+
+def acquire_controller_lease(root: Path):
+    """Prevent a second appliance controller from disturbing the active one."""
+    path = root / "data" / "appliance-controller.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = open(str(path), "a+")
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        handle.close()
+        raise RuntimeError("Another piFM appliance controller is already running")
+    return handle
 
 
 def ensure_startup_rf_off() -> None:
@@ -40,7 +55,13 @@ def main(argv=None) -> int:
             cfg_path.parent.mkdir(parents=True, exist_ok=True)
             cfg_path.write_text(default.read_text())
 
-    ensure_startup_rf_off()
+    controller_lease = acquire_controller_lease(root)
+    atexit.register(controller_lease.close)
+    try:
+        ensure_startup_rf_off()
+    except Exception:
+        controller_lease.close()
+        raise
     config = Config(cfg_path, root)
     events = EventLog(
         maxlen=500,
@@ -97,15 +118,15 @@ def main(argv=None) -> int:
         "controller_startup",
         "web listening on {}:{}".format(config.get("web_host"), config.get("web_port")),
     )
-    controller.restore_persisted_broadcast_intent(wait=False)
-
     stop = {"flag": False}
 
     def _stop(signum, frame) -> None:
         stop["flag"] = True
+        controller.begin_shutdown()
 
     signal.signal(signal.SIGINT, _stop)
     signal.signal(signal.SIGTERM, _stop)
+    controller.restore_persisted_broadcast_intent(wait=False)
 
     try:
         while not stop["flag"]:
@@ -125,6 +146,7 @@ def main(argv=None) -> int:
         gpio.stop()
         httpd.shutdown()
         events.emit("controller_startup", "shutdown complete; TX=OFF")
+        controller_lease.close()
     return 0
 
 

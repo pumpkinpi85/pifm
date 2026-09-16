@@ -1,6 +1,8 @@
 [Unit]
 Description=piFM Pirate Radio appliance
 After=local-fs.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple

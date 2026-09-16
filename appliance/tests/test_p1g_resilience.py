@@ -6,11 +6,13 @@ import errno
 import io
 import json
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from appliance.__main__ import acquire_controller_lease
 from appliance.config import Config
 from appliance.controller import Controller
 from appliance.events import EventLog
@@ -35,6 +37,7 @@ def make_controller(root: Path, track_count: int = 2) -> Controller:
                 "active_playlist": "demo",
                 "setup_completed": True,
                 "repeat": True,
+                "recovery_stability_s": 0,
             }
         )
     )
@@ -154,6 +157,22 @@ class BroadcastIntentStoreTests(unittest.TestCase):
                 BroadcastIntentStore(root).snapshot()["program_state"],
                 original["program_state"],
             )
+
+    def test_directory_fsync_failure_after_replace_fails_off(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            store = BroadcastIntentStore(root)
+            with patch.object(
+                store,
+                "_fsync_directory",
+                side_effect=OSError(errno.EIO, "fsync failed"),
+            ):
+                with self.assertRaises(RecoveryStateError):
+                    store.arm(recovery_snapshot(), "operator")
+            self.assertFalse(
+                (root / "data/recovery/broadcast-on.json").exists()
+            )
+            self.assertFalse(store.status()["armed"])
 
     def test_unwritable_stop_reports_failure_without_hiding_on_intent(self):
         with tempfile.TemporaryDirectory() as td:
@@ -332,6 +351,107 @@ class ControllerRecoveryTests(unittest.TestCase):
         self.assertEqual(len(starts), 1)
         self.assertTrue(replacement.tx.is_running())
 
+    def test_stop_is_barrier_against_admitted_start(self):
+        start_entered = threading.Event()
+        allow_start = threading.Event()
+        stop_returned = threading.Event()
+        original_start = self.controller.tx.start
+
+        def blocked_start(*args, **kwargs):
+            start_entered.set()
+            self.assertTrue(allow_start.wait(3))
+            return original_start(*args, **kwargs)
+
+        with patch.object(
+            self.controller.tx, "start", side_effect=blocked_start
+        ):
+            starter = threading.Thread(target=self.controller.go_on_air)
+            starter.start()
+            self.assertTrue(start_entered.wait(3))
+
+            def stop():
+                self.controller.tx_off()
+                stop_returned.set()
+
+            stopper = threading.Thread(target=stop)
+            stopper.start()
+            time.sleep(0.1)
+            self.assertFalse(
+                stop_returned.is_set(),
+                "STOP returned while an admitted start was unresolved",
+            )
+            allow_start.set()
+            starter.join(3)
+            stopper.join(3)
+        self.assertTrue(stop_returned.is_set())
+        self.assertFalse(self.controller.tx.is_running())
+        self.assertFalse(self.controller.recovery.status()["armed"])
+
+    def test_restore_snapshot_cannot_start_after_operator_stop(self):
+        self.controller.go_on_air()
+        self.controller.service_shutdown()
+        replacement = make_controller(self.root)
+        self.controller = replacement
+        restore_entered = threading.Event()
+        continue_restore = threading.Event()
+        restore_finished = threading.Event()
+        original_go_on_air = replacement.go_on_air
+
+        def delayed_restore(*args, **kwargs):
+            restore_entered.set()
+            self.assertTrue(continue_restore.wait(3))
+            try:
+                return original_go_on_air(*args, **kwargs)
+            finally:
+                restore_finished.set()
+
+        with patch.object(
+            replacement, "go_on_air", side_effect=delayed_restore
+        ):
+            replacement.restore_persisted_broadcast_intent(
+                wait=False, boot_id="boot-a"
+            )
+            self.assertTrue(restore_entered.wait(3))
+            stopped = replacement.tx_off()
+            self.assertEqual(stopped["broadcast_state"], "off")
+            continue_restore.set()
+            self.assertTrue(restore_finished.wait(3))
+        self.assertFalse(replacement.tx.is_running())
+        self.assertFalse(replacement.recovery.status()["armed"])
+
+    def test_unstable_restore_is_latched_for_same_boot(self):
+        self.controller.go_on_air()
+        self.controller.service_shutdown()
+        replacement = make_controller(self.root)
+        self.controller = replacement
+        replacement._recovery_stability_s = 0.3
+        replacement.restore_persisted_broadcast_intent(
+            wait=False, boot_id="boot-a"
+        )
+        deadline = time.time() + 2
+        while time.time() < deadline and replacement.sm.state != State.ON_AIR:
+            time.sleep(0.01)
+        self.assertEqual(replacement.sm.state, State.ON_AIR)
+        replacement.begin_shutdown()
+        deadline = time.time() + 2
+        while (
+            time.time() < deadline
+            and replacement.recovery.status()["last_restore_result"]
+            == "pending"
+        ):
+            time.sleep(0.01)
+        self.assertEqual(
+            replacement.recovery.status()["last_restore_result"], "failed"
+        )
+        replacement.service_shutdown()
+        second = make_controller(self.root)
+        self.controller = second
+        status = second.restore_persisted_broadcast_intent(
+            wait=True, boot_id="boot-a"
+        )
+        self.assertEqual(status["broadcast_state"], "off")
+        self.assertFalse(status["tx_running"])
+
     def test_systemd_service_does_not_wait_for_network(self):
         service = (
             Path(__file__).resolve().parents[2]
@@ -339,6 +459,7 @@ class ControllerRecoveryTests(unittest.TestCase):
         ).read_text()
         self.assertNotIn("network-online.target", service)
         self.assertIn("After=local-fs.target", service)
+        self.assertIn("StartLimitBurst=5", service)
 
 
 class StorageFailureTests(unittest.TestCase):
@@ -410,6 +531,18 @@ class StorageFailureTests(unittest.TestCase):
                     config.update({"frequency_mhz": 99.1})
             self.assertEqual(config.get("frequency_mhz"), previous)
             self.assertNotIn("99.1", path.read_text())
+
+
+class ControllerLeaseTests(unittest.TestCase):
+    def test_second_controller_process_lease_is_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            first = acquire_controller_lease(root)
+            try:
+                with self.assertRaisesRegex(RuntimeError, "already running"):
+                    acquire_controller_lease(root)
+            finally:
+                first.close()
 
 
 if __name__ == "__main__":

@@ -39,6 +39,16 @@ is latched for that machine boot so systemd restart loops cannot repeatedly
 attempt transmission. A later machine boot may retry because the operator's ON
 intent still exists; use **Lower the Black Flag** to deliberately disarm it.
 
+Each ON command has a unique durable intent revision. The transmitter lifecycle
+barrier rechecks that revision immediately before spawn, so a stale startup or
+prepared-audio task cannot override a newer STOP. STOP waits for every admitted
+spawn before verifying zero transmitters and returning.
+
+Only one appliance controller process may hold the local controller lease.
+Rapid service failures are rate-limited, and restoration is not marked
+successful until the transmitter remains stable through an initial observation
+window.
+
 Service shutdown stops the process-owned transmitter without changing operator
 intent. This distinction allows a service or machine restart to recover an
 intentional broadcast. Absolute STOP always changes intent to OFF first.

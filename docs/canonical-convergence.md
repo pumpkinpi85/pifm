@@ -51,7 +51,7 @@ repo (or in a private operator notebook).
 | 7 | Any local patches not in candidate | Must be ported here or dropped deliberately |
 | 8 | Legacy auto-start transmitter units still enabled? | Must be disabled before cutover |
 | 9 | Operator library/playlist locations | Migrate data only; never commit media |
-| 10 | Boot OFF AIR confirmed after service restart | Absolute safety invariant |
+| 10 | OFF intent confirmed after service restart | Absolute STOP safety invariant |
 
 ---
 

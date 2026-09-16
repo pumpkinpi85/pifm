@@ -49,6 +49,8 @@ class Controller:
             iface=str(config.get("network_iface") or "eth0"),
         )
         self._lock = threading.RLock()
+        self._tx_lifecycle_lock = threading.Lock()
+        self._closing = False
         self._queue = []  # type: List[str]  # track ids
         self._queue_index = -1
         self._playing = False
@@ -65,6 +67,9 @@ class Controller:
         self._track_started_monotonic = None  # type: Optional[float]
         self._track_duration_s = None  # type: Optional[float]
         self._tx_start_timeout_s = float(config.get("tx_start_timeout_s", 90) or 90)
+        self._recovery_stability_s = max(
+            0.0, float(config.get("recovery_stability_s", 5.0))
+        )
         self._started = time.time()
         self.events.emit("boot", "controller constructed; state=SAFE_OFF")
         # Evaluate READY vs SAFE_OFF from playlist contents; never ON_AIR
@@ -596,9 +601,11 @@ class Controller:
         )
         return None
 
-    def _persist_on_intent_unlocked(self, source: str) -> None:
+    def _persist_on_intent_unlocked(self, source: str) -> str:
         previous = self.recovery.status().get("desired_broadcast")
-        self.recovery.arm(self._recovery_snapshot_unlocked("playing"), source)
+        persisted = self.recovery.arm(
+            self._recovery_snapshot_unlocked("playing"), source
+        )
         self.events.emit(
             "BROADCAST_INTENT_CHANGED",
             "operator broadcast intent is ON",
@@ -606,21 +613,21 @@ class Controller:
             previous_intent=previous,
             next_intent="on",
         )
+        return str(persisted["intent_revision"])
 
     def update_config(self, patch: Dict[str, Any]) -> Dict[str, Any]:
         with self._lock:
-            if self.sm.state == State.ON_AIR or self.tx.is_running():
-                persistence_error = self._persist_off_intent_unlocked(
-                    "operator_config_change"
-                )
-                self._stop_tx_unlocked("config changed while on air")
-                kill_all_transmitters()
-                if persistence_error:
-                    self.sm.enter_fault(persistence_error)
-                elif self.sm.state == State.ON_AIR:
-                    self.sm.transition(
-                        State.READY if self._queue else State.SAFE_OFF, "config"
-                    )
+            must_stop = bool(
+                self.sm.state == State.ON_AIR
+                or self.tx.is_running()
+                or self._air_start_pending
+            )
+        if must_stop:
+            self.tx_off(
+                persist_off=True,
+                source="operator_config_change",
+            )
+        with self._lock:
             before_freq = self.config.get("frequency_mhz")
             data = self.config.update(patch)
             # Backend construction captures executable path and timing correction.
@@ -1097,6 +1104,7 @@ class Controller:
         persist_intent: bool = True,
         source: str = "operator",
         initial_program_state: str = "playing",
+        expected_intent_revision: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Go On Air. Heavy WAV prep runs outside the controller lock on Pi A+.
 
@@ -1110,9 +1118,12 @@ class Controller:
         """
         audio_path = None  # type: Optional[str]
         generation = 0
+        intent_revision = expected_intent_revision
         if initial_program_state not in ("playing", "paused", "stopped"):
             raise ValueError("invalid initial program state")
         with self._lock:
+            if self._closing:
+                raise StateError("The appliance is shutting down.")
             checklist = self.broadcast_checklist()
             if not checklist.get("ready"):
                 blockers = checklist.get("blockers") or []
@@ -1134,7 +1145,7 @@ class Controller:
             if self.sm.state == State.ON_AIR:
                 if persist_intent and not self.recovery.status().get("armed"):
                     try:
-                        self._persist_on_intent_unlocked(source)
+                        intent_revision = self._persist_on_intent_unlocked(source)
                     except RecoveryStateError as exc:
                         raise StateError(
                             "Could not arm broadcast recovery: {}".format(exc)
@@ -1165,7 +1176,7 @@ class Controller:
                 )
             if persist_intent:
                 try:
-                    self._persist_on_intent_unlocked(source)
+                    intent_revision = self._persist_on_intent_unlocked(source)
                 except RecoveryStateError as exc:
                     raise StateError(
                         "Could not arm broadcast recovery: {}".format(exc)
@@ -1194,7 +1205,10 @@ class Controller:
             def _bg() -> None:
                 try:
                     self._complete_go_on_air(
-                        generation, audio_path, initial_program_state
+                        generation,
+                        audio_path,
+                        initial_program_state,
+                        intent_revision,
                     )
                 except Exception:
                     with self._lock:
@@ -1209,7 +1223,10 @@ class Controller:
             ).start()
             return self.status()
         return self._complete_go_on_air(
-            generation, audio_path, initial_program_state
+            generation,
+            audio_path,
+            initial_program_state,
+            intent_revision,
         )
 
     def _complete_go_on_air(
@@ -1217,6 +1234,7 @@ class Controller:
         generation: int,
         audio_path: Optional[str],
         initial_program_state: str = "playing",
+        expected_intent_revision: Optional[str] = None,
     ) -> Dict[str, Any]:
         timed_out = False
         cancelled = False
@@ -1228,6 +1246,12 @@ class Controller:
                 if self._air_start_generation != generation:
                     return True
                 if not self._air_start_pending:
+                    return True
+                if self._closing:
+                    return True
+                if not self.recovery.matches_on_revision(
+                    expected_intent_revision
+                ):
                     return True
                 if self._air_start_deadline and time.time() > self._air_start_deadline:
                     return True
@@ -1338,43 +1362,35 @@ class Controller:
             rds_pi = str(self.config.get("rds_pi"))
             backend = str(self.config.get("tx_backend") or "mock")
 
-        # TX start + process reconcile outside the controller lock so /api/status
-        # and STOP remain responsive on Pi A+.
-        start_error = None  # type: Optional[BaseException]
-        try:
-            if initial_program_state == "playing":
-                self.tx.start(
-                    frequency_mhz=freq,
-                    audio_path=audio,
-                    rds_ps=rds_ps,
-                    rds_rt=rds_rt,
-                    rds_pi=rds_pi,
-                )
-            else:
-                self.tx.start_silence(
-                    frequency_mhz=freq,
-                    rds_ps=rds_ps,
-                    rds_rt=rds_rt,
-                    rds_pi=rds_pi,
-                )
-        except Exception as exc:  # noqa: BLE001
-            start_error = exc
-
-        worker_count = None  # type: Optional[int]
-        if start_error is None and backend in ("pi_fm_rds", "fake"):
-            try:
-                worker_count = count_transmitters()
-            except Exception:
-                worker_count = -1
+        # The lifecycle barrier makes STOP a strict boundary: it cannot return
+        # while an admitted spawn is still in progress.
+        start_error, worker_count, start_cancelled = (
+            self._spawn_broadcast_under_lifecycle_gate(
+                generation=generation,
+                expected_intent_revision=expected_intent_revision,
+                initial_program_state=initial_program_state,
+                frequency_mhz=freq,
+                audio_path=audio,
+                rds_ps=rds_ps,
+                rds_rt=rds_rt,
+                rds_pi=rds_pi,
+                backend=backend,
+            )
+        )
 
         with self._lock:
             self._air_start_pending = False
             self._air_start_deadline = None
-            if self._air_start_generation != generation:
+            if start_cancelled or self._air_start_generation != generation:
                 try:
                     self.tx.stop()
                 except Exception:
                     pass
+                self._program_pending = None
+                self.events.emit(
+                    "TX_START_CANCELLED",
+                    "Broadcast start invalidated before transmitter spawn",
+                )
                 return self.status()
             if start_error is not None:
                 self._program_pending = None
@@ -1442,6 +1458,59 @@ class Controller:
                 raise
             return self.status()
 
+    def _spawn_broadcast_under_lifecycle_gate(
+        self,
+        generation: int,
+        expected_intent_revision: Optional[str],
+        initial_program_state: str,
+        frequency_mhz: float,
+        audio_path: str,
+        rds_ps: str,
+        rds_rt: str,
+        rds_pi: str,
+        backend: str,
+    ) -> tuple:
+        with self._tx_lifecycle_lock:
+            with self._lock:
+                admitted = bool(
+                    not self._closing
+                    and self._air_start_pending
+                    and self._air_start_generation == generation
+                    and self.recovery.matches_on_revision(
+                        expected_intent_revision
+                    )
+                )
+            if not admitted:
+                return None, None, True
+
+            start_error = None  # type: Optional[BaseException]
+            try:
+                if initial_program_state == "playing":
+                    self.tx.start(
+                        frequency_mhz=frequency_mhz,
+                        audio_path=audio_path,
+                        rds_ps=rds_ps,
+                        rds_rt=rds_rt,
+                        rds_pi=rds_pi,
+                    )
+                else:
+                    self.tx.start_silence(
+                        frequency_mhz=frequency_mhz,
+                        rds_ps=rds_ps,
+                        rds_rt=rds_rt,
+                        rds_pi=rds_pi,
+                    )
+            except Exception as exc:  # noqa: BLE001
+                start_error = exc
+
+            worker_count = None  # type: Optional[int]
+            if start_error is None and backend in ("pi_fm_rds", "fake"):
+                try:
+                    worker_count = count_transmitters()
+                except Exception:
+                    worker_count = -1
+            return start_error, worker_count, False
+
     def tx_off(
         self,
         persist_off: bool = True,
@@ -1465,12 +1534,18 @@ class Controller:
                 clear_pf()
             self.events.emit("TX_STOP_REQUEST", "STOP BROADCAST")
             prev = self.sm.state
+
+        # Wait for an already-admitted spawn, then stop and sweep while holding
+        # the same barrier. No transmitter can spawn after this barrier exits.
+        with self._tx_lifecycle_lock:
             try:
                 self.tx.stop()
                 self.events.emit("TX_TERM", "backend stop completed", previous_state=prev.value)
             except Exception as exc:  # noqa: BLE001
                 self.events.emit("tx_failure", "stop error: {}".format(exc))
             sweep = kill_all_transmitters()
+
+        with self._lock:
             if sweep.get("actions") or sweep.get("cleaned"):
                 self.events.emit("TX_KILL", "sweep completed", kill_sweep=sweep)
             if not sweep.get("clear", True):
@@ -1512,12 +1587,10 @@ class Controller:
             return self.status()
 
     def clear_fault(self) -> Dict[str, Any]:
-        with self._lock:
-            self._stop_tx_unlocked("clear fault")
-            kill_all_transmitters()
-            self.sm.reset_to_safe()
-            self._refresh_ready_unlocked()
-            return self.status()
+        return self.tx_off(
+            persist_off=True,
+            source="clear_fault",
+        )
 
     def restore_persisted_broadcast_intent(
         self,
@@ -1569,9 +1642,33 @@ class Controller:
                     persist_intent=False,
                     source="power_or_service_restore",
                     initial_program_state=program_state,
+                    expected_intent_revision=str(
+                        recovery_state.get("intent_revision") or ""
+                    ),
                 )
                 if status.get("broadcast_state") != "on_air":
                     raise StateError("transmitter did not reach ON AIR")
+                deadline = time.monotonic() + self._recovery_stability_s
+                while time.monotonic() < deadline:
+                    time.sleep(min(0.1, deadline - time.monotonic()))
+                    with self._lock:
+                        stable = bool(
+                            not self._closing
+                            and self.sm.state == State.ON_AIR
+                            and self.tx.is_running()
+                            and self.recovery.matches_on_revision(
+                                str(
+                                    recovery_state.get(
+                                        "intent_revision"
+                                    )
+                                    or ""
+                                )
+                            )
+                        )
+                    if not stable:
+                        raise StateError(
+                            "restored transmitter did not remain stable"
+                        )
                 self.recovery.finish_restore("restored")
                 self.events.emit(
                     "RECOVERY_COMPLETED",
@@ -1581,11 +1678,13 @@ class Controller:
                 return self.status()
             except Exception as exc:  # noqa: BLE001
                 reason = str(exc)
-                result = (
-                    "refused"
-                    if not self.broadcast_checklist().get("ready")
-                    else "failed"
-                )
+                try:
+                    checklist_ready = bool(
+                        self.broadcast_checklist().get("ready")
+                    )
+                except Exception:
+                    checklist_ready = False
+                result = "failed" if checklist_ready else "refused"
                 self.recovery.finish_restore(result, reason)
                 self.events.emit("RECOVERY_REFUSED", reason, result=result)
                 return self.status()
@@ -1601,10 +1700,18 @@ class Controller:
 
     def service_shutdown(self) -> Dict[str, Any]:
         """Stop this process's RF worker without changing operator intent."""
+        self.begin_shutdown()
         return self.tx_off(
             persist_off=False,
             source="service_shutdown",
         )
+
+    def begin_shutdown(self) -> None:
+        with self._lock:
+            self._closing = True
+            self._air_start_pending = False
+            self._air_start_generation += 1
+            self._program_generation += 1
 
     def rf_quiet(self, confirmed: bool = False) -> Dict[str, Any]:
         """Orthogonal to TX — never starts transmission."""

@@ -44,7 +44,7 @@ Checklist:
 8. Play / Pause / Next with TX still OFF (program preview / mock as applicable)
 9. If using mock: Raise/Lower Black Flag exercises lifecycle without RF
 10. Absolute STOP while STARTING (inject slow prepare in test harness or use mock delay)
-11. Reboot; confirm OFF AIR; no auto-transmit
+11. With recovery disarmed/OFF intent, reboot; confirm OFF AIR and zero TX
 12. Record board model, OS version, piFM commit, `pi_fm_rds` commit on the
     evidence template
 

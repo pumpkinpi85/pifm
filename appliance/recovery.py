@@ -12,6 +12,7 @@ import os
 import tempfile
 import threading
 import time
+import uuid
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -63,6 +64,9 @@ class BroadcastIntentStore:
             raise ValueError("unsupported state version")
         if payload.get("desired_broadcast") != "on":
             raise ValueError("marker does not contain ON intent")
+        revision = payload.get("intent_revision")
+        if not isinstance(revision, str) or not revision:
+            raise ValueError("intent revision is required")
         program_state = str(payload.get("program_state") or "")
         if program_state not in PROGRAM_STATES:
             raise ValueError("invalid program state")
@@ -100,6 +104,7 @@ class BroadcastIntentStore:
         fd, temporary = tempfile.mkstemp(
             prefix=".broadcast-on.", suffix=".json", dir=str(self.directory)
         )
+        replaced = False
         try:
             with os.fdopen(fd, "w") as handle:
                 json.dump(clean, handle, indent=2, sort_keys=True)
@@ -107,7 +112,18 @@ class BroadcastIntentStore:
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(temporary, str(self.path))
+            replaced = True
             self._fsync_directory()
+        except OSError:
+            if replaced:
+                try:
+                    self.path.unlink()
+                    self._fsync_directory()
+                except OSError:
+                    pass
+                self._state = None
+                self._invalid_reason = None
+            raise
         finally:
             if os.path.exists(temporary):
                 os.unlink(temporary)
@@ -119,6 +135,7 @@ class BroadcastIntentStore:
         payload = {
             "version": STATE_VERSION,
             "desired_broadcast": "on",
+            "intent_revision": uuid.uuid4().hex,
             "program_state": snapshot.get("program_state") or "playing",
             "active_playlist": snapshot.get("active_playlist"),
             "queue": list(snapshot.get("queue") or []),
@@ -224,6 +241,15 @@ class BroadcastIntentStore:
     def snapshot(self) -> Optional[Dict[str, Any]]:
         with self._lock:
             return deepcopy(self._state)
+
+    def matches_on_revision(self, revision: Optional[str]) -> bool:
+        with self._lock:
+            return bool(
+                revision
+                and self._state is not None
+                and self._invalid_reason is None
+                and self._state.get("intent_revision") == revision
+            )
 
     def status(self) -> Dict[str, Any]:
         with self._lock:

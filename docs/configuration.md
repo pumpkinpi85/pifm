@@ -18,7 +18,10 @@ See `examples/config.example.json`.
 | `gpio_enabled` | Optional panel LED/switch (default false) |
 | `tx_pin` | Documented RF GPIO BCM (default 4) |
 
-ON_AIR is **never** persisted. Service restart → OFF AIR.
+Transient ON_AIR state and transmitter PIDs are **never** persisted here.
+Operator ON intent is stored separately under `data/recovery/`; a service
+restart may restore that intent only after safety validation. Absolute STOP
+removes it first.
 
 `mock` / `fake` backends exist for automated tests and developer validation only.
 

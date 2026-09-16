@@ -40,13 +40,13 @@ unless Phase B is authorized.
 | 9 | Play / Pause / Next with TX OFF | | |
 | 10 | Mock (or inhibited) Raise/Lower Black Flag lifecycle | | |
 | 11 | Absolute STOP during STARTING | | |
-| 12 | Reboot → OFF AIR; no auto-transmit | | |
+| 12 | OFF intent + reboot → OFF AIR; zero TX | | |
 
 ## Safety attestations
 
 - [ ] No unintended transmission observed during Phase A
 - [ ] Absolute STOP remained available
-- [ ] Config/service restart left station OFF AIR
+- [ ] OFF intent/service restart left station OFF AIR
 - [ ] No private LAN IPs, personal paths, media, or commissioning bundles were copied into the candidate tree
 
 ## Disposition

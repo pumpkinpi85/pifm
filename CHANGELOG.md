@@ -8,6 +8,9 @@
   or machine shutdown.
 - Restores only through canonical hardware, backend, media, and single-worker
   gates, with same-boot failure latching to prevent restart loops.
+- Adds per-command intent revisions, a strict start/STOP lifecycle barrier, a
+  single-controller process lease, restoration stability observation, and
+  systemd restart throttling.
 - Removes network-online ordering from the appliance service and keeps browser,
   LAN, DNS, NTP, Internet, and cloud state outside the playback lifecycle.
 - Persists useful playlist/current-track/program state and adds local,
