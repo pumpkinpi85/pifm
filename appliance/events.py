@@ -19,11 +19,16 @@ class EventLog:
         self._events = deque(maxlen=maxlen)  # type: Deque[Dict[str, Any]]
         self._lock = threading.Lock()
         self._persist_path = Path(persist_path) if persist_path else None
+        self.persistence_error = None  # type: Optional[str]
         self._seq = 0
         self._listeners = []  # type: List[Callable[[Dict[str, Any]], None]]
         self._cond = threading.Condition(self._lock)
         if self._persist_path is not None:
-            self._persist_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                self._persist_path.parent.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                self.persistence_error = str(exc)
+                self._persist_path = None
 
     def subscribe(self, callback: Callable[[Dict[str, Any]], None]) -> Callable[[], None]:
         """Register a listener. Returns an unsubscribe function."""
@@ -73,8 +78,9 @@ class EventLog:
                 try:
                     with open(str(self._persist_path), "a") as fh:
                         fh.write(json.dumps(row, default=str) + "\n")
-                except OSError:
-                    pass
+                except OSError as exc:
+                    self.persistence_error = str(exc)
+                    self._persist_path = None
         for cb in listeners:
             try:
                 cb(row)

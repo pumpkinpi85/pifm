@@ -1,7 +1,6 @@
 [Unit]
 Description=piFM Pirate Radio appliance
-After=network-online.target
-Wants=network-online.target
+After=local-fs.target
 
 [Service]
 Type=simple
@@ -12,7 +11,8 @@ Environment=PIFM_ROOT=/opt/pifm
 ExecStart=/usr/bin/python3 -m appliance
 # Always restart, including clean exit 0 — a prior control-path bug could kill
 # the process group and leave the Deck dead under on-failure-only policy.
-# Starting this service must NOT start FM TX; appliance boots OFF AIR.
+# Starting this service may restore only a previously persisted operator ON
+# intent, after the application repeats all readiness/single-TX checks.
 Restart=always
 RestartSec=3
 

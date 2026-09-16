@@ -30,6 +30,7 @@ class StationOpsTests(unittest.TestCase):
         (target / "config").mkdir(parents=True)
         (target / "data" / "library").mkdir(parents=True)
         (target / "data" / "playlists").mkdir(parents=True)
+        (target / "data" / "recovery").mkdir(parents=True)
         (target / "appliance").mkdir(parents=True)
         (target / "appliance" / "marker_old.txt").write_text("old-app\n")
         cfg = {
@@ -64,6 +65,9 @@ class StationOpsTests(unittest.TestCase):
             json.dumps({"name": "default", "tracks": ["a"], "updated": 1}) + "\n"
         )
         (target / "data" / "library.sqlite3").write_text("sqlite-bytes")
+        (target / "data" / "recovery" / "broadcast-on.json").write_text(
+            '{"version":1,"desired_broadcast":"on"}\n'
+        )
 
     def test_backup_manifest_dry_run_and_real(self):
         ops = self.ops
@@ -80,6 +84,9 @@ class StationOpsTests(unittest.TestCase):
             self.assertTrue((backup_root / "MANIFEST.json").is_file())
             self.assertTrue((backup_root / "config" / "appliance.json").is_file())
             self.assertTrue((backup_root / "data" / "library" / "song.mp3").is_file())
+            self.assertTrue(
+                (backup_root / "data/recovery/broadcast-on.json").is_file()
+            )
             self.assertIn("build", man)
 
     def test_stage_deploy_preserves_operator_data_and_strips_on_air(self):
@@ -112,6 +119,9 @@ class StationOpsTests(unittest.TestCase):
             self.assertEqual((target / "data" / "library" / "song.mp3").read_text(), "fake-mp3")
             self.assertTrue((target / "data" / "playlists" / "default.json").is_file())
             self.assertEqual((target / "data" / "library.sqlite3").read_text(), "sqlite-bytes")
+            self.assertTrue(
+                (target / "data/recovery/broadcast-on.json").is_file()
+            )
             # Config preserved but ON_AIR keys stripped
             cfg = json.loads((target / "config" / "appliance.json").read_text())
             self.assertEqual(cfg["frequency_mhz"], 91.5)
@@ -169,6 +179,9 @@ class StationOpsTests(unittest.TestCase):
             self.assertEqual(info["git_sha"], "11111111")
             self.assertEqual((target / "data" / "library" / "new.mp3").read_text(), "new")
             self.assertEqual((target / "data" / "library" / "song.mp3").read_text(), "fake-mp3")
+            self.assertTrue(
+                (target / "data/recovery/broadcast-on.json").is_file()
+            )
 
     def test_validate_requires_zero_tx_and_off_air(self):
         ops = self.ops

@@ -1,4 +1,4 @@
-"""Persistent configuration. TX ON_AIR is never persisted."""
+"""Persistent station configuration; transient TX state is never stored here."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-# Production default: real transmitter target, always OFF AIR until operator action.
+# Production default: real transmitter target, OFF until deliberate operator intent.
 # Automated tests override tx_backend to mock/fake in their own config files.
 DEFAULTS = {
     "frequency_mhz": 90.0,
@@ -39,7 +39,7 @@ DEFAULTS = {
     "rf_quiet_mode": "simulate",
     "rf_quiet_seconds": 60,
     "product_name": "piFM Pirate Radio",
-    "software_version": "0.5.0",
+    "software_version": "0.6.0",
 }
 
 FREQ_MIN = 87.1
@@ -132,7 +132,7 @@ class Config:
             data["pi_fm_rds_path"] = str((self.root / tx_path).resolve())
 
     def save(self) -> None:
-        # Atomic write; never include ON_AIR
+        # Atomic write; never include transient ON_AIR/process state.
         payload = deepcopy(self._data)
         payload.pop("tx_on_air", None)
         payload.pop("state", None)
@@ -144,7 +144,17 @@ class Config:
             with os.fdopen(fd, "w") as fh:
                 json.dump(payload, fh, indent=2, sort_keys=True)
                 fh.write("\n")
+                fh.flush()
+                os.fsync(fh.fileno())
             os.replace(tmp, str(self.path))
+            flags = os.O_RDONLY
+            if hasattr(os, "O_DIRECTORY"):
+                flags |= os.O_DIRECTORY
+            directory_fd = os.open(str(self.path.parent), flags)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
         finally:
             if os.path.exists(tmp):
                 try:
@@ -164,8 +174,13 @@ class Config:
         merged = deepcopy(self._data)
         merged.update(clean)
         self._validate(merged)
+        previous = self._data
         self._data = merged
-        self.save()
+        try:
+            self.save()
+        except Exception:
+            self._data = previous
+            raise
         return self.as_dict()
 
     def resolve(self, key: str) -> Path:

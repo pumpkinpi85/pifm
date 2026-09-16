@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
@@ -201,6 +202,17 @@ def import_media_stream(
             "media": probe,
             "track": track,
         }
+    except OSError as exc:
+        if exc.errno in (errno.ENOSPC, errno.EDQUOT):
+            raise MediaImportError(
+                "Storage is full. Existing music was not changed."
+            )
+        raise MediaImportError(
+            "This music file could not be saved. Existing music was not changed."
+        )
     finally:
         if partial.exists():
-            partial.unlink()
+            try:
+                partial.unlink()
+            except OSError:
+                pass

@@ -15,16 +15,24 @@ from .hardware_environment import check_host_prerequisites
 from .hardware_profile import resolve_hardware_profile
 from .library import Library
 from .network import NetworkManager
+from .recovery import BroadcastIntentStore, RecoveryStateError, current_boot_id
 from .state import State, StateError, StateMachine  # StateError used by API callers
 from .tx import TxBackend, build_backend, kill_all_transmitters, probe_real_tx_readiness
 from .tx_process import StartCancelled, count_transmitters, list_transmitter_processes
 
 
 class Controller:
-    def __init__(self, config: Config, library: Library, events: EventLog) -> None:
+    def __init__(
+        self,
+        config: Config,
+        library: Library,
+        events: EventLog,
+        recovery: Optional[BroadcastIntentStore] = None,
+    ) -> None:
         self.config = config
         self.library = library
         self.events = events
+        self.recovery = recovery or BroadcastIntentStore(config.root)
         self.sm = StateMachine()
         self.tx = build_backend(
             str(config.get("tx_backend")),
@@ -54,6 +62,8 @@ class Controller:
         # None | starting | pausing | resuming | changing
         self._program_pending = None  # type: Optional[str]
         self._program_generation = 0
+        self._track_started_monotonic = None  # type: Optional[float]
+        self._track_duration_s = None  # type: Optional[float]
         self._tx_start_timeout_s = float(config.get("tx_start_timeout_s", 90) or 90)
         self._started = time.time()
         self.events.emit("boot", "controller constructed; state=SAFE_OFF")
@@ -76,6 +86,17 @@ class Controller:
             pl_id = str(cfg.get("active_playlist") or "")
             pl_name = pl_id
             track_count = len(self._queue)
+            has_playable_track = False
+            for track_id in self._queue:
+                track = self.library.get_track(track_id)
+                if not track:
+                    continue
+                try:
+                    if self.library.absolute_path(track["path"]).is_file():
+                        has_playable_track = True
+                        break
+                except (OSError, ValueError):
+                    continue
             try:
                 pl = self.library.load_playlist(pl_id)
                 pl_name = str(pl.get("name") or pl_id)
@@ -130,10 +151,10 @@ class Controller:
                 {
                     "id": "music",
                     "label": "Music available",
-                    "ok": track_count > 0,
+                    "ok": has_playable_track,
                     "detail": "Program queue has music"
-                    if track_count
-                    else "Active playlist has no tracks",
+                    if has_playable_track
+                    else "Active playlist has no playable files",
                     "operator_hint": "Add tracks to your playlist before going on air.",
                     "cta": "music",
                     "cta_label": "Choose music",
@@ -263,6 +284,7 @@ class Controller:
                 "playlist_id": pl_id,
                 "playlist_name": pl_name,
                 "track_count": track_count,
+                "has_playable_track": has_playable_track,
                 "frequency_mhz": freq,
                 "rds_ps": cfg.get("rds_ps"),
                 "rds_rt": cfg.get("rds_rt"),
@@ -445,14 +467,85 @@ class Controller:
                 "setup_completed": bool(cfg.get("setup_completed", True)),
                 "setup_required": not bool(cfg.get("setup_completed", True)),
                 "gpio_enabled": bool(cfg.get("gpio_enabled")),
+                "broadcast_recovery": self.recovery.status(),
                 "broadcast": checklist,
                 "queue_fingerprint": list(self._queue),
             }
+
+    def _program_state_unlocked(self) -> str:
+        if self._paused:
+            return "paused"
+        if self._playing:
+            return "playing"
+        return "stopped"
+
+    def _recovery_snapshot_unlocked(
+        self, program_state: Optional[str] = None
+    ) -> Dict[str, Any]:
+        current_track_id = None
+        if 0 <= self._queue_index < len(self._queue):
+            current_track_id = self._queue[self._queue_index]
+        return {
+            "program_state": program_state or self._program_state_unlocked(),
+            "active_playlist": str(self.config.get("active_playlist") or ""),
+            "queue": list(self._queue),
+            "current_track_id": current_track_id,
+        }
+
+    def _update_recovery_program_unlocked(self) -> None:
+        if not self.recovery.update_program(self._recovery_snapshot_unlocked()):
+            status = self.recovery.status()
+            if status.get("armed") and status.get("last_error"):
+                self.events.emit(
+                    "RECOVERY_PERSISTENCE_FAILED",
+                    str(status["last_error"]),
+                )
+
+    def _set_track_timing_unlocked(self) -> None:
+        meta = self.tx.status()
+        duration = meta.get("wav_duration_s")
+        try:
+            parsed = float(duration) if duration is not None else None
+        except (TypeError, ValueError):
+            parsed = None
+        self._track_duration_s = parsed if parsed and parsed > 0 else None
+        self._track_started_monotonic = (
+            time.monotonic() if self._track_duration_s is not None else None
+        )
+
+    def _clear_track_timing_unlocked(self) -> None:
+        self._track_started_monotonic = None
+        self._track_duration_s = None
 
     def _current_track(self) -> Optional[Dict[str, Any]]:
         if self._queue_index < 0 or self._queue_index >= len(self._queue):
             return None
         return self.library.get_track(self._queue[self._queue_index])
+
+    def _select_existing_track_unlocked(self) -> Optional[Dict[str, Any]]:
+        if not self._queue:
+            return None
+        start = self._queue_index if self._queue_index >= 0 else 0
+        for offset in range(len(self._queue)):
+            index = (start + offset) % len(self._queue)
+            track = self.library.get_track(self._queue[index])
+            if not track:
+                continue
+            try:
+                exists = self.library.absolute_path(track["path"]).is_file()
+            except (OSError, ValueError):
+                exists = False
+            if exists:
+                if index != start:
+                    self.events.emit(
+                        "MEDIA_TRACK_SKIPPED",
+                        "missing track skipped before Broadcast start",
+                        track_id=self._queue[start],
+                        next_track=track,
+                    )
+                self._queue_index = index
+                return track
+        return None
 
     def _first_up_unlocked(self) -> Optional[Dict[str, Any]]:
         """Next/first track to play when program is stopped (does not mutate)."""
@@ -480,8 +573,54 @@ class Controller:
 
     # --- config / library ---
 
+    def _persist_off_intent_unlocked(self, source: str) -> Optional[str]:
+        previous = self.recovery.status().get("desired_broadcast")
+        try:
+            self.recovery.disarm()
+        except RecoveryStateError as exc:
+            message = str(exc)
+            self.events.emit(
+                "RECOVERY_PERSISTENCE_FAILED",
+                message,
+                source=source,
+                previous_intent=previous,
+                next_intent="off",
+            )
+            return message
+        self.events.emit(
+            "BROADCAST_INTENT_CHANGED",
+            "operator broadcast intent is OFF",
+            source=source,
+            previous_intent=previous,
+            next_intent="off",
+        )
+        return None
+
+    def _persist_on_intent_unlocked(self, source: str) -> None:
+        previous = self.recovery.status().get("desired_broadcast")
+        self.recovery.arm(self._recovery_snapshot_unlocked("playing"), source)
+        self.events.emit(
+            "BROADCAST_INTENT_CHANGED",
+            "operator broadcast intent is ON",
+            source=source,
+            previous_intent=previous,
+            next_intent="on",
+        )
+
     def update_config(self, patch: Dict[str, Any]) -> Dict[str, Any]:
         with self._lock:
+            if self.sm.state == State.ON_AIR or self.tx.is_running():
+                persistence_error = self._persist_off_intent_unlocked(
+                    "operator_config_change"
+                )
+                self._stop_tx_unlocked("config changed while on air")
+                kill_all_transmitters()
+                if persistence_error:
+                    self.sm.enter_fault(persistence_error)
+                elif self.sm.state == State.ON_AIR:
+                    self.sm.transition(
+                        State.READY if self._queue else State.SAFE_OFF, "config"
+                    )
             before_freq = self.config.get("frequency_mhz")
             data = self.config.update(patch)
             # Backend construction captures executable path and timing correction.
@@ -492,14 +631,6 @@ class Controller:
                 "pi_fm_rds_ppm",
             }
             backend_changed = bool(backend_keys.intersection(patch))
-            if self.sm.state == State.ON_AIR or self.tx.is_running():
-                # Changing freq/RDS/backend while on air: emergency stop first
-                self._stop_tx_unlocked("config changed while on air")
-                kill_all_transmitters()
-                if self.sm.state == State.ON_AIR:
-                    self.sm.transition(
-                        State.READY if self._queue else State.SAFE_OFF, "config"
-                    )
             if backend_changed:
                 kill_all_transmitters()
                 self.tx = build_backend(
@@ -625,6 +756,7 @@ class Controller:
             was_paused = self._paused
             self._playing = True
             self._paused = False
+            self._update_recovery_program_unlocked()
             self._refresh_ready_unlocked()
             self.events.emit("track_changed", "play", track=self._current_track())
             if self.sm.state == State.ON_AIR:
@@ -705,6 +837,8 @@ class Controller:
                         rds_rt=str(self.config.get("rds_rt")),
                         rds_pi=str(self.config.get("rds_pi")),
                     )
+                self._clear_track_timing_unlocked()
+                self._update_recovery_program_unlocked()
                 self._program_pending = None
                 self.events.emit(
                     "program_paused",
@@ -722,6 +856,7 @@ class Controller:
             self._program_pending = None
             self._program_generation += 1
             self._queue_index = -1
+            self._clear_track_timing_unlocked()
             if self.sm.state == State.ON_AIR:
                 # Stop the program but keep the station on air (silence hold).
                 # program_state becomes "stopped" (not paused).
@@ -732,6 +867,7 @@ class Controller:
                         rds_rt=str(self.config.get("rds_rt")),
                         rds_pi=str(self.config.get("rds_pi")),
                     )
+                self._update_recovery_program_unlocked()
                 self.events.emit(
                     "program_stopped",
                     "program stopped — still ON_AIR (silence loop)",
@@ -767,15 +903,22 @@ class Controller:
                     else:
                         self._queue_index = len(self._queue) - 1
                         self._playing = False
+                        self._paused = False
                         self._program_pending = None
                         if self.sm.state == State.ON_AIR:
-                            self._stop_tx_unlocked("end of playlist")
-                            self.sm.transition(State.READY, "end")
+                            self._hold_silence_unlocked()
+                            self._clear_track_timing_unlocked()
+                            self.events.emit(
+                                "PROGRAM_ENDED",
+                                "playlist ended; Broadcast remains ON with silence",
+                            )
+                        self._update_recovery_program_unlocked()
                         return self.status()
             else:
                 self._queue_index = max(0, self._queue_index - 1)
             self._paused = False
             self._playing = True
+            self._update_recovery_program_unlocked()
             label = "next" if direction > 0 else "previous"
             self.events.emit("track_changed", label, track=self._current_track())
             if self.sm.state == State.ON_AIR:
@@ -867,12 +1010,35 @@ class Controller:
                 if callable(clear_pf):
                     clear_pf()
                 self._program_pending = None
-                self.events.emit("tx_failure", str(prefetch_error))
-                raise StateError("Could not change music audio: {}".format(prefetch_error))
+                self.events.emit(
+                    "MEDIA_TRACK_FAILED",
+                    "track could not be prepared; Broadcast remains ON with silence",
+                    error=str(prefetch_error),
+                    track=self._current_track(),
+                )
+                try:
+                    self._hold_silence_unlocked()
+                except Exception as silence_error:  # noqa: BLE001
+                    self.sm.enter_fault(
+                        "failed track and silence hold failed: {}".format(
+                            silence_error
+                        )
+                    )
+                    self.events.emit("FAULT", str(silence_error))
+                    raise StateError(
+                        "Could not change music or hold Broadcast safely."
+                    )
+                self._playing = False
+                self._paused = False
+                self._clear_track_timing_unlocked()
+                self._update_recovery_program_unlocked()
+                return self.status()
             try:
                 self._start_tx_current_unlocked()
                 self._playing = True
                 self._paused = False
+                self._set_track_timing_unlocked()
+                self._update_recovery_program_unlocked()
                 self._program_pending = None
                 kind, message = success_event
                 self.events.emit(
@@ -913,14 +1079,25 @@ class Controller:
                     source_path=path,
                     opportunistic=True,
                 )
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                self.events.emit(
+                    "MEDIA_WARM_FAILED",
+                    "up-next audio could not be cached",
+                    error=str(exc),
+                    source_path=path,
+                )
 
         threading.Thread(target=_work, name="pifm-warm-next", daemon=True).start()
 
     # --- TX ---
 
-    def go_on_air(self, wait: bool = True) -> Dict[str, Any]:
+    def go_on_air(
+        self,
+        wait: bool = True,
+        persist_intent: bool = True,
+        source: str = "operator",
+        initial_program_state: str = "playing",
+    ) -> Dict[str, Any]:
         """Go On Air. Heavy WAV prep runs outside the controller lock on Pi A+.
 
         wait=True (default): block until ON AIR / fault (unit tests).
@@ -933,6 +1110,8 @@ class Controller:
         """
         audio_path = None  # type: Optional[str]
         generation = 0
+        if initial_program_state not in ("playing", "paused", "stopped"):
+            raise ValueError("invalid initial program state")
         with self._lock:
             checklist = self.broadcast_checklist()
             if not checklist.get("ready"):
@@ -946,11 +1125,20 @@ class Controller:
             self._ensure_queue_loaded_unlocked()
             if self._queue_index < 0:
                 self._queue_index = 0
+            if not self._select_existing_track_unlocked():
+                raise StateError("no playable track in active playlist")
             if self.sm.state == State.FAULT:
                 raise StateError(
                     "The station needs attention. Press STOP BROADCAST first, then try again."
                 )
             if self.sm.state == State.ON_AIR:
+                if persist_intent and not self.recovery.status().get("armed"):
+                    try:
+                        self._persist_on_intent_unlocked(source)
+                    except RecoveryStateError as exc:
+                        raise StateError(
+                            "Could not arm broadcast recovery: {}".format(exc)
+                        )
                 if not self.tx.is_running():
                     self.events.emit(
                         "TX_START_REQUEST",
@@ -975,13 +1163,21 @@ class Controller:
                 raise StateError(
                     "Already starting — wait for ON AIR or press STOP BROADCAST."
                 )
+            if persist_intent:
+                try:
+                    self._persist_on_intent_unlocked(source)
+                except RecoveryStateError as exc:
+                    raise StateError(
+                        "Could not arm broadcast recovery: {}".format(exc)
+                    )
             if self.sm.state == State.SAFE_OFF:
                 self.sm.transition(State.READY, "arm")
             self.events.emit("TX_START_REQUEST", "operator requested ON_AIR")
             track = self._current_track()
             if not track:
                 raise StateError("no current track")
-            audio_path = str(self.library.absolute_path(track["path"]))
+            if initial_program_state == "playing":
+                audio_path = str(self.library.absolute_path(track["path"]))
             self._air_start_generation += 1
             generation = self._air_start_generation
             self._air_start_pending = True
@@ -997,7 +1193,9 @@ class Controller:
         if not wait:
             def _bg() -> None:
                 try:
-                    self._complete_go_on_air(generation, audio_path)
+                    self._complete_go_on_air(
+                        generation, audio_path, initial_program_state
+                    )
                 except Exception:
                     with self._lock:
                         if self._air_start_generation == generation:
@@ -1010,10 +1208,15 @@ class Controller:
                 daemon=True,
             ).start()
             return self.status()
-        return self._complete_go_on_air(generation, audio_path)
+        return self._complete_go_on_air(
+            generation, audio_path, initial_program_state
+        )
 
     def _complete_go_on_air(
-        self, generation: int, audio_path: Optional[str]
+        self,
+        generation: int,
+        audio_path: Optional[str],
+        initial_program_state: str = "playing",
     ) -> Dict[str, Any]:
         timed_out = False
         cancelled = False
@@ -1102,6 +1305,12 @@ class Controller:
                 if callable(clear_pf):
                     clear_pf()
                 self._program_pending = None
+                self.events.emit(
+                    "MEDIA_TRACK_FAILED",
+                    "track could not be prepared for Broadcast",
+                    error=str(prefetch_error),
+                    track=self._current_track(),
+                )
                 self.events.emit("TX_START_REJECTED", str(prefetch_error))
                 self._stop_tx_unlocked("start failed")
                 self.sm.enter_fault("TX start failed: {}".format(prefetch_error))
@@ -1118,7 +1327,11 @@ class Controller:
                 self._air_start_deadline = None
                 self._program_pending = None
                 raise StateError("no current track")
-            audio = str(self.library.absolute_path(track["path"]))
+            audio = (
+                str(self.library.absolute_path(track["path"]))
+                if initial_program_state == "playing"
+                else ""
+            )
             freq = float(self.config.get("frequency_mhz"))
             rds_ps = str(self.config.get("rds_ps"))
             rds_rt = str(self.config.get("rds_rt"))
@@ -1129,13 +1342,21 @@ class Controller:
         # and STOP remain responsive on Pi A+.
         start_error = None  # type: Optional[BaseException]
         try:
-            self.tx.start(
-                frequency_mhz=freq,
-                audio_path=audio,
-                rds_ps=rds_ps,
-                rds_rt=rds_rt,
-                rds_pi=rds_pi,
-            )
+            if initial_program_state == "playing":
+                self.tx.start(
+                    frequency_mhz=freq,
+                    audio_path=audio,
+                    rds_ps=rds_ps,
+                    rds_rt=rds_rt,
+                    rds_pi=rds_pi,
+                )
+            else:
+                self.tx.start_silence(
+                    frequency_mhz=freq,
+                    rds_ps=rds_ps,
+                    rds_rt=rds_rt,
+                    rds_pi=rds_pi,
+                )
         except Exception as exc:  # noqa: BLE001
             start_error = exc
 
@@ -1188,8 +1409,13 @@ class Controller:
                             "Could not go on air — transmitter state could not be confirmed. Press STOP BROADCAST."
                         )
                 self.sm.transition(State.ON_AIR, "tx started")
-                self._playing = True
-                self._paused = False
+                self._playing = initial_program_state == "playing"
+                self._paused = initial_program_state == "paused"
+                if self._playing:
+                    self._set_track_timing_unlocked()
+                else:
+                    self._clear_track_timing_unlocked()
+                self._update_recovery_program_unlocked()
                 self._program_pending = None
                 meta = self.tx.status()
                 self.events.emit(
@@ -1216,9 +1442,18 @@ class Controller:
                 raise
             return self.status()
 
-    def tx_off(self) -> Dict[str, Any]:
+    def tx_off(
+        self,
+        persist_off: bool = True,
+        source: str = "operator",
+    ) -> Dict[str, Any]:
         """Absolute STOP BROADCAST — independent of state machine validity."""
         with self._lock:
+            persistence_error = (
+                self._persist_off_intent_unlocked(source)
+                if persist_off
+                else None
+            )
             self._air_stop_pending = True
             self._air_start_pending = False
             self._air_start_deadline = None
@@ -1247,7 +1482,8 @@ class Controller:
                 self.events.emit("TX_EXIT", "no transmitter processes remain")
             self._playing = False
             self._paused = False
-            if sweep.get("clear", True):
+            self._clear_track_timing_unlocked()
+            if sweep.get("clear", True) and not persistence_error:
                 if self.sm.state == State.ON_AIR:
                     self.sm.transition(
                         State.READY if self._queue else State.SAFE_OFF, "tx off"
@@ -1255,13 +1491,19 @@ class Controller:
                 elif self.sm.state == State.FAULT:
                     self.sm.reset_to_safe()
                     self._refresh_ready_unlocked()
+            elif persistence_error:
+                self.sm.enter_fault(persistence_error)
             self._air_stop_pending = False
             self.events.emit(
                 "STATE_RECONCILE",
                 (
-                    "STOP BROADCAST reconciled to OFF"
-                    if sweep.get("clear", True)
-                    else "STOP BROADCAST could not prove RF is off"
+                    "RF stopped but OFF intent could not be persisted"
+                    if persistence_error
+                    else (
+                        "STOP BROADCAST reconciled to OFF"
+                        if sweep.get("clear", True)
+                        else "STOP BROADCAST could not prove RF is off"
+                    )
                 ),
                 previous_state=prev.value,
                 state=self.sm.state.value,
@@ -1276,6 +1518,93 @@ class Controller:
             self.sm.reset_to_safe()
             self._refresh_ready_unlocked()
             return self.status()
+
+    def restore_persisted_broadcast_intent(
+        self,
+        wait: bool = False,
+        boot_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Restore deliberate ON intent through the canonical safety gates."""
+        recovery_state, refusal = self.recovery.begin_restore(
+            boot_id or current_boot_id()
+        )
+        if recovery_state is None:
+            if refusal and "not armed" not in refusal:
+                self.events.emit("RECOVERY_REFUSED", refusal)
+            return self.status()
+
+        with self._lock:
+            expected_playlist = str(
+                recovery_state.get("active_playlist") or ""
+            )
+            active_playlist = str(self.config.get("active_playlist") or "")
+            self._ensure_queue_loaded_unlocked()
+            if expected_playlist != active_playlist:
+                reason = "active playlist changed since ON intent was recorded"
+                self.recovery.finish_restore("refused", reason)
+                self.events.emit("RECOVERY_REFUSED", reason)
+                return self.status()
+            stored_queue = list(recovery_state.get("queue") or [])
+            if stored_queue and Counter(stored_queue) == Counter(self._queue):
+                self._queue = stored_queue
+            current_track_id = recovery_state.get("current_track_id")
+            if current_track_id in self._queue:
+                self._queue_index = self._queue.index(current_track_id)
+            elif self._queue:
+                self._queue_index = 0
+            program_state = str(
+                recovery_state.get("program_state") or "playing"
+            )
+            self.events.emit(
+                "RECOVERY_REQUESTED",
+                "persisted ON intent found; validating safe restoration",
+                program_state=program_state,
+                active_playlist=active_playlist,
+            )
+
+        def _restore() -> Dict[str, Any]:
+            try:
+                status = self.go_on_air(
+                    wait=True,
+                    persist_intent=False,
+                    source="power_or_service_restore",
+                    initial_program_state=program_state,
+                )
+                if status.get("broadcast_state") != "on_air":
+                    raise StateError("transmitter did not reach ON AIR")
+                self.recovery.finish_restore("restored")
+                self.events.emit(
+                    "RECOVERY_COMPLETED",
+                    "persisted ON intent restored safely",
+                    program_state=program_state,
+                )
+                return self.status()
+            except Exception as exc:  # noqa: BLE001
+                reason = str(exc)
+                result = (
+                    "refused"
+                    if not self.broadcast_checklist().get("ready")
+                    else "failed"
+                )
+                self.recovery.finish_restore(result, reason)
+                self.events.emit("RECOVERY_REFUSED", reason, result=result)
+                return self.status()
+
+        if wait:
+            return _restore()
+        threading.Thread(
+            target=_restore,
+            name="pifm-broadcast-recovery",
+            daemon=True,
+        ).start()
+        return self.status()
+
+    def service_shutdown(self) -> Dict[str, Any]:
+        """Stop this process's RF worker without changing operator intent."""
+        return self.tx_off(
+            persist_off=False,
+            source="service_shutdown",
+        )
 
     def rf_quiet(self, confirmed: bool = False) -> Dict[str, Any]:
         """Orthogonal to TX — never starts transmission."""
@@ -1358,6 +1687,7 @@ class Controller:
             pid=meta.get("pid"),
             cmd=meta.get("cmd"),
         )
+        self._set_track_timing_unlocked()
 
     def _hold_silence_unlocked(self) -> None:
         if hasattr(self.tx, "start_silence"):
@@ -1380,6 +1710,7 @@ class Controller:
         Silence re-arm is the only restart path and always goes through stop→start
         under the controller lock (single-TX invariant inside OwnedTxProcess).
         """
+        advance_program = False
         with self._lock:
             if self.sm.state != State.ON_AIR:
                 return
@@ -1398,28 +1729,55 @@ class Controller:
                     self.events.emit("FAULT", "duplicate TX")
                     return
             if self.tx.is_running():
+                if (
+                    self._playing
+                    and not self._paused
+                    and self._track_started_monotonic is not None
+                    and self._track_duration_s is not None
+                    and time.monotonic() - self._track_started_monotonic
+                    >= self._track_duration_s
+                ):
+                    self._clear_track_timing_unlocked()
+                    advance_program = True
+                else:
+                    return
+            if advance_program:
+                self.events.emit(
+                    "PROGRAM_TRACK_ENDED",
+                    "track duration reached; advancing locally",
+                    track=self._current_track(),
+                )
+            else:
+                holding = self._paused or (not self._playing)
+                if holding:
+                    try:
+                        # stop/start inside start_silence enforces single TX.
+                        self._hold_silence_unlocked()
+                        self.events.emit(
+                            "silence_hold_rearm",
+                            "TX child exited during program pause/stop — silence re-armed; still ON AIR",
+                        )
+                        if not self.tx.is_running():
+                            self.sm.enter_fault("silence hold failed to restart")
+                            self.events.emit("FAULT", "silence hold restart failed")
+                    except Exception as exc:  # noqa: BLE001
+                        self.sm.enter_fault("silence hold failed: {}".format(exc))
+                        self.events.emit("FAULT", "silence hold failed: {}".format(exc))
+                    return
+                self.sm.enter_fault("TX process exited unexpectedly")
+                self.events.emit("FAULT", "TX child died; entered FAULT")
                 return
-            holding = self._paused or (not self._playing)
-            if holding:
-                try:
-                    # stop/start inside start_silence enforces single TX.
-                    self._hold_silence_unlocked()
+        if advance_program:
+            try:
+                self.next_track(wait=False)
+            except Exception as exc:  # noqa: BLE001
+                with self._lock:
                     self.events.emit(
-                        "silence_hold_rearm",
-                        "TX child exited during program pause/stop — silence re-armed; still ON AIR",
+                        "PROGRAM_ADVANCE_FAILED",
+                        str(exc),
+                        track=self._current_track(),
                     )
-                    if not self.tx.is_running():
-                        self.sm.enter_fault("silence hold failed to restart")
-                        self.events.emit("FAULT", "silence hold restart failed")
-                except Exception as exc:  # noqa: BLE001
-                    self.sm.enter_fault("silence hold failed: {}".format(exc))
-                    self.events.emit("FAULT", "silence hold failed: {}".format(exc))
-                return
-            self.sm.enter_fault("TX process exited unexpectedly")
-            self.events.emit("FAULT", "TX child died; entered FAULT")
 
     def shutdown_request(self) -> None:
-        with self._lock:
-            self.events.emit("shutdown_request", "physical switch or API")
-            self._stop_tx_unlocked("shutdown")
-            self.sm.reset_to_safe()
+        self.events.emit("shutdown_request", "physical switch or API")
+        self.tx_off(persist_off=True, source="physical_switch")

@@ -1,4 +1,4 @@
-"""Appliance state machine. Boot always SAFE_OFF. ON_AIR never auto-restored."""
+"""Transient appliance state machine; durable operator intent lives elsewhere."""
 
 from __future__ import annotations
 

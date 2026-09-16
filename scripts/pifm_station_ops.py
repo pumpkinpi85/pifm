@@ -8,6 +8,7 @@ Operator data preserved by default on deploy/rollback:
   data/library/
   data/playlists/
   data/library.sqlite3
+  data/recovery/
 """
 
 from __future__ import annotations
@@ -43,6 +44,7 @@ OPERATOR_PRESERVE = (
     "data/library",
     "data/playlists",
     "data/library.sqlite3",
+    "data/recovery",
 )
 
 TX_NAMES = ("pi_fm_rds", "fm_transmitter")
@@ -134,6 +136,7 @@ def backup_station(
         "config/default.json",
         "data/playlists",
         "data/library.sqlite3",
+        "data/recovery",
         BUILD_META_NAME,
         "systemd/pifm-appliance.service",
     ]
@@ -235,6 +238,7 @@ def stage_application(
         "data/playlists",
         "data/logs",
         "data/audio",
+        "data/recovery",
         "config",
     ):
         (stage_dir / rel).mkdir(parents=True, exist_ok=True)
@@ -354,7 +358,14 @@ def deploy_application(
             _copy_path(saved, target_root / rel)
 
         # Ensure dirs exist
-        for rel in ("data/library", "data/playlists", "data/logs", "data/audio", "config"):
+        for rel in (
+            "data/library",
+            "data/playlists",
+            "data/logs",
+            "data/audio",
+            "data/recovery",
+            "config",
+        ):
             (target_root / rel).mkdir(parents=True, exist_ok=True)
 
         ensure_config_off_air(target_root / "config" / "appliance.json")

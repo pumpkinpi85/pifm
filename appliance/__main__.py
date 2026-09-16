@@ -64,7 +64,8 @@ def main(argv=None) -> int:
     library.reindex()
 
     controller = Controller(config, library, events)
-    # Boot invariant: never ON_AIR; TX child not running
+    # Construction is always OFF. Persisted operator ON intent is evaluated
+    # only after the control server exists and through normal readiness gates.
     assert controller.sm.state.value in ("SAFE_OFF", "READY")
     assert not controller.tx.is_running()
     events.emit(
@@ -96,6 +97,7 @@ def main(argv=None) -> int:
         "controller_startup",
         "web listening on {}:{}".format(config.get("web_host"), config.get("web_port")),
     )
+    controller.restore_persisted_broadcast_intent(wait=False)
 
     stop = {"flag": False}
 
@@ -119,7 +121,7 @@ def main(argv=None) -> int:
                 gpio.set_pattern("off")
             time.sleep(0.5)
     finally:
-        controller.tx_off()
+        controller.service_shutdown()
         gpio.stop()
         httpd.shutdown()
         events.emit("controller_startup", "shutdown complete; TX=OFF")
