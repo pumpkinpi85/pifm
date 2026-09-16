@@ -17,6 +17,7 @@ from appliance.config import Config
 from appliance.controller import Controller
 from appliance.events import EventLog
 from appliance.library import Library
+from appliance.state import StateError
 from appliance.tx import build_backend
 
 
@@ -160,6 +161,29 @@ class QueueImmutabilityTests(unittest.TestCase):
         self.assertEqual(st["program_state"], "paused")
         self.assertEqual(st["broadcast_ui"], "ON AIR")
         self.assertIsNotNone(st.get("now_playing"))
+        self.ctrl.tx_off()
+
+    def test_idle_queue_reorder_persists_to_playlist(self):
+        self.ctrl.update_config({"shuffle": False})
+        original = list(self.ctrl.status()["queue_fingerprint"])
+        reordered = list(reversed(original))
+        snapshot = self.ctrl.reorder_active_queue(reordered)
+        self.assertEqual([track["id"] for track in snapshot], reordered)
+        self.assertEqual(
+            self.ctrl.library.load_playlist("demo")["tracks"], reordered
+        )
+        for _ in range(10):
+            self.assertEqual(
+                self.ctrl.status()["queue_fingerprint"], reordered
+            )
+
+    def test_queue_reorder_rejects_missing_tracks_and_on_air(self):
+        original = list(self.ctrl.status()["queue_fingerprint"])
+        with self.assertRaises(ValueError):
+            self.ctrl.reorder_active_queue(original[:-1])
+        self.ctrl.go_on_air()
+        with self.assertRaises(StateError):
+            self.ctrl.reorder_active_queue(list(reversed(original)))
         self.ctrl.tx_off()
 
 

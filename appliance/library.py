@@ -8,6 +8,7 @@ import re
 import sqlite3
 import time
 import uuid
+from contextlib import closing
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -37,7 +38,7 @@ class Library:
 
     def _init_db(self) -> None:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        with self._conn() as conn:
+        with closing(self._conn()) as conn, conn:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS tracks (
@@ -62,7 +63,7 @@ class Library:
 
     def reindex(self) -> int:
         count = 0
-        with self._conn() as conn:
+        with closing(self._conn()) as conn, conn:
             conn.execute("DELETE FROM tracks")
             for path in sorted(self.library_dir.rglob("*")):
                 if not path.is_file():
@@ -96,7 +97,7 @@ class Library:
 
     def search(self, q: str = "", limit: int = 200) -> List[Dict[str, Any]]:
         q = (q or "").strip()
-        with self._conn() as conn:
+        with closing(self._conn()) as conn, conn:
             if q:
                 like = "%{}%".format(q.replace("%", ""))
                 rows = conn.execute(
@@ -115,15 +116,24 @@ class Library:
         return [dict(r) for r in rows]
 
     def get_track(self, track_id: str) -> Optional[Dict[str, Any]]:
-        with self._conn() as conn:
+        with closing(self._conn()) as conn, conn:
             row = conn.execute(
                 "SELECT * FROM tracks WHERE id = ?", (track_id,)
             ).fetchone()
         return dict(row) if row else None
 
+    def get_track_by_path(self, rel_path: str) -> Optional[Dict[str, Any]]:
+        with closing(self._conn()) as conn, conn:
+            row = conn.execute(
+                "SELECT * FROM tracks WHERE path = ?", (str(rel_path),)
+            ).fetchone()
+        return dict(row) if row else None
+
     def absolute_path(self, rel: str) -> Path:
         path = (self.library_dir / rel).resolve()
-        if not str(path).startswith(str(self.library_dir.resolve())):
+        if os.path.commonpath(
+            [str(path), str(self.library_dir.resolve())]
+        ) != str(self.library_dir.resolve()):
             raise ValueError("path escapes library")
         return path
 
@@ -147,10 +157,14 @@ class Library:
         return out
 
     def _playlist_path(self, playlist_id: str) -> Path:
-        safe = re.sub(r"[^a-zA-Z0-9_-]+", "_", playlist_id).strip("_") or "playlist"
-        return self.playlists_dir / "{}.json".format(safe)
+        playlist_id = str(playlist_id or "")
+        if not re.fullmatch(r"[a-zA-Z0-9_-]+", playlist_id):
+            raise ValueError("invalid playlist id")
+        return self.playlists_dir / "{}.json".format(playlist_id)
 
     def load_playlist(self, playlist_id: str) -> Dict[str, Any]:
+        if not str(playlist_id or ""):
+            raise FileNotFoundError("playlist not selected")
         path = self._playlist_path(playlist_id)
         if not path.exists():
             raise FileNotFoundError("playlist not found: {}".format(playlist_id))
@@ -162,9 +176,10 @@ class Library:
 
     def save_playlist(self, playlist_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         path = self._playlist_path(playlist_id)
+        tracks = [str(track_id) for track_id in list(data.get("tracks") or [])]
         payload = {
             "name": data.get("name") or path.stem,
-            "tracks": list(data.get("tracks") or []),
+            "tracks": tracks,
             "updated": time.time(),
         }
         tmp = path.with_suffix(".json.tmp")
@@ -178,6 +193,67 @@ class Library:
         if path.exists():
             pid = "{}_{}".format(pid, uuid.uuid4().hex[:6])
         return self.save_playlist(pid, {"name": name, "tracks": []})
+
+    def playlist_detail(self, playlist_id: str) -> Dict[str, Any]:
+        """Return playlist IDs plus hydrated tracks for operator surfaces."""
+        playlist = self.load_playlist(playlist_id)
+        details = []
+        missing = []
+        for track_id in playlist.get("tracks") or []:
+            track = self.get_track(str(track_id))
+            if track:
+                details.append(track)
+            else:
+                missing.append(str(track_id))
+        playlist["track_details"] = details
+        playlist["missing_track_ids"] = missing
+        return playlist
+
+    def rename_playlist(self, playlist_id: str, name: str) -> Dict[str, Any]:
+        name = str(name or "").strip()
+        if not name:
+            raise ValueError("playlist name required")
+        playlist = self.load_playlist(playlist_id)
+        playlist["name"] = name[:80]
+        return self.save_playlist(playlist_id, playlist)
+
+    def delete_track(self, track_id: str) -> Dict[str, Any]:
+        """Delete one media file and remove all playlist references."""
+        track = self.get_track(str(track_id))
+        if not track:
+            raise FileNotFoundError("music file not found")
+        path = self.absolute_path(str(track["path"]))
+        if not path.is_file():
+            raise FileNotFoundError("music file not found")
+        referenced_by = []
+        playlists = []
+        for summary in self.list_playlists():
+            playlist = self.load_playlist(str(summary["id"]))
+            if track_id in (playlist.get("tracks") or []):
+                referenced_by.append(str(summary["id"]))
+                playlist["tracks"] = [
+                    item for item in playlist.get("tracks") or [] if item != track_id
+                ]
+                playlists.append(playlist)
+        staged = self.library_dir / ".deleted-{}".format(uuid.uuid4().hex)
+        os.replace(str(path), str(staged))
+        try:
+            for playlist in playlists:
+                self.save_playlist(str(playlist["id"]), playlist)
+            indexed = self.reindex()
+            staged.unlink()
+        except Exception:
+            if staged.exists():
+                os.replace(str(staged), str(path))
+            self.reindex()
+            raise
+        return {
+            "ok": True,
+            "track_id": track_id,
+            "filename": track.get("filename"),
+            "removed_from_playlists": referenced_by,
+            "indexed": indexed,
+        }
 
     def delete_playlist(self, playlist_id: str) -> None:
         path = self._playlist_path(playlist_id)

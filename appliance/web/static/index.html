@@ -4,9 +4,78 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>piFM Pirate Radio</title>
-  <link rel="stylesheet" href="/css/app.css?v=11" />
+  <link rel="stylesheet" href="/css/app.css?v=12" />
 </head>
 <body>
+  <section id="setupWizard" class="setup-shell" hidden aria-label="First-run setup">
+    <div class="setup-card">
+      <div class="setup-progress" id="setupProgress">WELCOME · 1 OF 5</div>
+      <div class="setup-step active" data-setup-step="0">
+        <div class="flagline">WELCOME ABOARD</div>
+        <h2>Set up your piFM station</h2>
+        <p>Five short steps: hardware, station identity, music, then Broadcast.</p>
+        <button type="button" data-setup-next>Get started</button>
+      </div>
+      <div class="setup-step" data-setup-step="1">
+        <div class="label">HARDWARE</div>
+        <h2 id="setupHardwareName">Detecting your Raspberry Pi…</h2>
+        <div id="setupHardwareStatus" class="hardware-status">Checking hardware</div>
+        <p id="setupHardwareOutput" class="meta"></p>
+        <div id="setupHardwareChecks" class="check-list"></div>
+        <details class="advanced">
+          <summary>Advanced — change hardware</summary>
+          <p class="explain">Use only when automatic detection cannot identify the board. A manual choice is marked experimental until detected evidence matches.</p>
+          <label for="setupHardwareProfile">Profile</label>
+          <select id="setupHardwareProfile">
+            <option value="raspberry-pi-a-plus">Raspberry Pi Model A+ (Rev 1.1)</option>
+          </select>
+          <button type="button" id="setupSaveHardware" class="secondary">Use this profile</button>
+        </details>
+        <div class="setup-actions">
+          <button type="button" class="secondary" data-setup-back>Back</button>
+          <button type="button" data-setup-next>Continue</button>
+        </div>
+      </div>
+      <div class="setup-step" data-setup-step="2">
+        <div class="label">STATION</div>
+        <h2>Name your station</h2>
+        <label for="setupFreq">Frequency (MHz)</label>
+        <input id="setupFreq" type="number" step="0.1" min="87.1" max="108.2" />
+        <label for="setupPs">Station name <span class="hint">(up to 8 characters)</span></label>
+        <input id="setupPs" maxlength="8" />
+        <label for="setupRt">Radio text</label>
+        <input id="setupRt" maxlength="64" />
+        <div class="setup-actions">
+          <button type="button" class="secondary" data-setup-back>Back</button>
+          <button type="button" id="setupSaveStation">Save and continue</button>
+        </div>
+      </div>
+      <div class="setup-step" data-setup-step="3">
+        <div class="label">MUSIC</div>
+        <h2>Add music</h2>
+        <p>Drop files here or choose them. Uploading never starts a broadcast.</p>
+        <div class="upload-zone setup-upload-zone" data-upload-zone>
+          <strong>Drop music here</strong>
+          <span>MP3, WAV, FLAC, M4A/AAC, or OGG</span>
+          <label class="upload primary-upload">Choose Files<input type="file" id="setupFileUpload" multiple accept=".mp3,.wav,.flac,.ogg,.m4a,.aac,audio/*" /></label>
+        </div>
+        <div id="setupUploadProgress" class="upload-progress"></div>
+        <div class="setup-actions">
+          <button type="button" class="secondary" data-setup-back>Back</button>
+          <button type="button" data-setup-next>Continue</button>
+        </div>
+      </div>
+      <div class="setup-step" data-setup-step="4">
+        <div class="label">BROADCAST</div>
+        <h2>Your Broadcast Deck is ready</h2>
+        <p>Going to the deck does not put you on air. You always choose when to Raise the Black Flag.</p>
+        <div class="setup-actions">
+          <button type="button" class="secondary" data-setup-back>Back</button>
+          <button type="button" id="setupFinish">Open Broadcast Deck</button>
+        </div>
+      </div>
+    </div>
+  </section>
   <div id="devHarnessBanner" class="dev-harness" hidden data-testid="dev-harness">
     DEVELOPMENT / TEST HARNESS — mock transmitter (no FM). Not the production station.
   </div>
@@ -102,6 +171,20 @@
     </section>
 
     <section id="view-music" class="view">
+      <div class="music-tabs" role="tablist" aria-label="Music">
+        <button type="button" class="music-tab active" data-music-tab="library">Library</button>
+        <button type="button" class="music-tab" data-music-tab="playlists">Playlists</button>
+        <button type="button" class="music-tab" data-music-tab="queue">Queue</button>
+      </div>
+      <div class="panel music-pane active" data-music-pane="library">
+        <div class="label">ADD MUSIC</div>
+        <div class="upload-zone" data-upload-zone>
+          <strong>Drop music here</strong>
+          <span>or choose MP3, WAV, FLAC, M4A/AAC, or OGG files</span>
+          <label class="upload primary-upload">Choose Files<input type="file" id="fileUpload" multiple accept=".mp3,.wav,.flac,.ogg,.m4a,.aac,audio/*" /></label>
+        </div>
+        <div id="uploadProgress" class="upload-progress" aria-live="polite"></div>
+      </div>
       <div class="panel">
         <div class="label">ACTIVE PLAYLIST</div>
         <p class="explain">Choosing or playing music does <strong>not</strong> start an FM broadcast.</p>
@@ -117,7 +200,7 @@
           </button>
         </div>
       </div>
-      <div class="panel">
+      <div class="panel music-pane" data-music-pane="playlists">
         <div class="label">PLAYLISTS</div>
         <div class="row">
           <input id="newPlName" placeholder="New playlist name" aria-label="New playlist name" />
@@ -127,16 +210,15 @@
         <div id="plList" class="list" data-testid="playlist-list"><div class="empty loading">Loading…</div></div>
         <div id="plDetail" class="list"></div>
       </div>
-      <div class="panel">
+      <div class="panel music-pane" data-music-pane="queue">
         <div class="label">QUEUE</div>
         <div id="queueBox" class="list"><div class="empty loading">Loading…</div></div>
       </div>
-      <div class="panel">
+      <div class="panel music-pane active" data-music-pane="library">
         <div class="label">LIBRARY</div>
         <div class="row">
           <input id="libSearch" placeholder="Search artist, title, filename…" aria-label="Search library" />
           <button type="button" id="btnReindex">Refresh music</button>
-          <label class="upload">Upload<input type="file" id="fileUpload" accept="audio/*,.mp3,.wav,.flac,.ogg,.m4a" /></label>
         </div>
         <div id="libList" class="list" data-testid="library-list"><div class="empty loading">Loading…</div></div>
       </div>
@@ -164,6 +246,26 @@
     </section>
 
     <section id="view-system" class="view">
+      <div class="panel">
+        <div class="label">HARDWARE</div>
+        <div id="hardwareSummary" class="bigstat">Detecting…</div>
+        <p id="hardwareOutput" class="meta"></p>
+        <div id="hardwareChecks" class="check-list"></div>
+      </div>
+      <details class="panel advanced">
+        <summary>Advanced — change hardware profile</summary>
+        <p class="explain">Automatic detection is recommended. A manual choice does not make unverified hardware supported.</p>
+        <label for="hardwareMode">Hardware selection</label>
+        <select id="hardwareMode">
+          <option value="auto">Detect automatically</option>
+          <option value="manual">Choose manually</option>
+        </select>
+        <label for="hardwareProfile">Profile</label>
+        <select id="hardwareProfile">
+          <option value="raspberry-pi-a-plus">Raspberry Pi Model A+ (Rev 1.1)</option>
+        </select>
+        <button type="button" id="btnSaveHardware" class="secondary">Save hardware choice</button>
+      </details>
       <div class="panel">
         <div class="label">NETWORK</div>
         <div id="netSummary" class="bigstat">Loading…</div>
@@ -227,6 +329,6 @@
 
   <div id="toast" class="toast" hidden></div>
   <div id="faultLine" class="fault-banner" hidden></div>
-  <script src="/js/app.js?v=11"></script>
+  <script src="/js/app.js?v=12"></script>
 </body>
 </html>

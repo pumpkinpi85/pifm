@@ -11,6 +11,7 @@ PI_FM_RDS_BIN="${PI_FM_RDS_BIN:-/usr/local/bin/pi_fm_rds}"
 # Production default is pi_fm_rds. Use PIFM_TX_BACKEND=mock for clean-room
 # lifecycle-only installs (no RF). Never use this script to start transmitting.
 TX_BACKEND="${PIFM_TX_BACKEND:-pi_fm_rds}"
+CONFIGURE_HARDWARE="${PIFM_CONFIGURE_HARDWARE:-0}"
 
 echo "piFM install"
 echo "  source:  $ROOT"
@@ -70,6 +71,16 @@ if [[ "$TX_BACKEND" == "pi_fm_rds" && ! -x "$PI_FM_RDS_BIN" ]]; then
     make -C "$PI_FM_RDS_SRC/src"
     install -m 755 "$PI_FM_RDS_SRC/src/pi_fm_rds" "$PI_FM_RDS_BIN"
   fi
+fi
+
+if [[ "$CONFIGURE_HARDWARE" == "1" ]]; then
+  "$ROOT/scripts/configure-hardware.sh" --apply
+else
+  echo
+  echo "Hardware readiness (read-only):"
+  "$ROOT/scripts/hardware-readiness.py" || true
+  echo "For a detected supported A+, re-run with PIFM_CONFIGURE_HARDWARE=1"
+  echo "to apply the reversible headless/onboard-audio prerequisites."
 fi
 
 chown -R "$SERVICE_USER:$SERVICE_USER" "$PREFIX"

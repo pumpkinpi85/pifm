@@ -97,6 +97,26 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("transport-play", self.js)
         self.assertNotIn("NOW PLAYING — PAUSED", self.js)
 
+    def test_short_first_run_flow_exists_and_finishes_off_air(self):
+        for label in ("WELCOME", "HARDWARE", "STATION", "MUSIC", "BROADCAST"):
+            self.assertIn(label, self.html)
+        self.assertIn('id="setupWizard"', self.html)
+        self.assertIn("setup_completed: true", self.js)
+        self.assertIn("You are OFF AIR", self.js)
+
+    def test_music_workspace_and_multi_upload_controls(self):
+        for label in ("Library", "Playlists", "Queue"):
+            self.assertIn('data-music-tab="{}"'.format(label.lower()), self.html)
+        self.assertIn('id="fileUpload" multiple', self.html)
+        self.assertIn("data-upload-zone", self.html)
+        self.assertIn("xhr.upload.onprogress", self.js)
+        self.assertIn("/api/library/", self.js)
+
+    def test_hardware_override_is_advanced(self):
+        self.assertIn("Advanced — change hardware profile", self.html)
+        self.assertIn('value="auto">Detect automatically', self.html)
+        self.assertIn("FM output: GPIO ", self.js)
+
 
 def _make_ctrl(root: Path) -> Controller:
     (root / "config").mkdir(parents=True, exist_ok=True)

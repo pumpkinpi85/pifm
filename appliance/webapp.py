@@ -5,14 +5,15 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import tempfile
 import threading
 import time
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
+
+from .media_import import import_media_stream, media_capabilities
 
 if TYPE_CHECKING:
     from .controller import Controller
@@ -54,9 +55,7 @@ def _system_health() -> Dict[str, Any]:
     except Exception:
         pass
     try:
-        import shutil as sh
-
-        usage = sh.disk_usage("/")
+        usage = shutil.disk_usage("/")
         out["disk_free_gb"] = round(usage.free / (1024**3), 2)
         out["disk_total_gb"] = round(usage.total / (1024**3), 2)
     except OSError:
@@ -117,6 +116,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _read_json(self) -> Dict[str, Any]:
         length = int(self.headers.get("Content-Length") or 0)
+        if length > 1024 * 1024:
+            raise ValueError("request body too large")
         raw = self.rfile.read(length) if length else b"{}"
         if not raw:
             return {}
@@ -124,6 +125,15 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(data, dict):
             raise ValueError("JSON object required")
         return data
+
+    def _require_same_origin(self) -> None:
+        """Reject cross-origin browser mutations while allowing local API tools."""
+        origin = str(self.headers.get("Origin") or "").rstrip("/")
+        if not origin:
+            return
+        host = str(self.headers.get("Host") or "")
+        if origin not in ("http://{}".format(host), "https://{}".format(host)):
+            raise ValueError("cross-origin request rejected")
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
@@ -168,7 +178,10 @@ class Handler(BaseHTTPRequestHandler):
             if path.startswith("/api/playlists/"):
                 assert self.library
                 pid = path.split("/")[3]
-                code, body, ct = _json_bytes(self.library.load_playlist(pid))
+                code, body, ct = _json_bytes(self.library.playlist_detail(pid))
+                return self._send(code, body, ct)
+            if path == "/api/media/capabilities":
+                code, body, ct = _json_bytes(media_capabilities())
                 return self._send(code, body, ct)
             # static
             return self._static(path)
@@ -176,15 +189,15 @@ class Handler(BaseHTTPRequestHandler):
             code, body, ct = _json_bytes({"error": str(exc)}, 404)
             return self._send(code, body, ct)
         except Exception as exc:  # noqa: BLE001
-            code, body, ct = _json_bytes(
-                {"error": str(exc), "trace": traceback.format_exc()[-500:]}, 500
-            )
+            traceback.print_exc()
+            code, body, ct = _json_bytes({"error": str(exc)}, 500)
             return self._send(code, body, ct)
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path
         try:
+            self._require_same_origin()
             assert self.controller and self.library and self.events
             data = {}
             if self.headers.get("Content-Type", "").startswith("application/json"):
@@ -213,6 +226,22 @@ class Handler(BaseHTTPRequestHandler):
                 st = self.controller.rf_quiet_restore()
             elif path == "/api/config":
                 st = {"config": self.controller.update_config(data)}
+            elif path == "/api/setup":
+                allowed = {
+                    "frequency_mhz",
+                    "rds_ps",
+                    "rds_rt",
+                    "hardware_profile",
+                    "hardware_profile_mode",
+                    "active_playlist",
+                    "setup_completed",
+                }
+                unknown = set(data).difference(allowed)
+                if unknown:
+                    raise ValueError(
+                        "unsupported setup field: {}".format(sorted(unknown)[0])
+                    )
+                st = {"config": self.controller.update_config(data)}
             elif path == "/api/library/reindex":
                 n = self.library.reindex()
                 self.events.emit("library_import", "reindex {}".format(n))
@@ -225,11 +254,19 @@ class Handler(BaseHTTPRequestHandler):
                 tid = str(data.get("track_id") or "")
                 if not tid:
                     raise ValueError("track_id required")
+                if not self.library.get_track(tid):
+                    raise ValueError("music file not found")
                 tracks = list(pl.get("tracks") or [])
                 if tid not in tracks:
                     tracks.append(tid)
                 pl["tracks"] = tracks
                 st = self.library.save_playlist(pid, pl)
+                if str(self.controller.config.get("active_playlist") or "") == pid:
+                    self.controller.reload_active_playlist()
+                self.events.emit(
+                    "playlist_changed",
+                    "track added to playlist {}".format(pid),
+                )
             elif path.startswith("/api/playlists/") and path.endswith("/reorder"):
                 pid = path.split("/")[3]
                 order = data.get("tracks") or []
@@ -238,6 +275,17 @@ class Handler(BaseHTTPRequestHandler):
                 pl = self.library.load_playlist(pid)
                 pl["tracks"] = [str(x) for x in order]
                 st = self.library.save_playlist(pid, pl)
+                if str(self.controller.config.get("active_playlist") or "") == pid:
+                    self.controller.reload_active_playlist()
+                self.events.emit(
+                    "playlist_changed",
+                    "playlist {} reordered".format(pid),
+                )
+            elif path == "/api/queue/reorder":
+                order = data.get("tracks") or []
+                if not isinstance(order, list):
+                    raise ValueError("tracks must be a list")
+                st = {"queue": self.controller.reorder_active_queue(order)}
             elif path == "/api/upload":
                 st = self._upload()
             else:
@@ -254,11 +302,14 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         try:
-            assert self.library
+            self._require_same_origin()
+            assert self.controller and self.library and self.events
             data = self._read_json()
             if path.startswith("/api/playlists/") and not path.endswith("/tracks"):
                 pid = path.split("/")[3]
                 st = self.library.save_playlist(pid, data)
+                if str(self.controller.config.get("active_playlist") or "") == pid:
+                    self.controller.reload_active_playlist()
                 code, body, ct = _json_bytes(st)
                 return self._send(code, body, ct)
             code, body, ct = _json_bytes({"error": "not found"}, 404)
@@ -271,12 +322,27 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         try:
-            assert self.library
+            self._require_same_origin()
+            assert self.controller and self.library and self.events
             if path.startswith("/api/playlists/"):
                 parts = path.strip("/").split("/")
                 # api/playlists/{id} or api/playlists/{id}/tracks/{tid}
                 if len(parts) == 3 and parts[0] == "api" and parts[1] == "playlists":
-                    self.library.delete_playlist(parts[2])
+                    deleted_id = parts[2]
+                    self.library.delete_playlist(deleted_id)
+                    if (
+                        str(self.controller.config.get("active_playlist") or "")
+                        == deleted_id
+                    ):
+                        remaining = self.library.list_playlists()
+                        next_id = str(remaining[0]["id"]) if remaining else ""
+                        self.controller.update_config(
+                            {"active_playlist": next_id}
+                        )
+                    self.events.emit(
+                        "playlist_delete",
+                        "deleted playlist {}".format(deleted_id),
+                    )
                     code, body, ct = _json_bytes({"ok": True})
                     return self._send(code, body, ct)
                 if (
@@ -289,8 +355,26 @@ class Handler(BaseHTTPRequestHandler):
                     pl = self.library.load_playlist(pid)
                     pl["tracks"] = [t for t in pl.get("tracks") or [] if t != tid]
                     st = self.library.save_playlist(pid, pl)
+                    if (
+                        str(self.controller.config.get("active_playlist") or "")
+                        == pid
+                    ):
+                        self.controller.reload_active_playlist()
                     code, body, ct = _json_bytes(st)
                     return self._send(code, body, ct)
+            if path.startswith("/api/library/"):
+                if self.controller.status().get("tx_running"):
+                    raise ValueError("Stop Broadcast before deleting music.")
+                track_id = path.strip("/").split("/")[2]
+                st = self.library.delete_track(track_id)
+                self.controller.reload_active_playlist()
+                self.events.emit(
+                    "library_delete",
+                    "deleted {}".format(st.get("filename") or "music"),
+                    removed_from_playlists=st.get("removed_from_playlists"),
+                )
+                code, body, ct = _json_bytes(st)
+                return self._send(code, body, ct)
             code, body, ct = _json_bytes({"error": "not found"}, 404)
             return self._send(code, body, ct)
         except Exception as exc:  # noqa: BLE001
@@ -337,27 +421,37 @@ class Handler(BaseHTTPRequestHandler):
             return
 
     def _upload(self) -> Dict[str, Any]:
-        assert self.library and self.events
-        # multipart is heavy; accept raw body with X-Filename header for light clients
-        filename = self.headers.get("X-Filename") or "upload.bin"
-        filename = os.path.basename(filename)
+        assert self.controller and self.library and self.events
+        encoded_filename = self.headers.get("X-Filename-Encoded")
+        filename = (
+            unquote(encoded_filename)
+            if encoded_filename
+            else (self.headers.get("X-Filename") or "upload.bin")
+        )
+        playlist_id = str(self.headers.get("X-Playlist-ID") or "").strip()
         length = int(self.headers.get("Content-Length") or 0)
-        if length <= 0 or length > 80 * 1024 * 1024:
-            raise ValueError("invalid upload size")
-        dest = self.library.library_dir / filename
-        tmp = dest.with_suffix(dest.suffix + ".partial")
-        remaining = length
-        with open(tmp, "wb") as fh:
-            while remaining > 0:
-                chunk = self.rfile.read(min(65536, remaining))
-                if not chunk:
-                    break
-                fh.write(chunk)
-                remaining -= len(chunk)
-        os.replace(str(tmp), str(dest))
-        n = self.library.reindex()
-        self.events.emit("library_import", "uploaded {}".format(filename), indexed=n)
-        return {"ok": True, "filename": filename, "indexed": n}
+        result = import_media_stream(self.library, self.rfile, filename, length)
+        track = result.get("track") or {}
+        if playlist_id and track.get("id"):
+            playlist = self.library.load_playlist(playlist_id)
+            tracks = list(playlist.get("tracks") or [])
+            if track["id"] not in tracks:
+                tracks.append(track["id"])
+                playlist["tracks"] = tracks
+                self.library.save_playlist(playlist_id, playlist)
+            result["added_to_playlist"] = playlist_id
+            if (
+                str(self.controller.config.get("active_playlist") or "")
+                == playlist_id
+            ):
+                self.controller.reload_active_playlist()
+        self.events.emit(
+            "library_import",
+            "uploaded {}".format(result["filename"]),
+            indexed=result["indexed"],
+            duplicate=result["duplicate"],
+        )
+        return result
 
     def _static(self, path: str) -> None:
         if path == "/" or path == "":

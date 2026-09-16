@@ -5,11 +5,13 @@ from __future__ import annotations
 import random
 import threading
 import time
+from collections import Counter
 from typing import Any, Dict, List, Optional
 
+from .build_info import resolve_build_identity
 from .config import Config
 from .events import EventLog
-from .build_info import resolve_build_identity
+from .hardware_environment import check_host_prerequisites
 from .hardware_profile import resolve_hardware_profile
 from .library import Library
 from .network import NetworkManager
@@ -149,6 +151,56 @@ class Controller:
                     }
                 )
             else:
+                hw = resolve_hardware_profile(
+                    self.config.root,
+                    profile_id=(
+                        str(cfg.get("hardware_profile") or "")
+                        if cfg.get("hardware_profile_mode") == "manual"
+                        else None
+                    ),
+                    include_detection=True,
+                )
+                profile = hw.get("hardware_profile_doc") or {}
+                hardware_status = str(
+                    hw.get("hardware_status") or "UNKNOWN"
+                ).upper()
+                hardware_ok = hardware_status in ("SUPPORTED", "EXPERIMENTAL")
+                items.append(
+                    {
+                        "id": "hardware",
+                        "label": "Hardware identified",
+                        "ok": hardware_ok,
+                        "detail": "{} · {}".format(
+                            profile.get("display_name") or "Unknown hardware",
+                            hardware_status,
+                        ),
+                        "severity": True,
+                        "operator_hint": (
+                            "This hardware is not ready for piFM. Open System for details."
+                        ),
+                        "cta": "system",
+                        "cta_label": "Open System",
+                    }
+                )
+                environment = check_host_prerequisites(profile)
+                items.append(
+                    {
+                        "id": "hardware_environment",
+                        "label": "Hardware environment ready",
+                        "ok": bool(environment.get("ready")),
+                        "detail": (
+                            "Headless mode and onboard audio settings are ready"
+                            if environment.get("ready")
+                            else "A required hardware setting needs attention"
+                        ),
+                        "severity": True,
+                        "operator_hint": (
+                            "Prepare the Raspberry Pi hardware environment before going on air."
+                        ),
+                        "cta": "system",
+                        "cta_label": "Open System",
+                    }
+                )
                 items.append(
                     {
                         "id": "transmitter",
@@ -296,8 +348,15 @@ class Controller:
             )
             hw = resolve_hardware_profile(
                 self.config.root,
-                profile_id=str(cfg.get("hardware_profile") or ""),
+                profile_id=(
+                    str(cfg.get("hardware_profile") or "")
+                    if cfg.get("hardware_profile_mode") == "manual"
+                    else None
+                ),
                 include_detection=True,
+            )
+            hardware_environment = check_host_prerequisites(
+                hw.get("hardware_profile_doc")
             )
             return {
                 "state": self.sm.state.value,
@@ -354,6 +413,15 @@ class Controller:
                 "hardware_profile_found": hw["hardware_profile_found"],
                 "hardware_profile_doc": hw["hardware_profile_doc"],
                 "board_hints": hw["board_hints"],
+                "suggested_hardware_profile": hw.get(
+                    "suggested_hardware_profile"
+                ),
+                "hardware_profile_source": hw.get("hardware_profile_source"),
+                "hardware_profile_match": hw.get("hardware_profile_match"),
+                "hardware_status": hw.get("hardware_status"),
+                "hardware_environment": hardware_environment,
+                "setup_completed": bool(cfg.get("setup_completed", True)),
+                "setup_required": not bool(cfg.get("setup_completed", True)),
                 "gpio_enabled": bool(cfg.get("gpio_enabled")),
                 "broadcast": checklist,
                 "queue_fingerprint": list(self._queue),
@@ -1172,6 +1240,36 @@ class Controller:
                     row["is_current"] = i == self._queue_index
                     out.append(row)
             return out
+
+    def reload_active_playlist(self) -> None:
+        """Refresh the derived queue after an explicit playlist mutation."""
+        with self._lock:
+            self._load_queue(rebuild=True)
+            self._refresh_ready_unlocked()
+            self.events.emit("queue_changed", "active playlist refreshed")
+
+    def reorder_active_queue(self, track_ids: List[Any]) -> List[Dict[str, Any]]:
+        """Persist a complete queue reorder back to the active playlist."""
+        with self._lock:
+            if self._playing or self.tx.is_running() or self.sm.state == State.ON_AIR:
+                raise StateError(
+                    "Pause or reset the music and stop Broadcast before reordering."
+                )
+            order = [str(track_id) for track_id in track_ids]
+            self._ensure_queue_loaded_unlocked()
+            if Counter(order) != Counter(self._queue):
+                raise ValueError("queue reorder must contain every queued track once")
+            playlist_id = str(self.config.get("active_playlist") or "")
+            if not playlist_id:
+                raise ValueError("select a playlist before reordering")
+            playlist = self.library.load_playlist(playlist_id)
+            playlist["tracks"] = order
+            self.library.save_playlist(playlist_id, playlist)
+            self._queue = list(order)
+            self._queue_index = -1
+            self._refresh_ready_unlocked()
+            self.events.emit("queue_reordered", "active playlist order updated")
+            return self.queue_snapshot()
 
     def _start_tx_current_unlocked(self) -> None:
         track = self._current_track()

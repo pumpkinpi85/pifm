@@ -32,12 +32,14 @@ DEFAULTS = {
     "pi_fm_rds_ppm": 0.0,
     "network_iface": "eth0",
     "hardware_profile": "raspberry-pi-a-plus",
+    "hardware_profile_mode": "auto",
+    "setup_completed": True,
     "gpio_enabled": False,
     "local_monitor": False,
     "rf_quiet_mode": "simulate",
     "rf_quiet_seconds": 60,
     "product_name": "piFM Pirate Radio",
-    "software_version": "0.4.3",
+    "software_version": "0.5.0",
 }
 
 FREQ_MIN = 87.1
@@ -116,6 +118,14 @@ class Config:
         data["network_iface"] = iface
         profile = str(data.get("hardware_profile") or "raspberry-pi-a-plus").strip()
         data["hardware_profile"] = profile or "raspberry-pi-a-plus"
+        profile_mode = str(data.get("hardware_profile_mode") or "auto").strip()
+        if profile_mode not in ("auto", "manual"):
+            raise ConfigError("hardware_profile_mode must be auto or manual")
+        data["hardware_profile_mode"] = profile_mode
+        setup_completed = data.get("setup_completed", True)
+        if not isinstance(setup_completed, bool):
+            raise ConfigError("setup_completed must be true or false")
+        data["setup_completed"] = setup_completed
         # Resolve relative transmitter paths against install root.
         tx_path = str(data.get("pi_fm_rds_path") or "")
         if tx_path and not os.path.isabs(tx_path):

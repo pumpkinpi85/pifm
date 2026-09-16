@@ -10,6 +10,9 @@
   var commandPending = null; // play|pause|next|prev|txon|txoff
   var sseConnected = false;
   var lastLogFingerprint = "";
+  var setupStep = 0;
+  var libraryTrackCount = 0;
+  var draggedTrackId = null;
 
   var ENGINEERING_KINDS = {
     TX_PID: 1,
@@ -114,6 +117,25 @@
     if (name === "broadcast") loadOperatorLog();
   }
 
+  function showMusicPane(name) {
+    document.querySelectorAll(".music-tab").forEach(function (button) {
+      button.classList.toggle(
+        "active", button.getAttribute("data-music-tab") === name
+      );
+    });
+    document.querySelectorAll(".music-pane").forEach(function (pane) {
+      pane.classList.toggle(
+        "active", pane.getAttribute("data-music-pane") === name
+      );
+    });
+  }
+
+  document.querySelectorAll(".music-tab").forEach(function (button) {
+    button.addEventListener("click", function () {
+      showMusicPane(button.getAttribute("data-music-tab"));
+    });
+  });
+
   document.querySelectorAll(".tab").forEach(function (btn) {
     btn.addEventListener("click", function () {
       showTab(btn.getAttribute("data-tab"));
@@ -156,6 +178,93 @@
     box.innerHTML =
       '<div class="blocker-title">CAN\'T GO ON AIR</div>' +
       "<p>" + esc(first.message) + "</p>" + cta;
+  }
+
+  function hardwareLabel(s) {
+    var doc = (s && s.hardware_profile_doc) || {};
+    var hints = (s && s.board_hints) || {};
+    return doc.display_name || hints.model || "Hardware not detected";
+  }
+
+  function hardwareOutput(s) {
+    var doc = (s && s.hardware_profile_doc) || {};
+    if (doc.rf_gpio_bcm == null || doc.rf_header_pin == null) return "";
+    return "FM output: GPIO " + doc.rf_gpio_bcm +
+      " / physical pin " + doc.rf_header_pin;
+  }
+
+  function renderHardware(s) {
+    var doc = s.hardware_profile_doc || {};
+    var status = String(s.hardware_status || doc.status || "UNKNOWN").toUpperCase();
+    var environment = s.hardware_environment || {};
+    var checks = environment.checks || [];
+    if ($("hardwareSummary")) {
+      $("hardwareSummary").textContent = hardwareLabel(s) + " · " + status;
+    }
+    if ($("hardwareOutput")) $("hardwareOutput").textContent = hardwareOutput(s);
+    if ($("hardwareChecks")) {
+      $("hardwareChecks").innerHTML = checks.length ? checks.map(function (check) {
+        return '<div class="check-row"><span class="' +
+          (check.ok ? "ok" : "needs-action") + '">' +
+          (check.ok ? "✓ " : "Needs attention · ") + esc(check.label) +
+          "</span>" + (check.ok ? "" : "<div class=\"meta\">" +
+          esc(check.action || "") + "</div>") + "</div>";
+      }).join("") : '<div class="meta">No profile-specific checks available.</div>';
+    }
+    if ($("hardwareMode")) {
+      $("hardwareMode").value = s.hardware_profile_source === "manual"
+        ? "manual" : "auto";
+    }
+    if ($("hardwareProfile") && s.hardware_profile) {
+      $("hardwareProfile").value = s.hardware_profile;
+    }
+  }
+
+  function showSetupStep(nextStep) {
+    setupStep = Math.max(0, Math.min(4, nextStep));
+    var names = ["WELCOME", "HARDWARE", "STATION", "MUSIC", "BROADCAST"];
+    document.querySelectorAll(".setup-step").forEach(function (step) {
+      step.classList.toggle(
+        "active", Number(step.getAttribute("data-setup-step")) === setupStep
+      );
+    });
+    if ($("setupProgress")) {
+      $("setupProgress").textContent =
+        names[setupStep] + " · " + (setupStep + 1) + " OF 5";
+    }
+  }
+
+  function renderSetup(s) {
+    var wizard = $("setupWizard");
+    if (!wizard) return;
+    wizard.hidden = !s.setup_required;
+    if (!s.setup_required) return;
+    $("setupHardwareName").textContent = hardwareLabel(s) + " detected";
+    var doc = s.hardware_profile_doc || {};
+    var hwStatus = String(
+      s.hardware_status || doc.status || "UNKNOWN"
+    ).toUpperCase();
+    $("setupHardwareStatus").textContent =
+      hwStatus === "SUPPORTED" ? "Supported for piFM" : hwStatus;
+    $("setupHardwareStatus").className =
+      "hardware-status " + hwStatus.toLowerCase();
+    $("setupHardwareOutput").textContent = hardwareOutput(s);
+    var environment = s.hardware_environment || {};
+    $("setupHardwareChecks").innerHTML = (environment.checks || []).map(
+      function (check) {
+        return '<div class="check-row"><span class="' +
+          (check.ok ? "ok" : "needs-action") + '">' +
+          (check.ok ? "✓ " : "Needs attention · ") + esc(check.label) +
+          "</span>" + (check.ok ? "" : "<div class=\"meta\">" +
+          esc(check.action || "") + "</div>") + "</div>";
+      }
+    ).join("");
+    if (document.activeElement !== $("setupFreq")) {
+      $("setupFreq").value = s.frequency_mhz != null ? s.frequency_mhz : "";
+    }
+    if (document.activeElement !== $("setupPs")) $("setupPs").value = s.rds_ps || "";
+    if (document.activeElement !== $("setupRt")) $("setupRt").value = s.rds_rt || "";
+    showSetupStep(setupStep);
   }
 
   function renderStatus(s) {
@@ -431,6 +540,8 @@
     renderHealth(s);
     renderAppliance(s);
     renderFaultRecovery(s);
+    renderHardware(s);
+    renderSetup(s);
 
     if (!(document.activeElement && document.activeElement.id && document.activeElement.id.indexOf("cfg") === 0)) {
       if ($("cfgFreq")) $("cfgFreq").value = freq != null ? freq : "";
@@ -519,7 +630,8 @@
     }
     box.innerHTML = q.slice(0, 24).map(function (t, i) {
       var mark = t.is_current ? " ▶ " : (" " + (i + 1) + ". ");
-      return '<div class="item"><span class="title">' + mark + esc(trackLabel(t)) + "</span></div>";
+      return '<div class="item" draggable="true" data-queue-index="' + i +
+        '"><span class="title">' + mark + esc(trackLabel(t)) + "</span></div>";
     }).join("");
   }
 
@@ -619,14 +731,19 @@
     api(url).then(function (data) {
       libraryLoadedOnce = true;
       var tracks = data.tracks || [];
+      libraryTrackCount = tracks.length;
       if (!tracks.length) {
-        box.innerHTML = '<div class="empty">No tracks found. Upload audio or press Refresh music.</div>';
+        box.innerHTML = '<div class="empty">No music yet. Drop files into Add Music above.</div>';
         return;
       }
       box.innerHTML = tracks.slice(0, 100).map(function (t) {
-        return '<div class="item"><span class="title">' + esc(trackLabel(t)) +
+        return '<div class="item" draggable="true" data-track-id="' + esc(t.id) +
+          '"><span class="title">' + esc(trackLabel(t)) +
           '</span><span class="meta">' + esc(t.format || "") +
-          '</span><button type="button" data-add="' + esc(t.id) + '">Add to playlist</button></div>';
+          '</span><span><button type="button" data-add="' + esc(t.id) +
+          '">Add to playlist</button> <button type="button" data-delete-track="' +
+          esc(t.id) + '" data-track-label="' + esc(trackLabel(t)) +
+          '">Delete</button></span></div>';
       }).join("");
     }).catch(function (e) {
       if (!libraryLoadedOnce) box.innerHTML = '<div class="empty">' + esc(e.message) + "</div>";
@@ -635,6 +752,23 @@
   }
 
   $("libList").addEventListener("click", function (ev) {
+    var deleteButton = ev.target.closest("[data-delete-track]");
+    if (deleteButton) {
+      var trackId = deleteButton.getAttribute("data-delete-track");
+      var label = deleteButton.getAttribute("data-track-label") || "this music";
+      if (!confirm("Delete \"" + label + "\"?\n\nIt will also be removed from playlists. This cannot be undone.")) return;
+      api("/api/library/" + encodeURIComponent(trackId), { method: "DELETE" })
+        .then(function (result) {
+          toast("Music deleted" + ((result.removed_from_playlists || []).length
+            ? " and removed from playlists." : "."));
+          libraryLoadedOnce = false;
+          playlistsCache = null;
+          loadLibrary();
+          loadPlaylists();
+          return refresh();
+        }).catch(function (e) { toast(e.message); });
+      return;
+    }
     var btn = ev.target.closest("[data-add]");
     if (!btn || !state) return;
     var pid = state.active_playlist;
@@ -646,6 +780,13 @@
         if (selectedPl === pid) openPlaylist(pid);
       })
       .catch(function (e) { toast(e.message); });
+  });
+
+  $("libList").addEventListener("dragstart", function (ev) {
+    var row = ev.target.closest("[data-track-id]");
+    if (!row) return;
+    draggedTrackId = row.getAttribute("data-track-id");
+    if (ev.dataTransfer) ev.dataTransfer.setData("text/plain", draggedTrackId);
   });
 
   function loadPlaylists() {
@@ -671,7 +812,8 @@
         var active = state && state.active_playlist === id;
         var n = p.track_count != null ? p.track_count : 0;
         var label = humanPlaylistName(p.name, id);
-        return '<div class="item' + (active ? " active-row" : "") + '">' +
+        return '<div class="item' + (active ? " active-row" : "") +
+          '" data-playlist-drop="' + esc(id) + '">' +
           '<span class="title">' + esc(label) +
           (active ? " · ACTIVE" : "") +
           ' <span class="meta">(' + n + " tracks)</span></span>" +
@@ -692,18 +834,25 @@
     box.innerHTML = '<div class="empty loading">Loading…</div>';
     api("/api/playlists/" + encodeURIComponent(id)).then(function (p) {
       var tracks = p.tracks || [];
+      var detailById = {};
+      (p.track_details || []).forEach(function (track) {
+        detailById[track.id] = track;
+      });
       window._plTracks = tracks.slice();
       var rows = tracks.map(function (tid, i) {
-        var label = typeof tid === "string" ? tid : trackLabel(tid);
+        var detail = typeof tid === "string" ? detailById[tid] : tid;
+        var label = detail ? trackLabel(detail) : "Missing music";
         var tidStr = typeof tid === "string" ? tid : (tid.id || String(i));
-        return '<div class="item"><span class="title">' + (i + 1) + ". " + esc(label) + "</span>" +
+        return '<div class="item" draggable="true" data-playlist-index="' + i +
+          '"><span class="title">' + (i + 1) + ". " + esc(label) + "</span>" +
           '<span><button type="button" data-up="' + i + '">↑</button> ' +
           '<button type="button" data-down="' + i + '">↓</button> ' +
           '<button type="button" data-rm="' + esc(tidStr) + '">Remove</button></span></div>';
       }).join("");
-      box.innerHTML = '<div class="meta" style="margin:0.5rem 0">Editing: ' +
+      box.innerHTML = '<div class="row"><input id="renamePlName" value="' +
         esc(humanPlaylistName(p.name, id)) +
-        "</div>" + (rows || '<div class="empty">Playlist empty.</div>');
+        '" aria-label="Playlist name"><button type="button" data-rename-playlist>Rename</button></div>' +
+        (rows || '<div class="empty">Playlist empty. Drag library tracks onto this playlist.</div>');
     }).catch(function (e) {
       box.innerHTML = '<div class="empty">' + esc(e.message) + "</div>";
       toast(e.message);
@@ -915,6 +1064,76 @@
   $("btnSaveCfg").addEventListener("click", function () { saveStation(false); });
   $("btnSaveAdvanced").addEventListener("click", function () { saveStation(true); });
 
+  document.querySelectorAll("[data-setup-back]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      showSetupStep(setupStep - 1);
+    });
+  });
+  document.querySelectorAll("[data-setup-next]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      if (setupStep === 1) {
+        var hardwareStatus = String(
+          (state && state.hardware_status) ||
+          ((state && state.hardware_profile_doc) || {}).status || "UNKNOWN"
+        ).toUpperCase();
+        if (hardwareStatus !== "SUPPORTED" && hardwareStatus !== "EXPERIMENTAL") {
+          toast("This hardware is not recognized. Choose a profile under Advanced.");
+          return;
+        }
+      }
+      if (setupStep === 3) {
+        api("/api/library").then(function (data) {
+          if (!(data.tracks || []).length) {
+            toast("Add at least one music file before continuing.");
+            return;
+          }
+          showSetupStep(4);
+        }).catch(function (e) { toast(e.message); });
+        return;
+      }
+      showSetupStep(setupStep + 1);
+    });
+  });
+  $("setupSaveStation").addEventListener("click", function () {
+    post("/api/setup", {
+      frequency_mhz: parseFloat($("setupFreq").value),
+      rds_ps: $("setupPs").value,
+      rds_rt: $("setupRt").value
+    }).then(function () {
+      showSetupStep(3);
+      return refresh();
+    }).catch(function (e) { toast(e.message); });
+  });
+  $("setupSaveHardware").addEventListener("click", function () {
+    post("/api/setup", {
+      hardware_profile_mode: "manual",
+      hardware_profile: $("setupHardwareProfile").value
+    }).then(function () {
+      toast("Manual hardware profile selected as experimental.");
+      return refresh();
+    }).catch(function (e) { toast(e.message); });
+  });
+  $("setupFinish").addEventListener("click", function () {
+    post("/api/setup", { setup_completed: true }).then(function () {
+      $("setupWizard").hidden = true;
+      showTab("broadcast");
+      toast("Setup complete. You are OFF AIR.");
+      return refresh();
+    }).catch(function (e) { toast(e.message); });
+  });
+  $("btnSaveHardware").addEventListener("click", function () {
+    var mode = $("hardwareMode").value;
+    post("/api/config", {
+      hardware_profile_mode: mode,
+      hardware_profile: $("hardwareProfile").value
+    }).then(function () {
+      toast(mode === "auto"
+        ? "Automatic hardware detection enabled."
+        : "Hardware profile saved.");
+      return refresh();
+    }).catch(function (e) { toast(e.message); });
+  });
+
   $("btnSaveMusicFlags").addEventListener("click", function () {
     post("/api/config", {
       shuffle: $("cfgShuffle").checked,
@@ -939,23 +1158,118 @@
     $("libSearch")._t = setTimeout(loadLibrary, 280);
   });
 
-  $("fileUpload").addEventListener("change", function () {
-    var f = $("fileUpload").files[0];
-    if (!f) return;
-    fetch("/api/upload", {
-      method: "POST",
-      headers: { "X-Filename": f.name, "Content-Type": "application/octet-stream" },
-      body: f
-    }).then(function (r) {
-      return r.json().then(function (j) {
-        if (!r.ok) throw new Error(j.error || "Upload failed");
-        return j;
+  function uploadOne(file, progressBox, index) {
+    return new Promise(function (resolve, reject) {
+      var rowId = "upload-" + Date.now() + "-" + index;
+      progressBox.insertAdjacentHTML(
+        "beforeend",
+        '<div class="upload-row" id="' + rowId + '"><div>' +
+        esc(file.name) + '</div><progress max="100" value="0"></progress>' +
+        '<div class="upload-result">Starting…</div></div>'
+      );
+      var row = $(rowId);
+      var progress = row.querySelector("progress");
+      var result = row.querySelector(".upload-result");
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/upload");
+      xhr.setRequestHeader("Content-Type", "application/octet-stream");
+      xhr.setRequestHeader("X-Filename-Encoded", encodeURIComponent(file.name));
+      if (state && state.active_playlist) {
+        xhr.setRequestHeader("X-Playlist-ID", state.active_playlist);
+      }
+      xhr.upload.onprogress = function (event) {
+        if (event.lengthComputable) {
+          progress.value = Math.round((event.loaded / event.total) * 100);
+          result.textContent = progress.value + "%";
+        }
+      };
+      xhr.onload = function () {
+        var payload = {};
+        try { payload = JSON.parse(xhr.responseText || "{}"); } catch (e) {}
+        if (xhr.status < 200 || xhr.status >= 300) {
+          result.textContent = payload.error || "Upload failed.";
+          result.classList.add("error");
+          reject(new Error(result.textContent));
+          return;
+        }
+        progress.value = 100;
+        result.textContent = payload.duplicate
+          ? "Already in your library."
+          : (payload.renamed
+            ? "Added as " + payload.filename
+            : "Added to your library.");
+        resolve(payload);
+      };
+      xhr.onerror = function () {
+        result.textContent = "Connection lost during upload.";
+        result.classList.add("error");
+        reject(new Error(result.textContent));
+      };
+      xhr.send(file);
+    });
+  }
+
+  function uploadFiles(files, progressId) {
+    var list = Array.prototype.slice.call(files || []);
+    if (!list.length) return Promise.resolve([]);
+    var progressBox = $(progressId);
+    progressBox.innerHTML = "";
+    var results = [];
+    var failures = [];
+    var chain = Promise.resolve();
+    list.forEach(function (file, index) {
+      chain = chain.then(function () {
+        return uploadOne(file, progressBox, index).then(function (result) {
+          results.push(result);
+        }).catch(function (error) {
+          failures.push(error);
+        });
       });
-    }).then(function () {
-      toast("Uploaded into the library.");
+    });
+    return chain.then(function () {
       libraryLoadedOnce = false;
+      playlistsCache = null;
       loadLibrary();
-    }).catch(function (e) { toast(e.message); });
+      loadPlaylists();
+      return refresh();
+    }).then(function () {
+      toast(
+        results.length + (results.length === 1 ? " file added" : " files added") +
+        (failures.length ? "; " + failures.length + " could not be added." : ".")
+      );
+      return results;
+    });
+  }
+
+  $("fileUpload").addEventListener("change", function () {
+    uploadFiles($("fileUpload").files, "uploadProgress").catch(function () {});
+    $("fileUpload").value = "";
+  });
+  $("setupFileUpload").addEventListener("change", function () {
+    uploadFiles(
+      $("setupFileUpload").files, "setupUploadProgress"
+    ).catch(function () {});
+    $("setupFileUpload").value = "";
+  });
+
+  document.querySelectorAll("[data-upload-zone]").forEach(function (zone) {
+    ["dragenter", "dragover"].forEach(function (name) {
+      zone.addEventListener(name, function (event) {
+        event.preventDefault();
+        zone.classList.add("dragging");
+      });
+    });
+    ["dragleave", "drop"].forEach(function (name) {
+      zone.addEventListener(name, function (event) {
+        event.preventDefault();
+        zone.classList.remove("dragging");
+      });
+    });
+    zone.addEventListener("drop", function (event) {
+      var progressId = zone.classList.contains("setup-upload-zone")
+        ? "setupUploadProgress" : "uploadProgress";
+      uploadFiles(event.dataTransfer.files, progressId).catch(function () {});
+    });
   });
 
   $("btnNewPl").addEventListener("click", function () {
@@ -1010,11 +1324,45 @@
     }
   });
 
+  $("plList").addEventListener("dragover", function (ev) {
+    if (ev.target.closest("[data-playlist-drop]")) ev.preventDefault();
+  });
+  $("plList").addEventListener("drop", function (ev) {
+    var row = ev.target.closest("[data-playlist-drop]");
+    var trackId = draggedTrackId ||
+      (ev.dataTransfer && ev.dataTransfer.getData("text/plain"));
+    if (!row || !trackId) return;
+    ev.preventDefault();
+    var playlistId = row.getAttribute("data-playlist-drop");
+    post("/api/playlists/" + encodeURIComponent(playlistId) + "/tracks", {
+      track_id: trackId
+    }).then(function () {
+      toast("Added to " + humanPlaylistName(null, playlistId) + ".");
+      playlistsCache = null;
+      loadPlaylists();
+      if (selectedPl === playlistId) openPlaylist(playlistId);
+      return refresh();
+    }).catch(function (e) { toast(e.message); });
+  });
+
   $("plDetail").addEventListener("click", function (ev) {
     if (!selectedPl) return;
     var t = ev.target;
     var tracks = (window._plTracks || []).slice();
-    if (t.getAttribute("data-rm")) {
+    if (t.hasAttribute("data-rename-playlist")) {
+      var name = $("renamePlName").value.trim();
+      if (!name) return toast("Enter a playlist name.");
+      api("/api/playlists/" + encodeURIComponent(selectedPl), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name, tracks: tracks })
+      }).then(function () {
+        playlistsCache = null;
+        loadPlaylists();
+        openPlaylist(selectedPl);
+        toast("Playlist renamed.");
+      }).catch(function (e) { toast(e.message); });
+    } else if (t.getAttribute("data-rm")) {
       api("/api/playlists/" + encodeURIComponent(selectedPl) + "/tracks/" + encodeURIComponent(t.getAttribute("data-rm")), { method: "DELETE" })
         .then(function () { openPlaylist(selectedPl); loadPlaylists(); })
         .catch(function (e) { toast(e.message); });
@@ -1030,6 +1378,56 @@
         .then(function () { openPlaylist(selectedPl); })
         .catch(function (e) { toast(e.message); });
     }
+  });
+
+  var playlistDragIndex = null;
+  $("plDetail").addEventListener("dragstart", function (ev) {
+    var row = ev.target.closest("[data-playlist-index]");
+    if (row) playlistDragIndex = Number(row.getAttribute("data-playlist-index"));
+  });
+  $("plDetail").addEventListener("dragover", function (ev) {
+    if (ev.target.closest("[data-playlist-index]")) ev.preventDefault();
+  });
+  $("plDetail").addEventListener("drop", function (ev) {
+    var row = ev.target.closest("[data-playlist-index]");
+    if (!row || playlistDragIndex == null) return;
+    ev.preventDefault();
+    var target = Number(row.getAttribute("data-playlist-index"));
+    var tracks = (window._plTracks || []).slice();
+    var moved = tracks.splice(playlistDragIndex, 1)[0];
+    tracks.splice(target, 0, moved);
+    playlistDragIndex = null;
+    post("/api/playlists/" + encodeURIComponent(selectedPl) + "/reorder", {
+      tracks: tracks
+    }).then(function () {
+      openPlaylist(selectedPl);
+      return refresh();
+    }).catch(function (e) { toast(e.message); });
+  });
+
+  var queueDragIndex = null;
+  $("queueBox").addEventListener("dragstart", function (ev) {
+    var row = ev.target.closest("[data-queue-index]");
+    if (row) queueDragIndex = Number(row.getAttribute("data-queue-index"));
+  });
+  $("queueBox").addEventListener("dragover", function (ev) {
+    if (ev.target.closest("[data-queue-index]")) ev.preventDefault();
+  });
+  $("queueBox").addEventListener("drop", function (ev) {
+    var row = ev.target.closest("[data-queue-index]");
+    if (!row || queueDragIndex == null) return;
+    ev.preventDefault();
+    var target = Number(row.getAttribute("data-queue-index"));
+    var queue = (window._queueTracks || []).slice();
+    var moved = queue.splice(queueDragIndex, 1)[0];
+    queue.splice(target, 0, moved);
+    queueDragIndex = null;
+    post("/api/queue/reorder", {
+      tracks: queue.map(function (track) { return track.id; })
+    }).then(function () {
+      toast("Queue order saved to the active playlist.");
+      return refresh();
+    }).catch(function (e) { toast(e.message); });
   });
 
   $("btnClearFault").addEventListener("click", function () {
