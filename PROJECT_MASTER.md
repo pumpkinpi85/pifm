@@ -3,7 +3,7 @@
 **Durable project authority.** A new contributor or Cursor session should be able
 to understand piFM from this file without the private reference-station history.
 
-Version of this document: **0.4.2 P1C (canonical deployment machinery)**
+Version of this document: **0.4.2 P1D (reference A+ canonical cutover)**
 
 ---
 
@@ -155,10 +155,11 @@ candidate only** — no public push until separately authorized.
 
 ## 18. CURRENT PROJECT STATUS
 
-**P1C complete (software):** exact-SHA deploy/backup/rollback tooling, build
-identity, persistent-data contract, hardware-profile resolution, and non-RF
-reference validator. Still a **local candidate**; physical A+ cutover is **not**
-performed until separately authorized.
+**P1D complete (reference A+ cutover):** the physical A+ reference station runs
+canonical piFM from `/opt/pifm` with stamped build identity. Operator media and
+station settings were preserved. Legacy personal trees remain on-disk as
+read-only rollback artifacts pending authorized RF validation and retirement
+gates. Still no public GitHub push.
 
 ## 19. KNOWN LIMITATIONS
 
@@ -166,12 +167,12 @@ performed until separately authorized.
 - Pi 5 not supported without a proven RP1-capable backend
 - Optional panel LED/switch not required for core product
 - RF filtering/matching not measured by this software project
-- Reference station still on a personal home-directory install layout until cutover
-- Remote deploy scripts intentionally refuse mutating `ssh pifm` until ungated
+- Authorized real-radio validation has not yet been performed
+- Legacy `/home/pi/pifm` and private Mac tree not deleted (retirement gated)
 
 ## 20. NEXT APPROVED PHASE
 
-**Authorized physical cutover** of the reference A+ to `/opt/pifm` using
-`docs/cutover-reference-station.md`, then non-RF validation, rollback proof,
-and only then any founder-authorized RF checks / publication review for
-**github.com/pumpkinpi85/pifm**.
+**Separately authorized real-radio validation** on the reference A+ (shielded
+load preferred), then publication readiness review for
+**github.com/pumpkinpi85/pifm**. Do not delete legacy trees until retirement
+gates in `docs/legacy-retirement.md` pass with founder authorization.

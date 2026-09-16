@@ -45,8 +45,7 @@ that repository.
 
 ## Status
 
-Public candidate **0.4.2** (P1C): one-product deployment machinery for exact-SHA
-installs, build identity, and reference-hardware validation — without performing
-the physical A+ cutover until separately authorized.
-This tree is **not** the historical commissioning archive.
+Public candidate **0.4.2** with P1D reference-hardware cutover: the A+ reference
+station runs this canonical product from `/opt/pifm`.
+Legacy personal trees remain pending authorized RF validation and retirement.
 GitHub publication is not performed until separately authorized.

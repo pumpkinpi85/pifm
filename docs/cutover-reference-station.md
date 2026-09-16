@@ -1,10 +1,7 @@
 # Reference station cutover (`/home/pi/pifm` → `/opt/pifm`)
 
-**DO NOT EXECUTE until Nathan explicitly authorizes physical cutover.**
-
-This is the one-time migration from the personal deploy layout to the canonical
-install root while preserving operator data. Goal: the A+ runs the same product
-tree as eventual public users.
+**P1D executed with founder authorization** for the reference A+ cutover.
+Legacy trees remain until retirement gates pass.
 
 ## Preconditions
 

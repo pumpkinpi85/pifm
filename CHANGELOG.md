@@ -1,17 +1,18 @@
 # Changelog
 
-## 0.4.2 — P1C canonical deployment & reference-hardware convergence
+## 0.4.2 — P1C/P1D canonical deployment & reference A+ cutover
 
-Machinery for one-product authority (no physical cutover in this release):
+P1C machinery plus authorized P1D physical cutover of the reference A+:
 
 - Deployed build identity (`build_meta.json`, API `git_sha` / System Build line)
 - Persistent data contract (`docs/persistent-data.md`)
 - Station backup / exact-SHA stage-deploy / rollback tools (`scripts/`)
+- Authorized remote cutover via `--authorize-cutover`
 - `pi_fm_rds` normalization helper → `/usr/local/bin/pi_fm_rds`
 - Hardware profile runtime resolution
 - Non-RF reference hardware validator
-- Cutover + legacy retirement procedures (documentation only)
-- Remote deploy/rollback against the reference A+ remains gated
+- Cutover + legacy retirement procedures
+- Reference A+ now runs `/opt/pifm` (legacy trees retained pending RF + retirement)
 
 ## 0.4.1 — P1A clean-room software validation & convergence prep
 
