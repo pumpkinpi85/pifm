@@ -10,6 +10,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from appliance.__main__ import ensure_startup_rf_off
 from appliance.config import Config, ConfigError
 from appliance.hardware_environment import check_host_prerequisites
 from appliance.hardware_profile import (
@@ -148,6 +149,21 @@ class FirstRunConfigTests(unittest.TestCase):
             config = Config(path, root)
             with self.assertRaises(ConfigError):
                 config.update({"setup_completed": "true"})
+
+    @patch(
+        "appliance.__main__.kill_all_transmitters",
+        return_value={"clear": True, "actions": []},
+    )
+    def test_startup_requires_zero_transmitters(self, _kill):
+        ensure_startup_rf_off()
+
+    @patch(
+        "appliance.__main__.kill_all_transmitters",
+        return_value={"clear": False, "remaining": [999]},
+    )
+    def test_startup_refuses_when_zero_cannot_be_proven(self, _kill):
+        with self.assertRaisesRegex(RuntimeError, "Startup refused"):
+            ensure_startup_rf_off()
 
 
 class MediaImportTests(unittest.TestCase):

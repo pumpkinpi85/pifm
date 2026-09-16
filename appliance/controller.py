@@ -63,7 +63,9 @@ class Controller:
 
     # --- status ---
 
-    def broadcast_checklist(self) -> Dict[str, Any]:
+    def broadcast_checklist(
+        self, include_setup: bool = True
+    ) -> Dict[str, Any]:
         """Operator-facing readiness for GO ON AIR (never starts TX).
 
         Read-only: must not reshuffle or otherwise mutate the queue.
@@ -81,6 +83,22 @@ class Controller:
                 pl_name = pl_id or "(none)"
 
             items = []
+            if include_setup:
+                items.append(
+                    {
+                        "id": "setup",
+                        "label": "Setup complete",
+                        "ok": bool(cfg.get("setup_completed", True)),
+                        "detail": (
+                            "First-run setup complete"
+                            if cfg.get("setup_completed", True)
+                            else "First-run setup is not complete"
+                        ),
+                        "operator_hint": "Finish setup before going on air.",
+                        "cta": "",
+                        "cta_label": "",
+                    }
+                )
             items.append(
                 {
                     "id": "playlist",
@@ -522,7 +540,7 @@ class Controller:
             if settings:
                 self.update_config(settings)
             if complete:
-                checklist = self.broadcast_checklist()
+                checklist = self.broadcast_checklist(include_setup=False)
                 if not checklist.get("ready"):
                     blockers = checklist.get("blockers") or []
                     message = (
@@ -912,11 +930,16 @@ class Controller:
         audio_path = None  # type: Optional[str]
         generation = 0
         with self._lock:
-            self._ensure_queue_loaded_unlocked()
-            if not self._queue:
-                raise StateError(
-                    "Cannot go on air yet — choose a playlist that has music first."
+            checklist = self.broadcast_checklist()
+            if not checklist.get("ready"):
+                blockers = checklist.get("blockers") or []
+                message = (
+                    blockers[0].get("message")
+                    if blockers and isinstance(blockers[0], dict)
+                    else "The station is not ready to go on air."
                 )
+                raise StateError(str(message))
+            self._ensure_queue_loaded_unlocked()
             if self._queue_index < 0:
                 self._queue_index = 0
             if self.sm.state == State.FAULT:
@@ -1213,21 +1236,29 @@ class Controller:
                 self.events.emit("TX_KILL", "sweep completed", kill_sweep=sweep)
             if not sweep.get("clear", True):
                 self.events.emit("TX_DUPLICATE_DETECTED", "sweep incomplete", kill_sweep=sweep)
+                self.sm.enter_fault(
+                    "STOP could not prove the transmitter is off"
+                )
             else:
                 self.events.emit("TX_EXIT", "no transmitter processes remain")
             self._playing = False
             self._paused = False
-            if self.sm.state == State.ON_AIR:
-                self.sm.transition(
-                    State.READY if self._queue else State.SAFE_OFF, "tx off"
-                )
-            elif self.sm.state == State.FAULT:
-                self.sm.reset_to_safe()
-                self._refresh_ready_unlocked()
+            if sweep.get("clear", True):
+                if self.sm.state == State.ON_AIR:
+                    self.sm.transition(
+                        State.READY if self._queue else State.SAFE_OFF, "tx off"
+                    )
+                elif self.sm.state == State.FAULT:
+                    self.sm.reset_to_safe()
+                    self._refresh_ready_unlocked()
             self._air_stop_pending = False
             self.events.emit(
                 "STATE_RECONCILE",
-                "STOP BROADCAST reconciled to OFF",
+                (
+                    "STOP BROADCAST reconciled to OFF"
+                    if sweep.get("clear", True)
+                    else "STOP BROADCAST could not prove RF is off"
+                ),
                 previous_state=prev.value,
                 state=self.sm.state.value,
                 kill_sweep=sweep,

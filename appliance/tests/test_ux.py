@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 import sys
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -214,6 +215,9 @@ class OperatorBlockerTests(unittest.TestCase):
 
     def test_setup_completion_requires_ready_and_never_starts_tx(self):
         self.ctrl.update_config({"setup_completed": False})
+        with self.assertRaisesRegex(StateError, "Finish setup"):
+            self.ctrl.go_on_air()
+        self.assertFalse(self.ctrl.tx.is_running())
         result = self.ctrl.update_setup({"setup_completed": True})
         self.assertTrue(result["setup_completed"])
         self.assertFalse(self.ctrl.tx.is_running())
@@ -225,6 +229,16 @@ class OperatorBlockerTests(unittest.TestCase):
             self.ctrl.update_setup({"setup_completed": True})
         self.assertFalse(self.ctrl.config.get("setup_completed"))
         self.assertFalse(self.ctrl.tx.is_running())
+
+    def test_incomplete_absolute_stop_stays_in_visible_fault(self):
+        with patch(
+            "appliance.controller.kill_all_transmitters",
+            return_value={"clear": False, "actions": [], "remaining": [999]},
+        ):
+            status = self.ctrl.tx_off()
+        self.assertEqual(status["state"], "FAULT")
+        self.assertIn("STATE UNKNOWN", status["broadcast_ui"])
+        self.assertTrue(status["show_stop_broadcast"])
 
 
 if __name__ == "__main__":

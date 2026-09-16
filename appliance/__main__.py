@@ -13,7 +13,17 @@ from .controller import Controller
 from .events import EventLog
 from .gpio_controls import GpioControls
 from .library import Library
+from .tx import kill_all_transmitters
 from .webapp import serve
+
+
+def ensure_startup_rf_off() -> None:
+    """Clear orphan transmitter workers before the HTTP API is exposed."""
+    sweep = kill_all_transmitters()
+    if not sweep.get("clear", False):
+        raise RuntimeError(
+            "Startup refused: transmitter processes could not be cleared"
+        )
 
 
 def main(argv=None) -> int:
@@ -30,6 +40,7 @@ def main(argv=None) -> int:
             cfg_path.parent.mkdir(parents=True, exist_ok=True)
             cfg_path.write_text(default.read_text())
 
+    ensure_startup_rf_off()
     config = Config(cfg_path, root)
     events = EventLog(
         maxlen=500,
