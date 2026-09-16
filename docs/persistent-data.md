@@ -14,6 +14,7 @@ the product defaults committed to Git.
 | `data/library/` | MEDIA |
 | `data/playlists/` | PLAYLIST / OPERATOR DATA |
 | `data/library.sqlite3` | PLAYLIST / OPERATOR DATA |
+| `data/recovery/` | OPERATOR BROADCAST INTENT |
 
 Deploy and rollback tools must not overwrite these unless an explicit
 destructive option is used (none is enabled by default).
@@ -46,7 +47,13 @@ These may be cleared during recovery without losing the station’s music librar
 - Logs, caches, backups, commissioning evidence
 - Host IPs, personal paths, private keys
 
-## ON_AIR invariant
+## Broadcast-intent invariant
 
-ON_AIR / TX running state is **never** persisted in `appliance.json`.
-Service restart and post-deploy boot must come up **OFF AIR**.
+ON_AIR state and transmitter PIDs are **never** persisted in
+`appliance.json`. A separate atomic marker under `data/recovery/` records only
+the operator's deliberate ON intent. Marker absence means OFF.
+
+Fresh installs therefore boot OFF AIR. A service or machine restart may
+restore a valid ON intent only through the complete readiness and
+single-transmitter checks. Absolute STOP removes the marker before terminating
+RF.

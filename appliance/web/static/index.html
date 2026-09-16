@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>piFM Pirate Radio</title>
-  <link rel="stylesheet" href="/css/app.css?v=14" />
+  <link rel="stylesheet" href="/css/app.css?v=15" />
 </head>
 <body>
   <section id="setupWizard" class="setup-shell" hidden aria-label="First-run setup">
@@ -271,6 +271,11 @@
         <button type="button" id="btnSaveHardware" class="secondary">Save hardware choice</button>
       </details>
       <div class="panel">
+        <div class="label">BROADCAST RECOVERY</div>
+        <div id="recoverySummary" class="bigstat">Loading…</div>
+        <p id="recoveryDetail" class="meta"></p>
+      </div>
+      <div class="panel">
         <div class="label">NETWORK</div>
         <div id="netSummary" class="bigstat">Loading…</div>
         <p id="netDetail" class="meta"></p>
@@ -333,6 +338,6 @@
 
   <div id="toast" class="toast" hidden></div>
   <div id="faultLine" class="fault-banner" hidden></div>
-  <script src="/js/app.js?v=14"></script>
+  <script src="/js/app.js?v=15"></script>
 </body>
 </html>

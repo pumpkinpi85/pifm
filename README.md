@@ -7,8 +7,11 @@ FM generation (`pi_fm_rds`) and a simple Broadcast Deck console.
 
 ## Product principles
 
-- **Real transmitter, OFF AIR by default.** Production targets `pi_fm_rds`.
-  Fresh installs boot **OFF AIR**. Only an explicit operator command may start RF.
+- **Real transmitter, explicit operator intent.** Production targets
+  `pi_fm_rds`. Fresh installs boot **OFF AIR**. Raising the Black Flag arms
+  safe power-restoration recovery; absolute STOP disarms it.
+- **The Pi runs the station.** The browser is a remote control. Broadcasting
+  does not require LAN, Internet, DNS, NTP, or an open browser.
 - **Reference hardware:** Raspberry Pi Model A+ Rev 1.1 (minimum / performance floor).
 - **Stay light:** Python + stdlib HTTP server + vanilla HTML/CSS/JS. No Docker,
   no Node production runtime, no React, no cloud requirement.
@@ -31,6 +34,8 @@ Installation and configuration **do not** start broadcasting.
 - [Hardware and first run](docs/hardware-and-first-run.md) — detection,
   readiness, setup, original wiring/pipeline diagrams
 - [Music workspace](docs/music.md) — browser imports, playlists, and queue
+- [Standalone appliance](docs/standalone-appliance.md) — browser/network
+  independence, persisted broadcast intent, and power recovery
 - [CONTRIBUTING.md](CONTRIBUTING.md) — including the A+ minimum-hardware rule
 - [SECURITY.md](SECURITY.md)
 
@@ -48,8 +53,9 @@ that repository.
 
 ## Status
 
-P1F product candidate **0.5.0** adds hardware-first setup and browser music
-workflows to the proven canonical A+ appliance.
+P1G product candidate **0.6.0** adds atomic operator broadcast intent,
+standalone playlist progression, and safety-gated service/power recovery.
+Physical power-restoration RF validation remains founder-gated.
 The reference station runs the canonical product from `/opt/pifm`.
 Legacy personal trees remain read-only pending final retirement.
 GitHub publication is not performed until separately authorized.

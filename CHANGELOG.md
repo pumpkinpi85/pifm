@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.0 — Standalone appliance resilience
+
+- Persists deliberate operator ON intent in an atomic, fsync-backed marker;
+  marker absence remains the fail-safe OFF state.
+- Disarms recovery before absolute STOP and preserves ON intent across service
+  or machine shutdown.
+- Restores only through canonical hardware, backend, media, and single-worker
+  gates, with same-boot failure latching to prevent restart loops.
+- Removes network-online ordering from the appliance service and keeps browser,
+  LAN, DNS, NTP, Internet, and cloud state outside the playback lifecycle.
+- Persists useful playlist/current-track/program state and adds local,
+  duration-based playlist progression.
+- Defines repeat-disabled completion as Broadcast ON with a stopped program and
+  silence hold.
+- Hardens disk-full uploads, failed WAV preparation, atomic configuration
+  writes, and unwritable Ship's Log behavior without corrupting operator data.
+- Preserves recovery intent in backup, deployment, and rollback tooling.
+
 ## 0.5.0 — Hardware-first setup and Music workspace
 
 - Detects Raspberry Pi identity without guessing unknown boards and maps the

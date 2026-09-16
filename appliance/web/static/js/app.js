@@ -228,6 +228,27 @@
     }
   }
 
+  function renderRecovery(s) {
+    var summary = $("recoverySummary");
+    var detail = $("recoveryDetail");
+    if (!summary || !detail) return;
+    var recovery = s.broadcast_recovery || {};
+    if (!recovery.valid) {
+      summary.textContent = "Blocked";
+      detail.textContent = recovery.invalid_reason ||
+        "Saved recovery state is invalid. Broadcast will remain off.";
+    } else if (recovery.armed) {
+      summary.textContent = "Armed";
+      detail.textContent = recovery.last_restore_reason
+        ? "Last recovery: " + recovery.last_restore_reason
+        : "After power returns, piFM will validate safety and resume this station.";
+    } else {
+      summary.textContent = "Off";
+      detail.textContent =
+        "After power returns, piFM will remain OFF AIR until you Raise the Black Flag.";
+    }
+  }
+
   function showSetupStep(nextStep) {
     setupStep = Math.max(0, Math.min(4, nextStep));
     var names = ["WELCOME", "HARDWARE", "STATION", "MUSIC", "BROADCAST"];
@@ -549,6 +570,7 @@
     renderAppliance(s);
     renderFaultRecovery(s);
     renderHardware(s);
+    renderRecovery(s);
     renderSetup(s);
 
     if (!(document.activeElement && document.activeElement.id && document.activeElement.id.indexOf("cfg") === 0)) {
@@ -935,6 +957,7 @@
       renderHealth(s);
       renderAppliance(s);
       renderFaultRecovery(s);
+      renderRecovery(s);
       var net = s.network || {};
       $("netSummary").textContent = net.rf_quiet_active
         ? "Network quiet"

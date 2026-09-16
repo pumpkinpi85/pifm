@@ -3,7 +3,7 @@
 **Durable project authority.** A new contributor or Cursor session should be able
 to understand piFM from this file without the private reference-station history.
 
-Version of this document: **0.5.0 P1F (hardware-first onboarding and music productization)**
+Version of this document: **0.6.0 P1G (standalone appliance resilience)**
 
 ---
 
@@ -51,7 +51,8 @@ unnecessary polling, excessive logging, repeated transcoding, excessive SD write
 
 - Python 3 package `appliance/`
 - Entry: `python3 -m appliance` (`PIFM_ROOT` supported)
-- Config: JSON under `config/appliance.json` (never persists ON_AIR)
+- Config: JSON under `config/appliance.json` (never persists transient ON_AIR/PIDs)
+- Broadcast intent: atomic ON marker under `data/recovery/`; absence means OFF
 - Library: filesystem + SQLite index
 - Web: stdlib `ThreadingHTTPServer`, static HTML/CSS/JS
 - Live updates: SSE (`/api/events/stream`) + light polling fallback
@@ -85,29 +86,50 @@ CHANGING TRACK…
 **Never claim ON AIR or PAUSED before backend confirmation.** Optimistic UI may
 show transitional “starting/pausing” only.
 
-## 9. ABSOLUTE STOP / SAFETY INVARIANTS
+## 9. STANDALONE APPLIANCE / RECOVERY MODEL
 
-- Fresh boot / service start: **TX OFF**, state not ON_AIR
+The Raspberry Pi runs the station. The web interface is a remote control, not
+part of the broadcast path. Normal broadcasting and local program progression
+do not depend on a browser, LAN, Internet, DNS, NTP, or cloud service.
+
+Persist only the operator's deliberate broadcast intent:
+
+- Raise the Black Flag atomically arms ON recovery before transmitter startup.
+- Absolute STOP atomically disarms recovery before transmitter shutdown.
+- Fresh install / absent or corrupt marker means OFF.
+- Service and power restoration reuse the canonical readiness, media, hardware,
+  and single-transmitter gates.
+- Failed recovery is latched for the current machine boot to prevent systemd
+  restart loops.
+- Service shutdown stops RF without rewriting deliberate operator intent.
+
+Physical A+ power-restoration and network-disconnect RF behavior remain
+founder-gated until tested and must not be described as proven before then.
+
+## 10. ABSOLUTE STOP / SAFETY INVARIANTS
+
+- Fresh install / OFF intent: **TX OFF**, state not ON_AIR
 - Config changes, uploads, playlist selection: **must not** auto-TX
 - Lower the Black Flag / STOP BROADCAST: always available; cancels in-flight start
+- STOP persists OFF before transmitter termination and blocks later restoration
 - Pause keeps carrier (silence hold) when ON AIR; STOP ends transmission
-- Reboot returns OFF AIR
+- Reboot restores only valid deliberate ON intent after safety validation
 - Fake/mock backends are for automated tests — not the normal operator product mode
 
-## 10. OPERATOR UX PRINCIPLES
+## 11. OPERATOR UX PRINCIPLES
 
 - Centre PLAY/PAUSE primary; PREV/NEXT secondary
 - Raise the Black Flag = go on air; Lower = emergency/safety stop
 - Ship’s Log: meaningful operator transitions (idempotent pause)
 - Diagnostics under System, not the first viewport
 
-## 11. HARDWARE ABSTRACTION STRATEGY
+## 12. HARDWARE ABSTRACTION STRATEGY
 
 Minimal profiles under `hardware/profiles/` document board evidence and defaults.
 P0 ships the A+ reference profile only as SUPPORTED. Do not invent validated
 profiles for untested boards.
 
-## 12. SUPPORTED-HARDWARE EVIDENCE POLICY
+## 13. SUPPORTED-HARDWARE EVIDENCE POLICY
 
 | Label | Meaning |
 |-------|---------|
@@ -119,19 +141,19 @@ profiles for untested boards.
 Promotion to SUPPORTED requires a recorded clean-room or lab validation note
 (non-RF lifecycle at minimum; RF only with explicit authorization).
 
-## 13. RF DOCUMENTATION POLICY
+## 14. RF DOCUMENTATION POLICY
 
 Distinguish SOFTWARE-PROVEN / HARDWARE-PROVEN / ASSUMED / REQUIRES MEASUREMENT.
 Do not market raw GPIO as a finished compliant transmitter. Operators own local
 lawful use. Prefer shielded loads for lab work.
 
-## 14. OPEN-SOURCE / GPL-3.0 POLICY
+## 15. OPEN-SOURCE / GPL-3.0 POLICY
 
 This project is licensed under **GNU GPL version 3**. Users may run, study,
 share, and modify under GPL-3.0. That is not write access to the canonical repo.
 Upstream PiFmRds is also GPL-3.0 — see `third_party/NOTICE.md`.
 
-## 15. REPOSITORY GOVERNANCE
+## 16. REPOSITORY GOVERNANCE
 
 **Canonical GitHub owner:** [pumpkinpi85](https://github.com/pumpkinpi85)
 (intended repo: `pumpkinpi85/pifm`). Not any other organization or Industries account.
@@ -140,39 +162,41 @@ Intended eventual GitHub posture: protected `main`, PR-required, maintainer
 merges, maintainer releases/tags under that account. P0 creates a **local
 candidate only** — no public push until separately authorized.
 
-## 16. TESTING STRATEGY
+## 17. TESTING STRATEGY
 
 - Unit/integration tests with `mock`/`fake` TX (no RF)
 - Publication sanitization scan for private artifacts
 - Clean-room non-RF validation on a fresh Pi/SD (not the reference A+ station)
 - Explicit RF validation only with founder authorization
 
-## 17. RELEASE STRATEGY
+## 18. RELEASE STRATEGY
 
-- Pre-1.0 public candidates: `0.4.x`
+- Pre-1.0 public candidates: `0.x`
 - `1.0.0` only after clean-room Phase A, docs, license, and publication checklist
 - Do not pretend public history includes private commissioning chronology
 
-## 18. CURRENT PROJECT STATUS
+## 19. CURRENT PROJECT STATUS
 
-**P1D complete (reference A+ cutover):** the physical A+ reference station runs
-canonical piFM from `/opt/pifm` with stamped build identity. Operator media and
-station settings were preserved. Legacy personal trees remain on-disk as
-read-only rollback artifacts pending authorized RF validation and retirement
-gates. Still no public GitHub push.
+**P1G candidate:** canonical P1F runs on the physical A+ from `/opt/pifm`.
+P1G implements atomic operator broadcast intent, network-independent service
+startup, local program progression, and safety-gated restoration. Non-RF and
+OFF-intent A+ validation precede the founder-operated physical recovery tests.
+Legacy personal trees remain read-only rollback artifacts. No public GitHub
+push has occurred.
 
-## 19. KNOWN LIMITATIONS
+## 20. KNOWN LIMITATIONS
 
 - Only A+ is SUPPORTED in-repo; other Pis are EXPERIMENTAL/UNKNOWN/UNSUPPORTED
 - Pi 5 not supported without a proven RP1-capable backend
 - Optional panel LED/switch not required for core product
 - RF filtering/matching not measured by this software project
-- Authorized real-radio validation has not yet been performed
+- P1E audio timing was physically validated; P1G network/power restoration is
+  not physically proven until the founder-operated RF tests pass
+- LAN API authentication remains future security-hardening work
 - Legacy `/home/pi/pifm` and private Mac tree not deleted (retirement gated)
 
-## 20. NEXT APPROVED PHASE
+## 21. NEXT APPROVED PHASE
 
-**Separately authorized real-radio validation** on the reference A+ (shielded
-load preferred), then publication readiness review for
-**github.com/pumpkinpi85/pifm**. Do not delete legacy trees until retirement
-gates in `docs/legacy-retirement.md` pass with founder authorization.
+**Founder-operated P1G network-disconnect and power-restoration RF validation**
+on the reference A+, followed by publication readiness review. Do not publish
+GitHub or delete legacy trees until their separate gates pass.

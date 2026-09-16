@@ -120,6 +120,11 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn('value="auto">Detect automatically', self.html)
         self.assertIn("FM output: GPIO ", self.js)
 
+    def test_broadcast_recovery_status_is_explained_under_system(self):
+        self.assertIn("BROADCAST RECOVERY", self.html)
+        self.assertIn('id="recoverySummary"', self.html)
+        self.assertIn("After power returns", self.js)
+
 
 def _make_ctrl(root: Path) -> Controller:
     (root / "config").mkdir(parents=True, exist_ok=True)
