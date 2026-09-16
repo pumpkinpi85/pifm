@@ -34,10 +34,10 @@ EXTRA=()
 [[ "$DRY" -eq 1 ]] && EXTRA+=(--dry-run)
 
 if [[ -n "$REMOTE" ]]; then
-  BUNDLE="$(mktemp /tmp/pifm-ops-bundle.XXXXXX.tgz)"
-  "$ROOT_DIR/scripts/pack-ops-bundle.sh" "$BUNDLE" >/dev/null
-  scp -q "$BUNDLE" "$REMOTE:/tmp/pifm-ops-bundle.tgz"
-  rm -f "$BUNDLE"
+BUNDLE="$(mktemp /tmp/pifm-ops-bundle.XXXXXX)"
+"$ROOT_DIR/scripts/pack-ops-bundle.sh" "$BUNDLE.tgz" >/dev/null
+scp -q "$BUNDLE.tgz" "$REMOTE:/tmp/pifm-ops-bundle.tgz"
+rm -f "$BUNDLE" "$BUNDLE.tgz"
   ssh -o BatchMode=yes "$REMOTE" bash -s <<EOF
 set -euo pipefail
 rm -rf /tmp/pifm_ops

@@ -108,11 +108,11 @@ LOCAL_TGZ="/tmp/pifm-stage-$FULL_SHA.tgz"
 tar -C "$STAGE" -czf "$LOCAL_TGZ" .
 
 echo "Uploading stage + ops bundle to $REMOTE"
-BUNDLE="$(mktemp /tmp/pifm-ops-bundle.XXXXXX.tgz)"
-"$ROOT_DIR/scripts/pack-ops-bundle.sh" "$BUNDLE" >/dev/null
+BUNDLE="$(mktemp /tmp/pifm-ops-bundle.XXXXXX)"
+"$ROOT_DIR/scripts/pack-ops-bundle.sh" "$BUNDLE.tgz" >/dev/null
 scp -q "$LOCAL_TGZ" "$REMOTE:/tmp/pifm-stage-$FULL_SHA.tgz"
-scp -q "$BUNDLE" "$REMOTE:/tmp/pifm-ops-bundle.tgz"
-rm -f "$BUNDLE"
+scp -q "$BUNDLE.tgz" "$REMOTE:/tmp/pifm-ops-bundle.tgz"
+rm -f "$BUNDLE" "$BUNDLE.tgz"
 ssh -o BatchMode=yes "$REMOTE" bash -s <<REMOTE_SCRIPT
 set -euo pipefail
 STAGE="$REMOTE_STAGE"
