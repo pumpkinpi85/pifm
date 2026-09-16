@@ -513,6 +513,33 @@ class Controller:
             self._refresh_ready_unlocked()
             return data
 
+    def update_setup(self, patch: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply first-run choices; complete only when Broadcast is ready."""
+        with self._lock:
+            complete = patch.get("setup_completed") is True
+            settings = dict(patch)
+            settings.pop("setup_completed", None)
+            if settings:
+                self.update_config(settings)
+            if complete:
+                checklist = self.broadcast_checklist()
+                if not checklist.get("ready"):
+                    blockers = checklist.get("blockers") or []
+                    message = (
+                        blockers[0].get("message")
+                        if blockers and isinstance(blockers[0], dict)
+                        else "Finish the required setup steps first."
+                    )
+                    raise StateError("Setup cannot finish: {}".format(message))
+                data = self.update_config({"setup_completed": True})
+                self.events.emit("setup_completed", "first-run setup completed")
+                return data
+            if "setup_completed" in patch:
+                return self.update_config(
+                    {"setup_completed": patch["setup_completed"]}
+                )
+            return self.config.as_dict()
+
     def _ensure_queue_loaded_unlocked(self) -> None:
         """Populate queue once if empty. Never reshuffles an existing queue."""
         if self._queue:

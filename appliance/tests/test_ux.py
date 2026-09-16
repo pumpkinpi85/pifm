@@ -15,7 +15,7 @@ from appliance.config import Config
 from appliance.controller import Controller
 from appliance.events import EventLog
 from appliance.library import Library
-from appliance.state import State
+from appliance.state import State, StateError
 from appliance.tx import build_backend
 
 
@@ -209,6 +209,20 @@ class OperatorBlockerTests(unittest.TestCase):
         st2 = self.ctrl.status()
         self.assertEqual(st2["broadcast_ui"], "OFF")
         self.assertIsNone(st2.get("now_playing"))
+
+    def test_setup_completion_requires_ready_and_never_starts_tx(self):
+        self.ctrl.update_config({"setup_completed": False})
+        result = self.ctrl.update_setup({"setup_completed": True})
+        self.assertTrue(result["setup_completed"])
+        self.assertFalse(self.ctrl.tx.is_running())
+
+        self.ctrl.update_config(
+            {"setup_completed": False, "active_playlist": ""}
+        )
+        with self.assertRaises(StateError):
+            self.ctrl.update_setup({"setup_completed": True})
+        self.assertFalse(self.ctrl.config.get("setup_completed"))
+        self.assertFalse(self.ctrl.tx.is_running())
 
 
 if __name__ == "__main__":

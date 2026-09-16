@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import json
+import shutil
+import struct
 import tempfile
 import threading
 import time
 import unittest
+import wave
 from concurrent.futures import ThreadPoolExecutor
 from http.client import HTTPConnection
 from pathlib import Path
+from unittest.mock import patch
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -20,7 +24,7 @@ from appliance.controller import Controller
 from appliance.events import EventLog
 from appliance.library import Library
 from appliance.state import State
-from appliance.tx import prepare_seekable_wav, wav_cache_dir
+from appliance.tx import build_backend, prepare_seekable_wav, wav_cache_dir
 from appliance.tx_process import ensure_no_transmitters
 from appliance.webapp import serve
 
@@ -61,8 +65,6 @@ def _make_ctrl(root: Path, backend: str = "mock") -> Controller:
     library.save_playlist("demo", {"name": "demo", "tracks": [tracks[0]["id"]]})
     ctrl = Controller(config, library, events)
     if backend == "fake":
-        from appliance.tx import build_backend
-
         ctrl.tx = build_backend(
             "fake",
             str(config.get("pi_fm_rds_path")),
@@ -166,7 +168,12 @@ class SseEndpointTests(unittest.TestCase):
         self.port = self.httpd.server_address[1]
 
     def tearDown(self):
+        try:
+            self.ctrl.tx_off()
+        except Exception:
+            pass
         self.httpd.shutdown()
+        self.httpd.server_close()
         self.tmp.cleanup()
 
     def test_sse_sends_initial_status(self):
@@ -203,13 +210,66 @@ class SseEndpointTests(unittest.TestCase):
         self.assertIn("OFF", body.get("broadcast_ui", ""))
         conn.close()
 
+    def test_setup_endpoint_completes_ready_mock_without_tx(self):
+        self.ctrl.update_config({"setup_completed": False})
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        body = json.dumps({"setup_completed": True}).encode("utf-8")
+        conn.request(
+            "POST",
+            "/api/setup",
+            body=body,
+            headers={"Content-Type": "application/json"},
+        )
+        response = conn.getresponse()
+        payload = json.loads(response.read().decode("utf-8"))
+        self.assertEqual(response.status, 200)
+        self.assertTrue(payload["config"]["setup_completed"])
+        self.assertFalse(self.ctrl.tx.is_running())
+        conn.close()
+
+    def test_cross_origin_mutation_is_rejected(self):
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        body = json.dumps({"rds_ps": "TEST"}).encode("utf-8")
+        conn.request(
+            "POST",
+            "/api/config",
+            body=body,
+            headers={
+                "Content-Type": "application/json",
+                "Origin": "https://attacker.invalid",
+            },
+        )
+        response = conn.getresponse()
+        payload = json.loads(response.read().decode("utf-8"))
+        self.assertEqual(response.status, 400)
+        self.assertIn("cross-origin", payload["error"])
+        conn.close()
+
+    @patch(
+        "appliance.media_import._probe_media",
+        return_value={"codec": "pcm_s16le", "duration": 1.0},
+    )
+    def test_upload_endpoint_streams_media_without_tx(self, _probe):
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request(
+            "POST",
+            "/api/upload",
+            body=b"audio",
+            headers={
+                "Content-Type": "application/octet-stream",
+                "X-Filename-Encoded": "Uploaded%20Song.wav",
+            },
+        )
+        response = conn.getresponse()
+        payload = json.loads(response.read().decode("utf-8"))
+        self.assertEqual(response.status, 200)
+        self.assertEqual(payload["filename"], "Uploaded Song.wav")
+        self.assertFalse(self.ctrl.tx.is_running())
+        conn.close()
+
 
 class WavCacheTests(unittest.TestCase):
     def test_second_prepare_is_cache_hit(self):
-        import shutil
-        import wave
-        import struct
-
         if not shutil.which("ffmpeg"):
             self.skipTest("ffmpeg not available")
         tmp = tempfile.TemporaryDirectory()

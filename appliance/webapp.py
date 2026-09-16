@@ -241,7 +241,7 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError(
                         "unsupported setup field: {}".format(sorted(unknown)[0])
                     )
-                st = {"config": self.controller.update_config(data)}
+                st = {"config": self.controller.update_setup(data)}
             elif path == "/api/library/reindex":
                 n = self.library.reindex()
                 self.events.emit("library_import", "reindex {}".format(n))
