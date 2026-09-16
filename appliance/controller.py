@@ -155,13 +155,13 @@ class Controller:
 
             backend = str(cfg.get("tx_backend") or "mock")
             real = probe_real_tx_readiness(str(cfg.get("pi_fm_rds_path") or ""))
-            if backend == "mock":
+            if backend in ("mock", "fake"):
                 items.append(
                     {
                         "id": "transmitter",
                         "label": "Transmitter harness",
                         "ok": True,
-                        "detail": "Internal mock harness (tests/dev only)",
+                        "detail": "Internal non-RF harness (tests/dev only)",
                         "severity": False,
                         "operator_hint": "",
                         "cta": "",
@@ -267,7 +267,11 @@ class Controller:
                 "rds_ps": cfg.get("rds_ps"),
                 "rds_rt": cfg.get("rds_rt"),
                 "rds_pi": cfg.get("rds_pi"),
-                "broadcast_mode": "test_harness" if backend == "mock" else "live",
+                "broadcast_mode": (
+                    "test_harness"
+                    if backend in ("mock", "fake")
+                    else "live"
+                ),
                 "on_air": self.sm.state == State.ON_AIR,
                 "real_tx": real,
             }
