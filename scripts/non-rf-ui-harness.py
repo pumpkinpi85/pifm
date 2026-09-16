@@ -35,6 +35,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", default=8765, type=int)
+    parser.add_argument(
+        "--initial-fault",
+        action="store_true",
+        help="start in a synthetic FAULT state for browser rendering tests",
+    )
     args = parser.parse_args()
 
     with tempfile.TemporaryDirectory(prefix="pifm-ui-harness-") as tmp:
@@ -94,6 +99,10 @@ def main() -> int:
         config = Config(config_path, root)
         events = EventLog(maxlen=200)
         controller = Controller(config, library, events)
+        if args.initial_fault:
+            controller.sm.enter_fault(
+                "Synthetic non-RF browser validation fault"
+            )
         server = serve(
             host=args.host,
             port=args.port,

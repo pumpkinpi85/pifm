@@ -32,7 +32,7 @@ html, body {
 .shell {
   max-width: 920px;
   margin: 0 auto;
-  padding: 1rem 1rem 3.5rem;
+  padding: 0.4rem 0.65rem 3.5rem;
 }
 
 .masthead {
@@ -40,7 +40,7 @@ html, body {
   justify-content: space-between;
   gap: 1rem;
   align-items: flex-start;
-  padding: 1.25rem 0 1rem;
+  padding: 0.85rem 0 0.75rem;
   border-bottom: 1px solid var(--line);
   background: linear-gradient(180deg, rgba(212,165,116,0.06), transparent);
 }
@@ -99,6 +99,9 @@ html, body {
   gap: 0.35rem;
   margin: 1rem 0;
 }
+@media (min-width: 701px) {
+  .tabs { margin-right: 194px; }
+}
 .tab {
   background: transparent;
   border: 1px solid var(--line);
@@ -146,7 +149,11 @@ html, body {
 .hint { color: var(--muted); font-weight: 400; font-size: 0.8em; }
 
 
-.deck-hero { text-align: center; padding: 1.15rem 1rem 1.25rem; }
+.deck-hero {
+  min-height: 246px;
+  padding: 1.15rem 1rem 1.25rem;
+  text-align: center;
+}
 .broadcast-state {
   font-family: var(--font);
   font-size: clamp(2rem, 7vw, 2.75rem);
@@ -230,6 +237,7 @@ html, body {
 .meta { color: var(--muted); font-size: 0.88rem; }
 
 .player {
+  min-height: 252px;
   padding: 0.85rem 0.95rem 1rem;
 }
 .player-main { margin-bottom: 0.55rem; }
@@ -359,28 +367,45 @@ button:disabled {
 
 .broadcast-deck-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
-  gap: 0.85rem;
+  grid-template-columns: minmax(0, 1fr) 184px;
+  gap: 0.65rem;
   align-items: stretch;
 }
-.broadcast-deck-main { min-width: 0; }
+.broadcast-deck-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+.ships-log-panel {
+  flex: 1 1 auto;
+  min-height: 276px;
+}
 .flagpole-panel {
-  min-height: 590px;
+  align-self: start;
+  min-height: 873px;
+  margin-top: -70px;
   margin-bottom: 0.85rem;
-  padding: 1rem 0.75rem 0.85rem;
+  padding: 0.85rem 0.5rem 0.55rem;
   overflow: hidden;
   background:
-    linear-gradient(90deg, transparent 0 64%, rgba(224,176,96,0.045) 64% 67%, transparent 67%),
-    linear-gradient(165deg, #191e2b, #11141b);
+    radial-gradient(ellipse at 19% 45%, rgba(224,176,96,0.065), transparent 34%),
+    linear-gradient(165deg, #141a27, #0d1119 75%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.035),
+    inset 0 0 28px rgba(0,0,0,0.28);
 }
-.flagpole-panel > .label { text-align: center; }
+.flagpole-panel > .label {
+  margin-bottom: 0.2rem;
+  color: #e2b56c;
+  text-align: center;
+}
 .flagpole-instruction {
-  margin: 0 0 0.4rem;
-  min-height: 2rem;
+  margin: 0;
+  min-height: 2.25rem;
   color: var(--muted);
-  font-size: 0.62rem;
-  line-height: 1.45;
-  letter-spacing: 0.12em;
+  font-size: 0.58rem;
+  line-height: 1.35;
+  letter-spacing: 0.11em;
   text-align: center;
 }
 .flagpole-readout,
@@ -390,110 +415,130 @@ button:disabled {
   letter-spacing: 0.06em;
 }
 .flagpole-readout {
-  color: var(--amber);
-  font-size: 0.76rem;
-  min-height: 1.3rem;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
 }
 .flagpole-track {
   position: relative;
-  height: 448px;
-  max-width: 196px;
-  margin: 0.45rem auto;
+  width: 166px;
+  height: 628px;
+  margin: 0.15rem auto 0.45rem;
   user-select: none;
 }
-.flagpole-mast {
+.flagpole-art {
   position: absolute;
   z-index: 2;
   top: 0;
   bottom: 0;
-  left: 65%;
-  width: 5px;
-  border: 1px solid #916b36;
-  border-radius: 3px 3px 0 0;
-  background: linear-gradient(90deg, #65451e, #dfad61 45%, #785323);
-  box-shadow: 0 0 10px rgba(224,176,96,0.18);
+  left: 2px;
+  width: 58px;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  filter:
+    drop-shadow(0 4px 3px rgba(0,0,0,0.78))
+    drop-shadow(0 0 4px rgba(224,176,96,0.18));
+}
+.flagpole-mast {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  left: 19px;
+  width: 3px;
+  border: 0;
+  border-radius: 3px;
+  background: linear-gradient(
+    to top,
+    rgba(119,91,48,0.08) 0 50%,
+    rgba(255,193,80,0.42) 50% 100%
+  );
+  box-shadow: 0 -10px 12px rgba(224,176,96,0.12);
+  pointer-events: none;
 }
 .flagpole-mast::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: -8px;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  transform: translateX(-50%);
-  border: 1px solid #e1b36a;
-  background: #8c622d;
+  content: none;
 }
 .flagpole-mast::after {
-  content: "";
-  position: absolute;
-  bottom: -5px;
-  left: 50%;
-  width: 44px;
-  height: 6px;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: #6b4b25;
-  box-shadow: 0 2px 0 #382511;
+  content: none;
 }
 .flagpole-tick {
   position: absolute;
-  z-index: 1;
-  left: calc(65% + 10px);
-  right: 2px;
+  z-index: 10;
+  left: 51px;
+  right: 1px;
   height: 1px;
-  background: rgba(154,163,181,0.32);
+  background: linear-gradient(
+    90deg,
+    rgba(224,176,96,0.9) 0 9px,
+    transparent 9px 100%
+  );
+  pointer-events: none;
 }
-.flagpole-tick.major { background: rgba(224,176,96,0.65); }
+.flagpole-tick.major {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    #e2ad52 0 16px,
+    transparent 16px 100%
+  );
+  box-shadow: 0 0 5px rgba(224,176,96,0.18);
+}
 .flagpole-tick span {
   position: absolute;
   right: 0;
-  top: -0.65rem;
-  padding-left: 0.2rem;
-  color: #b8a47f;
-  background: #131720;
-  font: 0.58rem var(--mono);
+  top: -0.58rem;
+  padding-left: 0.22rem;
+  color: #c4b28f;
+  background: #101520;
+  font: 0.54rem var(--mono);
 }
 .flagpole-threshold {
   position: absolute;
-  z-index: 3;
+  z-index: 12;
   left: 0;
-  right: 0;
+  right: 3px;
   bottom: 50%;
-  border-top: 1px dashed rgba(196,75,75,0.8);
+  border-top: 1px dashed rgba(205,100,80,0.78);
+  filter: drop-shadow(0 0 3px rgba(196,75,75,0.25));
+  pointer-events: none;
 }
 .flagpole-threshold span {
   position: absolute;
   left: 0;
-  top: 0.2rem;
-  color: #df8a8a;
-  font: 0.58rem var(--mono);
+  top: 0.25rem;
+  color: #e18f82;
+  font: 0.54rem var(--mono);
   letter-spacing: 0.08em;
 }
 .flagpole-preset {
   position: absolute;
-  z-index: 4;
-  left: calc(65% - 6px);
-  width: 16px;
+  z-index: 11;
+  left: 47px;
+  width: 19px;
   height: 2px;
   background: var(--amber);
-  box-shadow: 0 0 8px rgba(224,176,96,0.7);
+  box-shadow: 0 0 9px rgba(224,176,96,0.72);
+  pointer-events: none;
 }
 .flagpole-preset span {
   position: absolute;
-  right: 20px;
-  top: -0.55rem;
+  left: 24px;
+  top: -0.62rem;
   color: var(--amber);
   white-space: nowrap;
-  font: 0.56rem var(--mono);
+  font: 700 0.62rem var(--mono);
+  text-shadow: 0 0 8px rgba(224,176,96,0.38);
 }
 .flagpole-handle {
   position: absolute;
-  z-index: 6;
-  left: calc(65% - 102px);
-  width: 108px;
-  height: 44px;
+  z-index: 9;
+  left: 0;
+  width: 160px;
+  height: 104px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -503,16 +548,17 @@ button:disabled {
   cursor: grab;
   touch-action: none;
   transition: bottom 180ms ease;
-  filter: drop-shadow(0 3px 3px rgba(0,0,0,0.65));
+  filter: drop-shadow(0 5px 5px rgba(0,0,0,0.72));
 }
 .flagpole-handle:active,
 .flagpole-handle.preview {
   cursor: grabbing;
   transition: none;
 }
-.flagpole-handle:focus-visible .flag-cloth {
+.flagpole-handle:focus-visible {
   outline: 2px solid var(--amber);
   outline-offset: 3px;
+  border-radius: 4px;
 }
 .flagpole-handle:disabled {
   border: 0 !important;
@@ -521,37 +567,86 @@ button:disabled {
 }
 .flag-cloth {
   position: absolute;
-  inset: 1px 10px 1px 0;
-  display: grid;
-  place-items: center;
-  color: #ddd5c5;
-  background: linear-gradient(145deg, #16171a, #030405 75%);
-  clip-path: polygon(0 0, 100% 7%, 78% 50%, 100% 93%, 0 84%);
-  box-shadow: inset 0 0 0 1px #5a513e;
+  z-index: 2;
+  top: 1px;
+  left: 25px;
+  width: 137px;
+  height: 101px;
+  overflow: visible;
+  pointer-events: none;
 }
-.flag-skull {
-  font-size: 1.45rem;
-  line-height: 1;
-  text-shadow: 0 1px 0 #000;
+.flag-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  filter:
+    contrast(1.06)
+    drop-shadow(0 4px 4px rgba(0,0,0,0.75));
+}
+.flag-image-waving {
+  display: none;
+}
+.flag-rope {
+  position: absolute;
+  z-index: 1;
+  top: 17px;
+  left: 26px;
+  width: 14px;
+  height: 70px;
+  object-fit: fill;
+  pointer-events: none;
 }
 .flag-grip {
   position: absolute;
-  right: 2px;
-  top: 17px;
-  width: 11px;
-  height: 11px;
-  border: 2px solid #c49148;
-  border-radius: 50%;
-  background: #17130d;
+  z-index: 4;
+  top: 30px;
+  left: 5px;
+  width: 36px;
+  height: 45px;
+  pointer-events: none;
+}
+.flag-grip img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.65));
+}
+.flag-grip-active,
+.flag-grip-pressed {
+  display: none;
+}
+.flagpole-handle.on-air .flag-image-resting,
+.flagpole-handle.pending .flag-image-resting,
+.flagpole-handle.preview .flag-image-resting {
+  display: none;
+}
+.flagpole-handle.on-air .flag-image-waving,
+.flagpole-handle.pending .flag-image-waving,
+.flagpole-handle.preview .flag-image-waving,
+.flagpole-handle.on-air .flag-grip-active,
+.flagpole-handle.pending .flag-grip-active,
+.flagpole-handle.preview .flag-grip-active {
+  display: block;
+}
+.flagpole-handle.on-air .flag-grip-default,
+.flagpole-handle.pending .flag-grip-default,
+.flagpole-handle.preview .flag-grip-default,
+.flagpole-handle:active .flag-grip-default,
+.flagpole-handle:active .flag-grip-active {
+  display: none;
+}
+.flagpole-handle:active .flag-grip-pressed {
+  display: block;
 }
 .flagpole-handle.on-air .flag-cloth {
-  color: #fff0e0;
-  box-shadow: inset 0 0 0 1px #8b4a3f, 0 0 14px var(--red-glow);
+  filter: drop-shadow(0 0 8px rgba(196,75,75,0.28));
 }
-.flagpole-handle.pending .flag-cloth,
 .flagpole-handle.preview .flag-cloth {
-  color: #f6dcae;
-  box-shadow: inset 0 0 0 1px #8a6a34, 0 0 13px rgba(224,176,96,0.32);
+  filter: drop-shadow(0 0 8px rgba(224,176,96,0.28));
 }
 .flagpole-unknown {
   position: absolute;
@@ -568,17 +663,52 @@ button:disabled {
   letter-spacing: 0.07em;
 }
 .flagpole-feedback {
-  min-height: 2.2rem;
-  color: #d0c5ad;
-  font-size: 0.67rem;
-  line-height: 1.5;
+  min-height: 1.25rem;
+  margin-top: 0.45rem;
+  color: var(--amber);
+  font-size: 0.56rem;
+  line-height: 1.35;
+}
+.flagpole-guide {
+  padding: 0.55rem 0.55rem 0.45rem;
+  border: 1px solid #30394d;
+  background: rgba(8,11,17,0.52);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.025);
+}
+.flagpole-guide-title {
+  margin-bottom: 0.4rem;
+  color: #adb5c5;
+  font-size: 0.56rem;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
+.flagpole-guide-row {
+  display: grid;
+  grid-template-columns: 3.1rem 1fr;
+  gap: 0.25rem;
+  color: var(--muted);
+  font-size: 0.57rem;
+  line-height: 1.55;
+}
+.flagpole-guide-row strong {
+  color: #ddd5c5;
+  font-weight: 500;
 }
 .flagpole-help {
+  position: relative;
   margin: 0.45rem 0 0;
+  padding-left: 1.05rem;
   color: var(--muted);
-  font-size: 0.67rem;
-  line-height: 1.45;
-  text-align: center;
+  font-size: 0.55rem;
+  line-height: 1.4;
+}
+.flagpole-help::before {
+  content: "ⓘ";
+  position: absolute;
+  left: 0;
+  top: -0.05rem;
+  color: #bcc6d8;
+  font-size: 0.75rem;
 }
 
 .practice-note {
@@ -989,16 +1119,26 @@ body.state-unavailable .view select {
   .tabs { gap: 0.3rem; }
   .tab { flex: 1 1 calc(50% - 0.3rem); font-size: 0.9rem; }
   .broadcast-deck-grid { grid-template-columns: 1fr; }
+  .broadcast-deck-main { display: contents; }
+  .deck-hero { order: 1; }
+  #blockerBox { order: 2; }
+  .player { order: 3; }
   .flagpole-panel {
-    min-height: 570px;
+    order: 4;
+    width: min(100%, 330px);
+    min-height: 810px;
+    margin-top: 0;
+    margin-left: auto;
+    margin-right: auto;
     padding-left: 1rem;
     padding-right: 1rem;
   }
+  .ships-log-panel { order: 5; min-height: 0; }
   .flagpole-track {
-    width: min(220px, 100%);
-    height: 430px;
+    width: 166px;
+    height: 628px;
   }
-  .flagpole-handle { min-height: 44px; }
+  .flagpole-handle { min-height: 104px; }
   .health-grid { grid-template-columns: 1fr; }
   .transport button { flex: 1 1 calc(50% - 0.45rem); }
   .transport .stop-music { flex: 1 1 100%; }

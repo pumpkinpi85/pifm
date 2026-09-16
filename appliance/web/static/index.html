@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>piFM Pirate Radio</title>
-  <link rel="stylesheet" href="/css/app.css?v=18" />
+  <link rel="stylesheet" href="/css/app.css?v=19" />
 </head>
 <body>
   <section id="setupWizard" class="setup-shell" hidden aria-label="First-run setup">
@@ -147,6 +147,13 @@
             <p class="explain player-hint">Pause keeps the FM broadcast alive. Ending transmission uses Lower the Black Flag.</p>
           </div>
 
+          <div class="panel ships-log-panel">
+            <div class="label">SHIP'S LOG</div>
+            <p class="explain">Recent operator events. Technical details live under System → Diagnostics.</p>
+            <div id="operatorLog" class="log-list" data-testid="operator-log">
+              <div class="empty loading">Loading…</div>
+            </div>
+          </div>
         </div>
 
         <aside class="panel flagpole-panel" data-testid="flagpole-control">
@@ -154,6 +161,12 @@
           <p class="flagpole-instruction">DRAG FLAG TO CONTROL TRANSMISSION</p>
           <div id="flagpoleReadout" class="flagpole-readout">SET —</div>
           <div id="flagpoleTrack" class="flagpole-track">
+            <img
+              class="flagpole-art"
+              src="/images/broadcast-control/flagpole.png?v=1"
+              alt=""
+              aria-hidden="true"
+            />
             <div id="flagpoleTicks" class="flagpole-ticks" aria-hidden="true"></div>
             <div class="flagpole-mast" aria-hidden="true"></div>
             <div class="flagpole-threshold" aria-hidden="true">
@@ -174,22 +187,53 @@
               aria-valuetext="OFF AIR"
               data-testid="flagpole-handle"
             >
-              <span class="flag-cloth" aria-hidden="true"><span class="flag-skull">☠</span></span>
-              <span class="flag-grip" aria-hidden="true"></span>
+              <img
+                class="flag-rope"
+                src="/images/broadcast-control/flag-ropes.png?v=1"
+                alt=""
+                aria-hidden="true"
+              />
+              <span class="flag-cloth" aria-hidden="true">
+                <img
+                  class="flag-image flag-image-resting"
+                  src="/images/broadcast-control/pirate-flag.png?v=1"
+                  alt=""
+                />
+                <img
+                  class="flag-image flag-image-waving"
+                  src="/images/broadcast-control/pirate-flag-waving.png?v=1"
+                  alt=""
+                />
+              </span>
+              <span class="flag-grip" aria-hidden="true">
+                <img
+                  class="flag-grip-default"
+                  src="/images/broadcast-control/slider-handle.png?v=1"
+                  alt=""
+                />
+                <img
+                  class="flag-grip-active"
+                  src="/images/broadcast-control/slider-handle-active.png?v=1"
+                  alt=""
+                />
+                <img
+                  class="flag-grip-pressed"
+                  src="/images/broadcast-control/slider-handle-pressed.png?v=1"
+                  alt=""
+                />
+              </span>
             </button>
             <div id="flagpoleUnknown" class="flagpole-unknown" hidden>POSITION UNKNOWN</div>
           </div>
-          <div id="flagpoleFeedback" class="flagpole-feedback">OFF AIR · SET FREQUENCY READY</div>
-          <p class="flagpole-help">Bottom is OFF AIR. Release at or above the midpoint to broadcast. The upper half tunes FM.</p>
+          <div class="flagpole-guide">
+            <div class="flagpole-guide-title">DRAG FLAG TO RAISE / LOWER</div>
+            <div class="flagpole-guide-row"><span>Bottom</span><strong>OFF AIR</strong></div>
+            <div class="flagpole-guide-row"><span>Middle</span><strong>LOWEST FM</strong></div>
+            <div class="flagpole-guide-row"><span>Top Half</span><strong>FM FREQUENCY RANGE</strong></div>
+            <div id="flagpoleFeedback" class="flagpole-feedback">OFF AIR · SET FREQUENCY READY</div>
+            <p class="flagpole-help">Bottom is OFF AIR. Releasing the flag sets the selected state.</p>
+          </div>
         </aside>
-      </div>
-
-      <div class="panel">
-        <div class="label">SHIP'S LOG</div>
-        <p class="explain">Recent operator events. Technical details live under System → Diagnostics.</p>
-        <div id="operatorLog" class="log-list" data-testid="operator-log">
-          <div class="empty loading">Loading…</div>
-        </div>
       </div>
     </section>
 
@@ -363,6 +407,6 @@
   <div id="faultLine" class="fault-banner" hidden></div>
   <script src="/js/connection.js?v=18"></script>
   <script src="/js/flagpole.js?v=18"></script>
-  <script src="/js/app.js?v=18"></script>
+  <script src="/js/app.js?v=20"></script>
 </body>
 </html>

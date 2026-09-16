@@ -229,9 +229,22 @@
     if (!wasSynchronized && state) renderFlagpoleStatus(state);
   }
 
+  function flagpoleHandleHeight() {
+    return $("flagpoleHandle").getBoundingClientRect().height || 104;
+  }
+
   function flagpolePositionStyle(element, position) {
     var p = window.PifmFlagpole.clampPosition(position);
-    element.style.bottom = "calc(" + (p * 100) + "% - " + (p * 44) + "px)";
+    var handleHeight = flagpoleHandleHeight();
+    element.style.bottom = "calc(" + (p * 100) + "% - " +
+      (p * handleHeight) + "px)";
+  }
+
+  function flagpoleScalePositionStyle(element, position) {
+    var p = window.PifmFlagpole.clampPosition(position);
+    var handleHeight = flagpoleHandleHeight();
+    element.style.bottom = "calc(" + (p * 100) + "% - " +
+      (p * handleHeight) + "px + " + (handleHeight / 2) + "px)";
   }
 
   function ensureFlagpoleTicks(band) {
@@ -252,7 +265,7 @@
       tick.className = "flagpole-tick" + (
         endpoint || units % 20 === 0 ? " major" : ""
       );
-      tick.style.bottom = (position * 100) + "%";
+      flagpoleScalePositionStyle(tick, position);
       if (endpoint || units % 20 === 0) {
         var label = document.createElement("span");
         label.textContent = (units / band.scale).toFixed(1);
@@ -354,7 +367,7 @@
     var preset = $("flagpolePreset");
     $("freqBig").textContent = frequency.toFixed(1);
     preset.hidden = false;
-    preset.style.bottom = (presetPosition * 100) + "%";
+    flagpoleScalePositionStyle(preset, presetPosition);
     preset.querySelector("span").textContent =
       "SET " + frequency.toFixed(1);
     $("flagpoleReadout").textContent =

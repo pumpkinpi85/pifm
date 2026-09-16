@@ -79,6 +79,8 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("flagpoleTxCommandPending", self.js)
         self.assertIn("shouldResolveTxPending", self.js)
         self.assertIn("txCommandPendingRevision", self.js)
+        self.assertIn("flagpoleScalePositionStyle", self.js)
+        self.assertIn("(handleHeight / 2)", self.js)
         self.assertIn("STOP BROADCAST requested", self.js)
         self.assertIn('"X-PiFM-Authority-ID"', self.js)
         self.assertIn("FAULT · POSITION UNKNOWN", self.js)
@@ -91,6 +93,27 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("!wasSynchronized ||", self.js)
         self.assertIn("@media (max-width: 700px)", self.css)
         self.assertIn("touch-action: none", self.css)
+
+    def test_flagpole_uses_supplied_physical_artwork_and_reference_layout(self):
+        assets = STATIC / "images" / "broadcast-control"
+        for name in (
+            "flagpole.png",
+            "pirate-flag.png",
+            "pirate-flag-waving.png",
+            "flag-ropes.png",
+            "slider-handle.png",
+            "slider-handle-active.png",
+            "slider-handle-pressed.png",
+        ):
+            self.assertTrue((assets / name).is_file(), name)
+            self.assertIn("/images/broadcast-control/{}".format(name), self.broadcast)
+        self.assertIn("grid-template-columns: minmax(0, 1fr) 184px", self.css)
+        self.assertIn("height: 104px", self.css)
+        self.assertIn('class="panel ships-log-panel"', self.broadcast)
+        self.assertLess(
+            self.broadcast.index('class="panel ships-log-panel"'),
+            self.broadcast.index('class="panel flagpole-panel"'),
+        )
 
     def test_program_reset_lives_on_music_page(self):
         self.assertIn('data-testid="stop-music"', self.music)
