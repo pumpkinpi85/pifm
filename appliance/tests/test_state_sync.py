@@ -187,6 +187,59 @@ class SseEndpointTests(unittest.TestCase):
         self.assertIn("status", chunk)
         conn.close()
 
+    def test_http_status_is_complete_revisioned_snapshot(self):
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request("GET", "/api/status")
+        response = conn.getresponse()
+        first = json.loads(response.read().decode("utf-8"))
+        conn.close()
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request("GET", "/api/status")
+        response = conn.getresponse()
+        second = json.loads(response.read().decode("utf-8"))
+        conn.close()
+
+        self.assertEqual(response.status, 200)
+        for key in (
+            "snapshot_revision",
+            "state",
+            "broadcast_state",
+            "broadcast_ui",
+            "broadcast_recovery",
+            "tx",
+            "tx_running",
+            "fault_reason",
+            "program_state",
+            "program_ui",
+            "program_pending",
+            "current_track",
+            "next_track",
+            "now_playing",
+            "up_next",
+            "first_up",
+            "active_playlist",
+            "selected_playlist_name",
+            "queue",
+            "queue_index",
+            "queue_length",
+            "shuffle",
+            "repeat",
+            "broadcast",
+            "frequency_mhz",
+            "network",
+            "health",
+            "hardware_status",
+            "hardware_environment",
+            "hardware_profile_doc",
+            "software_version",
+            "git_sha",
+            "build_label",
+        ):
+            self.assertIn(key, second)
+        self.assertGreater(
+            second["snapshot_revision"], first["snapshot_revision"]
+        )
+
     def test_sse_does_not_skip_event_emitted_during_initial_snapshot(self):
         original_status = self.ctrl.status
         emitted = [False]

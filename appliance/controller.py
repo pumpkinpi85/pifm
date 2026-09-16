@@ -50,6 +50,7 @@ class Controller:
         )
         self._lock = threading.RLock()
         self._tx_lifecycle_lock = threading.Lock()
+        self._status_revision = 0
         self._closing = False
         self._queue = []  # type: List[str]  # track ids
         self._queue_index = -1
@@ -407,7 +408,9 @@ class Controller:
             hardware_environment = check_host_prerequisites(
                 hw.get("hardware_profile_doc")
             )
+            self._status_revision += 1
             return {
+                "snapshot_revision": self._status_revision,
                 "state": self.sm.state.value,
                 "fault_reason": self.sm.fault_reason,
                 "tx": self.tx.status(),

@@ -10,6 +10,7 @@
   var commandPending = null; // play|pause|next|prev|txon|txoff
   var sseConnected = false;
   var uiSynchronized = false;
+  var uiAuthorityEpoch = 0;
   var activeEventSource = null;
   var reconnectTimer = null;
   var lastLogFingerprint = "";
@@ -49,10 +50,14 @@
   function api(path, opts) {
     opts = opts || {};
     var method = String(opts.method || "GET").toUpperCase();
+    var requestAuthorityEpoch = uiAuthorityEpoch;
     if (method !== "GET" && !uiSynchronized) {
       return Promise.reject(new Error(
         "Live station state is unavailable. Wait for reconnection."
       ));
+    }
+    if (method === "GET" && !uiSynchronized && path !== "/api/status") {
+      return new Promise(function () {});
     }
     return fetch(path, opts).then(function (r) {
       return r.text().then(function (text) {
@@ -62,6 +67,9 @@
           throw new Error("The radio console returned an unexpected response.");
         }
         if (!r.ok) throw new Error((j && j.error) || ("Request failed (" + r.status + ")"));
+        if (method === "GET" && requestAuthorityEpoch !== uiAuthorityEpoch) {
+          return new Promise(function () {});
+        }
         return j;
       });
     });
@@ -82,6 +90,7 @@
   }
 
   function renderStateUnavailable(reason) {
+    uiAuthorityEpoch += 1;
     uiSynchronized = false;
     statusLoaded = false;
     sseConnected = false;
@@ -123,6 +132,48 @@
     $("hardwareOutput").textContent = "";
     $("hardwareChecks").innerHTML = "";
     $("btnStopBroadcastHeader").hidden = true;
+    $("blockerBox").hidden = true;
+    $("blockerBox").innerHTML = "";
+    $("faultLine").hidden = true;
+    document.body.classList.remove("has-fault");
+    $("freqBig").textContent = "—";
+    $("netSummary").textContent = "Live state unavailable";
+    $("netDetail").textContent = "Reconnect to read network state.";
+    $("healthBox").innerHTML =
+      '<div class="empty">Live health unavailable.</div>';
+    $("applianceBox").textContent = "Live appliance identity unavailable.";
+    $("operatorLog").innerHTML =
+      '<div class="empty">Live Ship’s Log unavailable.</div>';
+    $("eventsBox").textContent = "Live diagnostics unavailable.";
+    $("libList").innerHTML =
+      '<div class="empty">Live music library unavailable.</div>';
+    $("plList").innerHTML =
+      '<div class="empty">Live playlists unavailable.</div>';
+    $("plDetail").innerHTML = "";
+    $("libraryPlaylistTargets").innerHTML =
+      '<span class="meta">Live playlists unavailable.</span>';
+    ["cfgFreq", "cfgPs", "cfgRt", "cfgPi", "setupFreq", "setupPs",
+      "setupRt"].forEach(function (id) {
+      if ($(id)) $(id).value = "";
+    });
+    ["cfgShuffle", "cfgRepeat"].forEach(function (id) {
+      if ($(id)) $(id).checked = false;
+    });
+    ["hardwareMode", "hardwareProfile", "setupHardwareProfile"].forEach(
+      function (id) {
+        if ($(id)) $(id).selectedIndex = -1;
+      }
+    );
+    $("setupHardwareName").textContent = "Live state unavailable";
+    $("setupHardwareStatus").textContent = "Unavailable";
+    $("setupHardwareOutput").textContent = "";
+    $("setupHardwareChecks").innerHTML = "";
+    $("setupWizard").hidden = true;
+    selectedPl = null;
+    playlistsCache = null;
+    libraryLoadedOnce = false;
+    libraryTrackCount = 0;
+    window._plTracks = [];
   }
 
   function markStateSynchronized() {
@@ -132,6 +183,10 @@
     if (banner) {
       banner.classList.add("synchronized");
       banner.textContent = "CONNECTED — AUTHORITATIVE STATE SYNCHRONIZED";
+    }
+    if ($("view-music").classList.contains("active")) {
+      loadPlaylists();
+      loadLibrary();
     }
   }
 

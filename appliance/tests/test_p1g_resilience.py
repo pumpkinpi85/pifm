@@ -338,6 +338,9 @@ class ControllerRecoveryTests(unittest.TestCase):
             self.assertIn(key, snapshot)
         self.assertEqual(snapshot["queue_index"], before["queue_index"])
         self.assertEqual(snapshot["queue_fingerprint"], before["queue_fingerprint"])
+        self.assertGreater(
+            snapshot["snapshot_revision"], before["snapshot_revision"]
+        )
         self.assertEqual(self.controller.tx._started_at, tx_started_before)
         self.assertTrue(self.controller.tx.is_running())
 

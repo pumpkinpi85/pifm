@@ -19,9 +19,11 @@ requests are blocked.
 After connectivity returns, the browser performs one read-only
 `GET /api/status` containing the complete station and queue snapshot. It
 replaces local state with that response, marks itself synchronized, and only
-then opens a new SSE stream. Stale in-flight responses from before the
-disconnect are rejected. Reconciliation does not send playback or transmitter
-commands and therefore cannot restart or otherwise disturb RF.
+then opens a new SSE stream. Every snapshot carries an appliance-generated
+monotonic revision, so delayed HTTP or SSE responses cannot replace newer
+state. Pending reads from before a disconnect are rejected. Reconciliation
+does not send playback or transmitter commands and therefore cannot restart or
+otherwise disturb RF.
 
 ## Broadcast recovery intent
 

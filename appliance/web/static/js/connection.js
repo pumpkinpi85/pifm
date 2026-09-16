@@ -10,6 +10,7 @@
   "use strict";
 
   var REQUIRED_KEYS = [
+    "snapshot_revision",
     "state",
     "broadcast_state",
     "broadcast_ui",
@@ -17,14 +18,35 @@
     "tx_running",
     "fault_reason",
     "program_state",
+    "program_ui",
+    "program_pending",
     "current_track",
     "next_track",
+    "now_playing",
+    "up_next",
+    "first_up",
     "active_playlist",
+    "selected_playlist_name",
     "queue",
+    "queue_index",
+    "queue_length",
     "shuffle",
     "repeat",
     "broadcast",
-    "hardware_status"
+    "frequency_mhz",
+    "rds_ps",
+    "rds_rt",
+    "rds_pi",
+    "network",
+    "health",
+    "hardware_status",
+    "hardware_environment",
+    "hardware_profile_doc",
+    "software_version",
+    "git_sha",
+    "build_label",
+    "tx",
+    "tx_backend"
   ];
 
   function validateSnapshot(snapshot) {
@@ -39,10 +61,28 @@
     if (!Array.isArray(snapshot.queue)) {
       throw new Error("authoritative queue is invalid");
     }
+    if (!Number.isInteger(snapshot.snapshot_revision) ||
+        snapshot.snapshot_revision < 1) {
+      throw new Error("authoritative snapshot revision is invalid");
+    }
+    snapshot.queue.forEach(function (track) {
+      if (!track || typeof track !== "object" ||
+          !Object.prototype.hasOwnProperty.call(track, "id") ||
+          !Object.prototype.hasOwnProperty.call(track, "queue_pos") ||
+          !Object.prototype.hasOwnProperty.call(track, "is_current")) {
+        throw new Error("authoritative queue metadata is incomplete");
+      }
+    });
     if (!snapshot.broadcast_recovery ||
         typeof snapshot.broadcast_recovery !== "object") {
       throw new Error("authoritative recovery state is invalid");
     }
+    ["broadcast", "network", "health", "hardware_environment",
+      "hardware_profile_doc", "tx"].forEach(function (key) {
+      if (!snapshot[key] || typeof snapshot[key] !== "object") {
+        throw new Error("authoritative " + key + " is invalid");
+      }
+    });
     return snapshot;
   }
 
@@ -50,11 +90,23 @@
     var synchronized = false;
     var epoch = 0;
     var requestSequence = 0;
+    var latestSnapshotRevision = null;
 
     function markUnavailable(reason) {
       epoch += 1;
       synchronized = false;
+      latestSnapshotRevision = null;
       options.onUnavailable(reason || "Connection lost");
+    }
+
+    function applyIfNewer(snapshot) {
+      if (latestSnapshotRevision !== null &&
+          snapshot.snapshot_revision <= latestSnapshotRevision) {
+        return false;
+      }
+      latestSnapshotRevision = snapshot.snapshot_revision;
+      options.onSnapshot(snapshot);
+      return true;
     }
 
     function reconcile() {
@@ -67,7 +119,7 @@
           if (requestEpoch !== epoch || requestId !== requestSequence) {
             return false;
           }
-          options.onSnapshot(snapshot);
+          if (!applyIfNewer(snapshot)) return false;
           synchronized = true;
           options.onSynchronized(snapshot);
           return true;
@@ -88,9 +140,11 @@
         markUnavailable(error.message);
         return false;
       }
-      requestSequence += 1;
-      options.onSnapshot(snapshot);
-      return true;
+      if (latestSnapshotRevision !== null &&
+          snapshot.snapshot_revision <= latestSnapshotRevision) {
+        return false;
+      }
+      return applyIfNewer(snapshot);
     }
 
     return {
