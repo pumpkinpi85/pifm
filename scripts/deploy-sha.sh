@@ -6,7 +6,7 @@
 #
 # Authorized remote cutover (requires explicit flag):
 #   ./scripts/deploy-sha.sh --sha HEAD --remote pifm --target /opt/pifm \
-#       --authorize-cutover [--legacy-root /home/pi/pifm]
+#       --authorize-cutover [--legacy-root <current-install-root>]
 #
 # Does not start RF. Service restart is separate unless --restart is passed
 # with --authorize-cutover.

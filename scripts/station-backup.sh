@@ -3,7 +3,8 @@
 # Local:
 #   ./scripts/station-backup.sh --root /opt/pifm --dest ./backups
 # Remote (dest is a path ON the remote host):
-#   ./scripts/station-backup.sh --remote pifm --root /home/pi/pifm --dest /home/pi/backups
+#   ./scripts/station-backup.sh --remote pifm --root /opt/pifm --dest /home/pi/backups
+# Pre-cutover stations: pass the live install root explicitly as --root.
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 OPS="$ROOT_DIR/scripts/pifm_station_ops.py"
