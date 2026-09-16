@@ -45,7 +45,12 @@ done
 
 [[ -n "$TARGET" ]] || { echo "--target is required" >&2; exit 2; }
 
-FULL_SHA="$(git -C "$ROOT_DIR" rev-parse "$SHA")"
+FULL_SHA="$(git -C "$ROOT_DIR" rev-parse --verify "${SHA}^{commit}")"
+HEAD_SHA="$(git -C "$ROOT_DIR" rev-parse --verify "HEAD^{commit}")"
+if [[ "$FULL_SHA" != "$HEAD_SHA" ]]; then
+  echo "ERROR: requested SHA is not the checked-out HEAD; check out $FULL_SHA before deploying" >&2
+  exit 2
+fi
 VERSION="$(python3 -c "import sys; sys.path.insert(0,'$ROOT_DIR'); from appliance import __version__; print(__version__)")"
 STAGE="$(mktemp -d /tmp/pifm-stage.XXXXXX)"
 cleanup() { rm -rf "$STAGE"; }
@@ -189,8 +194,8 @@ if cfg_path.is_file():
 print('config_normalized_ok')
 "
 
-TXC=\$(pgrep -x pi_fm_rds 2>/dev/null | wc -l | tr -d ' ')
-FTC=\$(pgrep -x fm_transmitter 2>/dev/null | wc -l | tr -d ' ')
+TXC=\$( (pgrep -x pi_fm_rds 2>/dev/null || true) | wc -l | tr -d ' ')
+FTC=\$( (pgrep -x fm_transmitter 2>/dev/null || true) | wc -l | tr -d ' ')
 echo "REAL_TX_PROCESS_COUNT=\$((TXC+FTC))"
 if [[ "\$((TXC+FTC))" -ne 0 ]]; then
   echo "FAIL: transmitter processes present after deploy" >&2
@@ -214,8 +219,8 @@ sudo systemctl restart pifm-appliance.service
 sleep 3
 systemctl is-active pifm-appliance.service
 # emergency TX check
-TXC=\$(pgrep -x pi_fm_rds 2>/dev/null | wc -l | tr -d ' ')
-FTC=\$(pgrep -x fm_transmitter 2>/dev/null | wc -l | tr -d ' ')
+TXC=\$( (pgrep -x pi_fm_rds 2>/dev/null || true) | wc -l | tr -d ' ')
+FTC=\$( (pgrep -x fm_transmitter 2>/dev/null || true) | wc -l | tr -d ' ')
 echo "REAL_TX_PROCESS_COUNT=\$((TXC+FTC))"
 if [[ "\$((TXC+FTC))" -ne 0 ]]; then
   echo "EMERGENCY: TX process after restart — stopping service"
