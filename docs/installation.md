@@ -77,4 +77,4 @@ frequency/RDS identity, and music. Advanced configuration remains available in
 Browse to `http://<pi-address>:8080/`.
 
 **Installation does not transmit.** The station should report OFF AIR until you
-explicitly Raise the Black Flag.
+explicitly move the brass Broadcast handle into the FM tuner.

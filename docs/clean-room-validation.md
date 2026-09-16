@@ -42,11 +42,11 @@ Checklist:
 6. Upload ordinary MP3s; create/select playlist
 7. Configure frequency/RDS
 8. Play / Pause / Next with TX still OFF (program preview / mock as applicable)
-9. Confirm the OFF AIR flag is at the bottom and the passive `SET` marker
-   matches Station. Drag through the lower half and confirm no command occurs.
-10. If using mock: release at the midpoint, top, and a representative frequency;
-    confirm the prompt and authoritative Station/flag synchronization
-11. If using mock: lower the flag below midpoint and confirm one STOP
+9. Confirm the pirate flag remains raised, the OFF AIR handle is at the bottom
+   detent, and the passive `SET` marker matches Station.
+10. If using mock: release the brass handle at minimum, maximum, and a
+    representative frequency; confirm authoritative Station/handle synchronization.
+11. If using mock: return the handle to the bottom detent and confirm one STOP
 12. Exercise pointer/touch and keyboard preview, commit, and Escape cancellation
 13. Disconnect/reconnect the browser harness; confirm unknown state then
     read-only authoritative flag reconstruction without a station command

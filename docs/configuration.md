@@ -29,8 +29,8 @@ removes it first.
 
 piFM intentionally preserves its legacy inclusive `87.1–108.2 MHz` tuning
 range. New values must be aligned to integer tenths (`0.1 MHz`). The Broadcast
-flagpole and Station input both write this one canonical `frequency_mhz`
-setting; the flagpole stores no separate frequency.
+brass handle and Station input both write this one canonical `frequency_mhz`
+setting; the control stores no separate frequency.
 
 This supported tuning range is not a claim that every value is a lawful
 consumer broadcast channel in every region. The operator must choose a

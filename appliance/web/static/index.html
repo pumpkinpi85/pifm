@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>piFM Pirate Radio</title>
-  <link rel="stylesheet" href="/css/app.css?v=19" />
+  <link rel="stylesheet" href="/css/app.css?v=21" />
 </head>
 <body>
   <section id="setupWizard" class="setup-shell" hidden aria-label="First-run setup">
@@ -68,7 +68,7 @@
       <div class="setup-step" data-setup-step="4">
         <div class="label">BROADCAST</div>
         <h2>Your Broadcast Deck is ready</h2>
-        <p>Going to the deck does not put you on air. You always choose when to Raise the Black Flag.</p>
+        <p>Going to the deck does not put you on air. You choose when to move the brass handle out of its OFF AIR detent.</p>
         <div class="setup-actions">
           <button type="button" class="secondary" data-setup-back>Back</button>
           <button type="button" id="setupFinish">Open Broadcast Deck</button>
@@ -144,7 +144,7 @@
                 NEXT <span class="glyph" aria-hidden="true">▶</span>
               </button>
             </div>
-            <p class="explain player-hint">Pause keeps the FM broadcast alive. Ending transmission uses Lower the Black Flag.</p>
+            <p class="explain player-hint">Pause keeps the FM broadcast alive. To end transmission, return the brass handle to OFF AIR.</p>
           </div>
 
           <div class="panel ships-log-panel">
@@ -158,80 +158,77 @@
 
         <aside class="panel flagpole-panel" data-testid="flagpole-control">
           <div class="label">BROADCAST CONTROL</div>
-          <p class="flagpole-instruction">DRAG FLAG TO CONTROL TRANSMISSION</p>
+          <p class="flagpole-instruction">DRAG HANDLE TO CONTROL TRANSMISSION</p>
           <div id="flagpoleReadout" class="flagpole-readout">SET —</div>
-          <div id="flagpoleTrack" class="flagpole-track">
+          <div class="flagpole-track">
             <img
               class="flagpole-art"
               src="/images/broadcast-control/flagpole.png?v=1"
               alt=""
               aria-hidden="true"
             />
-            <div id="flagpoleTicks" class="flagpole-ticks" aria-hidden="true"></div>
-            <div class="flagpole-mast" aria-hidden="true"></div>
-            <div class="flagpole-threshold" aria-hidden="true">
-              <span>ON AIR</span>
-            </div>
-            <div id="flagpolePreset" class="flagpole-preset" aria-hidden="true">
-              <span>SET</span>
-            </div>
-            <button
-              type="button"
-              id="flagpoleHandle"
-              class="flagpole-handle"
-              role="slider"
-              aria-label="Black Flag broadcast and frequency control"
-              aria-valuemin="0"
-              aria-valuemax="212"
-              aria-valuenow="0"
-              aria-valuetext="OFF AIR"
-              data-testid="flagpole-handle"
-            >
+            <div class="raised-flag" aria-hidden="true">
               <img
-                class="flag-rope"
+                class="raised-flag-rope"
                 src="/images/broadcast-control/flag-ropes.png?v=1"
                 alt=""
-                aria-hidden="true"
               />
-              <span class="flag-cloth" aria-hidden="true">
-                <img
-                  class="flag-image flag-image-resting"
-                  src="/images/broadcast-control/pirate-flag.png?v=1"
-                  alt=""
-                />
-                <img
-                  class="flag-image flag-image-waving"
-                  src="/images/broadcast-control/pirate-flag-waving.png?v=1"
-                  alt=""
-                />
-              </span>
-              <span class="flag-grip" aria-hidden="true">
-                <img
-                  class="flag-grip-default"
-                  src="/images/broadcast-control/slider-handle.png?v=1"
-                  alt=""
-                />
-                <img
-                  class="flag-grip-active"
-                  src="/images/broadcast-control/slider-handle-active.png?v=1"
-                  alt=""
-                />
-                <img
-                  class="flag-grip-pressed"
-                  src="/images/broadcast-control/slider-handle-pressed.png?v=1"
-                  alt=""
-                />
-              </span>
-            </button>
-            <div id="flagpoleUnknown" class="flagpole-unknown" hidden>POSITION UNKNOWN</div>
+              <img
+                class="raised-flag-image"
+                src="/images/broadcast-control/pirate-flag.png?v=1"
+                alt=""
+              />
+            </div>
+            <div id="flagpoleTrack" class="flagpole-travel">
+              <div id="flagpoleTicks" class="flagpole-ticks" aria-hidden="true"></div>
+              <div class="flagpole-mast" aria-hidden="true"></div>
+              <div id="flagpoleActiveRail" class="flagpole-active-rail" hidden aria-hidden="true"></div>
+              <div id="flagpoleDetent" class="flagpole-detent" aria-hidden="true">
+                <span>OFF AIR</span>
+              </div>
+              <div id="flagpolePreset" class="flagpole-preset" aria-hidden="true">
+                <span>SET</span>
+              </div>
+              <button
+                type="button"
+                id="flagpoleHandle"
+                class="flagpole-handle"
+                role="slider"
+                aria-label="Brass broadcast and frequency control"
+                aria-valuemin="0"
+                aria-valuemax="212"
+                aria-valuenow="0"
+                aria-valuetext="OFF AIR"
+                data-testid="flagpole-handle"
+              >
+                <span class="flag-grip" aria-hidden="true">
+                  <img
+                    class="flag-grip-default"
+                    src="/images/broadcast-control/slider-handle.png?v=1"
+                    alt=""
+                  />
+                  <img
+                    class="flag-grip-active"
+                    src="/images/broadcast-control/slider-handle-active.png?v=1"
+                    alt=""
+                  />
+                  <img
+                    class="flag-grip-pressed"
+                    src="/images/broadcast-control/slider-handle-pressed.png?v=1"
+                    alt=""
+                  />
+                </span>
+              </button>
+              <div id="flagpoleUnknown" class="flagpole-unknown" hidden>POSITION UNKNOWN</div>
+            </div>
           </div>
           <div class="flagpole-guide">
-            <div class="flagpole-guide-title">DRAG FLAG TO RAISE / LOWER</div>
+            <div class="flagpole-guide-title">DRAG HANDLE TO TUNE / STOP</div>
             <div class="flagpole-guide-row"><span>Bottom</span><strong>OFF AIR</strong></div>
-            <div class="flagpole-guide-row"><span>Middle</span><strong>LOWEST FM</strong></div>
-            <div class="flagpole-guide-row"><span>Top Half</span><strong>FM FREQUENCY RANGE</strong></div>
+            <div class="flagpole-guide-row"><span>Detent</span><strong>LOWEST FM</strong></div>
+            <div class="flagpole-guide-row"><span>Above</span><strong>FM FREQUENCY RANGE</strong></div>
             <div id="flagpoleFeedback" class="flagpole-feedback">OFF AIR · SET FREQUENCY READY</div>
-            <p class="flagpole-help">Bottom is OFF AIR. Releasing the flag sets the selected state.</p>
+            <p class="flagpole-help">Release the brass handle to set the selected state.</p>
           </div>
         </aside>
       </div>
@@ -383,22 +380,22 @@
         <ol class="steps">
           <li><strong>Choose your music</strong> on the Music page.</li>
           <li><strong>Check your station and frequency</strong> on the Station page.</li>
-          <li>Return to <strong>Broadcast</strong>, drag the Black Flag into the upper half of the pole, and release to confirm.</li>
+          <li>Return to <strong>Broadcast</strong>, drag the brass handle out of the OFF AIR detent and release on a frequency.</li>
         </ol>
-        <p class="explain">To end transmission: drag the Black Flag below the midpoint and release, or use <strong>Stop Broadcast</strong> in the masthead.</p>
+        <p class="explain">To end transmission: drag the brass handle into the bottom OFF AIR detent and release, or use <strong>Stop Broadcast</strong> in the masthead.</p>
       </div>
       <div class="panel help">
-        <h3>Raise the Black Flag</h3>
-        <p>Drag the flag up the pole. The lower half is safe OFF AIR travel. The upper half previews frequency; release there and confirm to start the selected playlist and FM transmitter together.</p>
-        <h3>Pause vs Lower the Black Flag</h3>
+        <h3>Start broadcasting</h3>
+        <p>The pirate flag stays raised. Drag the brass handle upward from its small OFF AIR detent to preview the FM scale; release and confirm to start the selected playlist and transmitter together.</p>
+        <h3>Pause vs Stop Broadcast</h3>
         <p><strong>Pause</strong> holds silence on the carrier while staying on air.</p>
-        <p><strong>Lower the Black Flag / Stop Broadcast</strong> immediately ends FM transmission. Always available — including while starting, after a fault, or when state is unknown.</p>
+        <p><strong>OFF AIR detent / Stop Broadcast</strong> immediately ends FM transmission. Stop Broadcast remains available while starting, after a fault, or when state is unknown.</p>
         <h3>Play / Previous / Next</h3>
         <p>These change the music program. They do not start a broadcast by themselves.</p>
         <h3>Quiet network vs Stop Broadcast</h3>
         <p>Quiet network is an interference troubleshooting tool. It does not stop the FM broadcast.</p>
         <h3>Needs Attention / Possible Transmission</h3>
-        <p>If the console shows <strong>Needs Attention</strong>, <strong>State Unknown</strong>, or <strong>Possible Transmission</strong>, press <strong>Lower the Black Flag</strong>, then use System → Fault Recovery if needed.</p>
+        <p>If the console shows <strong>Needs Attention</strong>, <strong>State Unknown</strong>, or <strong>Possible Transmission</strong>, press <strong>Stop Broadcast</strong>, then use System → Fault Recovery if needed.</p>
       </div>
     </section>
   </div>
@@ -406,7 +403,7 @@
   <div id="toast" class="toast" hidden></div>
   <div id="faultLine" class="fault-banner" hidden></div>
   <script src="/js/connection.js?v=18"></script>
-  <script src="/js/flagpole.js?v=18"></script>
-  <script src="/js/app.js?v=20"></script>
+  <script src="/js/flagpole.js?v=19"></script>
+  <script src="/js/app.js?v=23"></script>
 </body>
 </html>

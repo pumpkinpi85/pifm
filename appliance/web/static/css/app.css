@@ -382,7 +382,7 @@ button:disabled {
 }
 .flagpole-panel {
   align-self: start;
-  min-height: 873px;
+  min-height: 886px;
   margin-top: -70px;
   margin-bottom: 0.85rem;
   padding: 0.85rem 0.5rem 0.55rem;
@@ -424,7 +424,7 @@ button:disabled {
 .flagpole-track {
   position: relative;
   width: 166px;
-  height: 628px;
+  height: 641px;
   margin: 0.15rem auto 0.45rem;
   user-select: none;
 }
@@ -442,21 +442,53 @@ button:disabled {
     drop-shadow(0 4px 3px rgba(0,0,0,0.78))
     drop-shadow(0 0 4px rgba(224,176,96,0.18));
 }
+.raised-flag {
+  position: absolute;
+  z-index: 8;
+  top: 23px;
+  left: 18px;
+  width: 145px;
+  height: 108px;
+  pointer-events: none;
+  filter: drop-shadow(0 5px 5px rgba(0,0,0,0.78));
+}
+.raised-flag-image {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  filter: contrast(1.06);
+}
+.raised-flag-rope {
+  position: absolute;
+  z-index: 1;
+  top: 16px;
+  left: 2px;
+  width: 14px;
+  height: 76px;
+  object-fit: fill;
+}
+.flagpole-travel {
+  position: absolute;
+  z-index: 6;
+  top: 128px;
+  right: 0;
+  bottom: 36px;
+  left: 0;
+}
 .flagpole-mast {
   position: absolute;
   z-index: 3;
   top: 0;
   bottom: 0;
   left: 19px;
-  width: 3px;
+  width: 4px;
   border: 0;
   border-radius: 3px;
-  background: linear-gradient(
-    to top,
-    rgba(119,91,48,0.08) 0 50%,
-    rgba(255,193,80,0.42) 50% 100%
-  );
-  box-shadow: 0 -10px 12px rgba(224,176,96,0.12);
+  background: rgba(26,20,13,0.34);
+  box-shadow: inset 1px 0 rgba(235,185,99,0.16);
   pointer-events: none;
 }
 .flagpole-mast::before {
@@ -464,6 +496,25 @@ button:disabled {
 }
 .flagpole-mast::after {
   content: none;
+}
+.flagpole-active-rail {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 17px;
+  width: 7px;
+  border-radius: 4px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    #8a5d18 0%,
+    #ffd16c 38%,
+    #fff0a0 54%,
+    #b97616 100%
+  );
+  box-shadow:
+    0 0 6px rgba(255,192,55,0.88),
+    0 0 15px rgba(255,177,35,0.48);
 }
 .flagpole-tick {
   position: absolute;
@@ -496,17 +547,16 @@ button:disabled {
   background: #101520;
   font: 0.54rem var(--mono);
 }
-.flagpole-threshold {
+.flagpole-detent {
   position: absolute;
   z-index: 12;
   left: 0;
   right: 3px;
-  bottom: 50%;
   border-top: 1px dashed rgba(205,100,80,0.78);
   filter: drop-shadow(0 0 3px rgba(196,75,75,0.25));
   pointer-events: none;
 }
-.flagpole-threshold span {
+.flagpole-detent span {
   position: absolute;
   left: 0;
   top: 0.25rem;
@@ -535,10 +585,10 @@ button:disabled {
 }
 .flagpole-handle {
   position: absolute;
-  z-index: 9;
-  left: 0;
-  width: 160px;
-  height: 104px;
+  z-index: 13;
+  left: -3px;
+  width: 48px;
+  height: 58px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -548,7 +598,7 @@ button:disabled {
   cursor: grab;
   touch-action: none;
   transition: bottom 180ms ease;
-  filter: drop-shadow(0 5px 5px rgba(0,0,0,0.72));
+  filter: drop-shadow(0 4px 4px rgba(0,0,0,0.74));
 }
 .flagpole-handle:active,
 .flagpole-handle.preview {
@@ -565,46 +615,10 @@ button:disabled {
   background: transparent !important;
   opacity: 0.5 !important;
 }
-.flag-cloth {
-  position: absolute;
-  z-index: 2;
-  top: 1px;
-  left: 25px;
-  width: 137px;
-  height: 101px;
-  overflow: visible;
-  pointer-events: none;
-}
-.flag-image {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
-  filter:
-    contrast(1.06)
-    drop-shadow(0 4px 4px rgba(0,0,0,0.75));
-}
-.flag-image-waving {
-  display: none;
-}
-.flag-rope {
-  position: absolute;
-  z-index: 1;
-  top: 17px;
-  left: 26px;
-  width: 14px;
-  height: 70px;
-  object-fit: fill;
-  pointer-events: none;
-}
 .flag-grip {
   position: absolute;
   z-index: 4;
-  top: 30px;
-  left: 5px;
-  width: 36px;
-  height: 45px;
+  inset: 1px 2px;
   pointer-events: none;
 }
 .flag-grip img {
@@ -619,14 +633,6 @@ button:disabled {
 .flag-grip-pressed {
   display: none;
 }
-.flagpole-handle.on-air .flag-image-resting,
-.flagpole-handle.pending .flag-image-resting,
-.flagpole-handle.preview .flag-image-resting {
-  display: none;
-}
-.flagpole-handle.on-air .flag-image-waving,
-.flagpole-handle.pending .flag-image-waving,
-.flagpole-handle.preview .flag-image-waving,
 .flagpole-handle.on-air .flag-grip-active,
 .flagpole-handle.pending .flag-grip-active,
 .flagpole-handle.preview .flag-grip-active {
@@ -642,11 +648,12 @@ button:disabled {
 .flagpole-handle:active .flag-grip-pressed {
   display: block;
 }
-.flagpole-handle.on-air .flag-cloth {
-  filter: drop-shadow(0 0 8px rgba(196,75,75,0.28));
-}
-.flagpole-handle.preview .flag-cloth {
-  filter: drop-shadow(0 0 8px rgba(224,176,96,0.28));
+.flagpole-handle.on-air,
+.flagpole-handle.preview,
+.flagpole-handle.pending {
+  filter:
+    drop-shadow(0 3px 3px rgba(0,0,0,0.72))
+    drop-shadow(0 0 7px rgba(255,182,48,0.56));
 }
 .flagpole-unknown {
   position: absolute;
@@ -1126,7 +1133,7 @@ body.state-unavailable .view select {
   .flagpole-panel {
     order: 4;
     width: min(100%, 330px);
-    min-height: 810px;
+    min-height: 823px;
     margin-top: 0;
     margin-left: auto;
     margin-right: auto;
@@ -1136,9 +1143,9 @@ body.state-unavailable .view select {
   .ships-log-panel { order: 5; min-height: 0; }
   .flagpole-track {
     width: 166px;
-    height: 628px;
+    height: 641px;
   }
-  .flagpole-handle { min-height: 104px; }
+  .flagpole-handle { min-height: 58px; }
   .health-grid { grid-template-columns: 1fr; }
   .transport button { flex: 1 1 calc(50% - 0.45rem); }
   .transport .stop-music { flex: 1 1 100%; }

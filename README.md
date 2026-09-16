@@ -22,8 +22,8 @@ FM generation (`pi_fm_rds`) and a simple Broadcast Deck console.
 2. Install packages, build [PiFmRds](https://github.com/ChristopheJacquet/PiFmRds),
    then install this repository (see [docs/installation.md](docs/installation.md)).
 3. Open the Broadcast Deck in a browser (`http://<pi-hostname>:8080/`).
-4. Add music, set frequency/RDS, then **Raise the Black Flag** only when you
-   intend to transmit — and only where you are legally allowed to do so.
+4. Add music, set frequency/RDS, then move the brass Broadcast handle out of
+   **OFF AIR** only when you intend to transmit — and only where lawful.
 
 Installation and configuration **do not** start broadcasting.
 

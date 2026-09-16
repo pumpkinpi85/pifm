@@ -9,7 +9,8 @@
 }(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var THRESHOLD = 0.5;
+  var OFF_DETENT_TRIGGER = 0.03;
+  var TUNER_MIN_POSITION = 0.06;
 
   function clampPosition(position) {
     var value = Number(position);
@@ -30,9 +31,13 @@
   function positionToUnits(position, band) {
     var normalized = clampPosition(position);
     var validBand = validateBand(band);
-    if (normalized < THRESHOLD) return null;
+    if (normalized < OFF_DETENT_TRIGGER) return null;
+    if (normalized <= TUNER_MIN_POSITION) return validBand.min_units;
     var span = validBand.max_units - validBand.min_units;
-    var index = Math.round(((normalized - THRESHOLD) / THRESHOLD) * span);
+    var tunerPosition = (
+      normalized - TUNER_MIN_POSITION
+    ) / (1 - TUNER_MIN_POSITION);
+    var index = Math.round(tunerPosition * span);
     return validBand.min_units + Math.max(0, Math.min(span, index));
   }
 
@@ -49,7 +54,7 @@
         Math.abs(Number(frequency) * validBand.scale - units) > 1e-7) {
       throw new Error("frequency is outside the supported tuning grid");
     }
-    return THRESHOLD + THRESHOLD * (
+    return TUNER_MIN_POSITION + (1 - TUNER_MIN_POSITION) * (
       (units - validBand.min_units) /
       (validBand.max_units - validBand.min_units)
     );
@@ -59,7 +64,9 @@
     var normalized = clampPosition(position);
     var frequency = positionToFrequency(normalized, band);
     return {
-      position: normalized,
+      position: frequency === null
+        ? 0
+        : Math.max(TUNER_MIN_POSITION, normalized),
       desired_broadcast: frequency === null ? "off" : "on",
       frequency_mhz: frequency
     };
@@ -157,7 +164,8 @@
   }
 
   return {
-    THRESHOLD: THRESHOLD,
+    OFF_DETENT_TRIGGER: OFF_DETENT_TRIGGER,
+    TUNER_MIN_POSITION: TUNER_MIN_POSITION,
     clampPosition: clampPosition,
     createGesture: createGesture,
     frequencyToPosition: frequencyToPosition,

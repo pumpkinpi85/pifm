@@ -23,6 +23,9 @@
 - Hardens disk-full uploads, failed WAV preparation, atomic configuration
   writes, and unwritable Ship's Log behavior without corrupting operator data.
 - Preserves recovery intent in backup, deployment, and rollback tooling.
+- Adds the Broadcast brass-handle tuner: a 3% OFF decision detent, a 6%
+  lowest-frequency snap, full-range tuning above it, and a permanently raised
+  decorative pirate flag with authoritative preview/commit reconstruction.
 
 ## 0.5.0 — Hardware-first setup and Music workspace
 

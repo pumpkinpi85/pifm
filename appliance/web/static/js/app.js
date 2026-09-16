@@ -230,7 +230,7 @@
   }
 
   function flagpoleHandleHeight() {
-    return $("flagpoleHandle").getBoundingClientRect().height || 104;
+    return $("flagpoleHandle").getBoundingClientRect().height || 58;
   }
 
   function flagpolePositionStyle(element, position) {
@@ -247,6 +247,12 @@
       (p * handleHeight) + "px + " + (handleHeight / 2) + "px)";
   }
 
+  function flagpoleActiveRailStyle(position, visible) {
+    var rail = $("flagpoleActiveRail");
+    rail.hidden = !visible;
+    if (visible) flagpoleScalePositionStyle(rail, position);
+  }
+
   function ensureFlagpoleTicks(band) {
     var key = [
       band.min_units, band.max_units, band.scale
@@ -255,6 +261,9 @@
     flagpoleBandKey = key;
     var box = $("flagpoleTicks");
     box.innerHTML = "";
+    flagpoleScalePositionStyle(
+      $("flagpoleDetent"), window.PifmFlagpole.OFF_DETENT_TRIGGER
+    );
     for (var units = band.min_units; units <= band.max_units; units += 1) {
       var endpoint = units === band.min_units || units === band.max_units;
       if (!endpoint && units % 10 !== 0) continue;
@@ -283,19 +292,21 @@
     handle._previewPosition = target.position;
     flagpolePositionStyle(handle, target.position);
     if (target.desired_broadcast === "off") {
+      flagpoleActiveRailStyle(0, false);
       $("flagpoleReadout").textContent = "OFF AIR";
       $("flagpoleFeedback").textContent =
-        "OFF AIR TRAVEL · RELEASE TO LOWER THE BLACK FLAG";
+        "OFF AIR DETENT · RELEASE TO STOP BROADCAST";
       handle.setAttribute("aria-valuenow", "0");
       handle.setAttribute("aria-valuetext", "Preview OFF AIR");
       return;
     }
     var frequency = Number(target.frequency_mhz).toFixed(1);
+    flagpoleActiveRailStyle(target.position, true);
     $("freqBig").textContent = frequency;
     $("flagpoleReadout").textContent = "PREVIEW " + frequency + " FM";
     $("flagpoleFeedback").textContent =
-      target.position === window.PifmFlagpole.THRESHOLD
-        ? "ON AIR THRESHOLD · RELEASE TO BROADCAST"
+      target.position === window.PifmFlagpole.TUNER_MIN_POSITION
+        ? "LOWEST FM · RELEASE TO BROADCAST"
         : "TUNING · RELEASE TO COMMIT";
     var band = state.frequency_band;
     var units = Math.round(Number(target.frequency_mhz) * band.scale);
@@ -317,6 +328,7 @@
     handle.disabled = true;
     handle._previewPosition = null;
     $("flagpolePreset").hidden = true;
+    flagpoleActiveRailStyle(0, false);
     $("flagpoleUnknown").hidden = false;
     $("flagpoleUnknown").textContent = "LIVE POSITION UNAVAILABLE";
     $("flagpoleReadout").textContent = "SET —";
@@ -358,6 +370,7 @@
       $("flagpoleHandle").hidden = true;
       $("flagpoleHandle").disabled = true;
       $("flagpolePreset").hidden = true;
+      flagpoleActiveRailStyle(0, false);
       $("flagpoleUnknown").hidden = false;
       $("flagpoleUnknown").textContent = "FREQUENCY NEEDS CORRECTION";
       $("flagpoleReadout").textContent = "SET INVALID";
@@ -384,6 +397,7 @@
       handle.hidden = true;
       handle.disabled = true;
       preset.hidden = true;
+      flagpoleActiveRailStyle(0, false);
       unknownBox.hidden = false;
       unknownBox.textContent = snapshot.state === "FAULT"
         ? "FAULT · POSITION UNKNOWN"
@@ -407,12 +421,17 @@
     var stopping = broadcastUi === "STOPPING BROADCAST…";
     var position = onAir || starting ? presetPosition : 0;
     flagpolePositionStyle(handle, position);
+    flagpoleActiveRailStyle(position, onAir || starting);
     if (onAir) {
       handle.className = "flagpole-handle on-air";
+      preset.querySelector("span").textContent =
+        frequency.toFixed(1) + " · ON AIR";
       $("flagpoleFeedback").textContent =
         frequency.toFixed(1) + " FM · ON AIR";
     } else if (starting) {
       handle.className = "flagpole-handle pending";
+      preset.querySelector("span").textContent =
+        frequency.toFixed(1) + " · STARTING";
       $("flagpoleFeedback").textContent =
         frequency.toFixed(1) + " FM · STARTING";
     } else if (stopping) {
@@ -610,7 +629,7 @@
     } else {
       summary.textContent = "Off";
       detail.textContent =
-        "After power returns, piFM will remain OFF AIR until you Raise the Black Flag.";
+        "After power returns, piFM will remain OFF AIR until you move the brass handle out of its OFF AIR detent.";
     }
   }
 
@@ -1379,7 +1398,7 @@
   function commitFlagpoleTarget(target) {
     if (!uiSynchronized || !state ||
         flagpoleGestureEpoch !== uiAuthorityEpoch) {
-      toast("Live station state changed. Try the flag again.");
+      toast("Live station state changed. Try the brass handle again.");
       if (state) renderFlagpoleStatus(state);
       return;
     }
@@ -1438,7 +1457,7 @@
         "will restart from the beginning.";
     } else {
       msg =
-        "Raise the Black Flag at " + frequency + " FM?\n\n" +
+        "Start broadcasting at " + frequency + " FM?\n\n" +
         "Playlist: " + pl + " (" + (bc.track_count || 0) + " tracks)\n" +
         "Station: " + (bc.rds_ps || "?") + "\n\n" +
         "This starts the selected program AND the FM transmitter.\n" +
@@ -1478,7 +1497,7 @@
 
   function flagpolePositionFromPointer(event, applyGrabOffset) {
     var rect = $("flagpoleTrack").getBoundingClientRect();
-    var handleHeight = $("flagpoleHandle").getBoundingClientRect().height || 44;
+    var handleHeight = $("flagpoleHandle").getBoundingClientRect().height || 58;
     return window.PifmFlagpole.pointerPosition(
       event.clientY - (applyGrabOffset ? flagpoleGrabOffsetY : 0),
       rect.top,
@@ -1576,8 +1595,9 @@
       } else if (event.key === "End") {
         nextPosition = 1;
       } else if (event.key === "ArrowUp" || event.key === "ArrowRight") {
-        if (position == null || position < window.PifmFlagpole.THRESHOLD) {
-          nextPosition = window.PifmFlagpole.THRESHOLD;
+        if (position == null ||
+            position < window.PifmFlagpole.TUNER_MIN_POSITION) {
+          nextPosition = window.PifmFlagpole.TUNER_MIN_POSITION;
         } else {
           var upUnits = window.PifmFlagpole.positionToUnits(position, band);
           upUnits = Math.min(band.max_units, upUnits + 1);
@@ -1586,7 +1606,7 @@
           );
         }
       } else if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
-        if (position <= window.PifmFlagpole.THRESHOLD) {
+        if (position <= window.PifmFlagpole.TUNER_MIN_POSITION) {
           nextPosition = 0;
         } else {
           var downUnits = window.PifmFlagpole.positionToUnits(position, band);

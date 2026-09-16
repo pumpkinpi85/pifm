@@ -7,6 +7,6 @@
 | STARTING stuck | Absolute STOP; check `pi_fm_rds` path; disk space for WAV |
 | FAULT / POSSIBLE TRANSMISSION | STOP BROADCAST; System diagnostics; ensure one TX worker |
 | No audio on air | Seekable WAV prepare failed? ffmpeg installed? |
-| Unexpected recovery after reboot | Lower the Black Flag to persist OFF intent, then inspect Broadcast Recovery under System |
+| Unexpected recovery after reboot | Return the brass handle to OFF AIR to persist OFF intent, then inspect Broadcast Recovery under System |
 
 Mock/fake backends will not produce RF — expected in tests.

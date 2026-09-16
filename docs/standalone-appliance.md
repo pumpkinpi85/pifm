@@ -32,9 +32,9 @@ otherwise disturb RF.
 piFM persists the operator's command, not the incidental presence of a
 transmitter process:
 
-- **Raise the Black Flag** atomically records desired broadcast intent **ON**
-  before transmitter startup.
-- **Lower the Black Flag / Stop Broadcast** atomically renames that ON marker
+- Moving the brass handle into the FM tuner atomically records desired
+  broadcast intent **ON** before transmitter startup.
+- Returning the handle to **OFF AIR / Stop Broadcast** atomically renames that ON marker
   to an OFF tombstone before stopping and verifying the transmitter, then
   removes the tombstone as cleanup.
 - A fresh installation has no ON marker and therefore starts **OFF AIR**.
@@ -57,7 +57,8 @@ When valid ON intent exists, piFM then repeats the canonical checks for:
 If a check or audio preparation fails, piFM remains OFF AIR. A failed recovery
 is latched for that machine boot so systemd restart loops cannot repeatedly
 attempt transmission. A later machine boot may retry because the operator's ON
-intent still exists; use **Lower the Black Flag** to deliberately disarm it.
+intent still exists; use the **OFF AIR detent / Stop Broadcast** to deliberately
+disarm it.
 
 Each ON command has a unique durable intent revision. The transmitter lifecycle
 barrier rechecks that revision immediately before spawn, so a stale startup or

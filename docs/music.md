@@ -32,5 +32,5 @@ first run useful without hiding a second queue or filesystem workflow.
   that order to the playlist. Read/status requests never shuffle or mutate it.
 
 Shuffle is applied only at an explicit queue rebuild boundary. Repeat controls
-what happens at the end of the program. Pause/reset affect music; only
-**Lower the Black Flag / Stop Broadcast** is the absolute RF stop.
+what happens at the end of the program. Pause/reset affect music; only the
+**OFF AIR detent / Stop Broadcast** is the absolute RF stop.

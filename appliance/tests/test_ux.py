@@ -39,8 +39,8 @@ class OperatorUxStaticTests(unittest.TestCase):
     def test_stop_broadcast_always_in_markup(self):
         self.assertIn('id="btnStopBroadcastHeader"', self.html)
         self.assertIn("STOP BROADCAST", self.html)
-        self.assertIn("Lower the Black Flag", self.html)
-        self.assertIn("Raise the Black Flag", self.html)
+        self.assertIn("OFF AIR detent", self.html)
+        self.assertIn("brass handle", self.html)
         self.assertIn("stopHead.disabled = false", self.js)
         self.assertIn('bindStop($("btnStopBroadcastHeader"))', self.js)
 
@@ -60,8 +60,8 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertNotIn(">PROGRAM<", self.broadcast)
         self.assertNotIn('data-testid="stop-music"', self.broadcast)
         self.assertIn('data-testid="flagpole-control"', self.broadcast)
-        self.assertIn("DRAG FLAG TO CONTROL TRANSMISSION", self.broadcast)
-        self.assertIn("Bottom is OFF AIR", self.broadcast)
+        self.assertIn("DRAG HANDLE TO CONTROL TRANSMISSION", self.broadcast)
+        self.assertIn("Bottom</span><strong>OFF AIR", self.broadcast)
 
     def test_flagpole_is_accessible_responsive_and_replaces_old_buttons(self):
         self.assertIn('role="slider"', self.broadcast)
@@ -93,13 +93,15 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("!wasSynchronized ||", self.js)
         self.assertIn("@media (max-width: 700px)", self.css)
         self.assertIn("touch-action: none", self.css)
+        self.assertIn("flagpoleActiveRailStyle", self.js)
+        self.assertIn("OFF_DETENT_TRIGGER", self.js)
+        self.assertIn("TUNER_MIN_POSITION", self.js)
 
     def test_flagpole_uses_supplied_physical_artwork_and_reference_layout(self):
         assets = STATIC / "images" / "broadcast-control"
         for name in (
             "flagpole.png",
             "pirate-flag.png",
-            "pirate-flag-waving.png",
             "flag-ropes.png",
             "slider-handle.png",
             "slider-handle-active.png",
@@ -107,8 +109,18 @@ class OperatorUxStaticTests(unittest.TestCase):
         ):
             self.assertTrue((assets / name).is_file(), name)
             self.assertIn("/images/broadcast-control/{}".format(name), self.broadcast)
+        self.assertNotIn("pirate-flag-waving.png", self.broadcast)
         self.assertIn("grid-template-columns: minmax(0, 1fr) 184px", self.css)
-        self.assertIn("height: 104px", self.css)
+        self.assertIn("height: 58px", self.css)
+        self.assertIn('class="raised-flag"', self.broadcast)
+        self.assertIn('class="flagpole-travel"', self.broadcast)
+        self.assertLess(
+            self.broadcast.index('class="raised-flag"'),
+            self.broadcast.index('id="flagpoleHandle"'),
+        )
+        self.assertNotIn('class="flag-cloth"', self.broadcast)
+        for stale_model in ("upper half", "lower half", "midpoint"):
+            self.assertNotIn(stale_model, self.html.lower())
         self.assertIn('class="panel ships-log-panel"', self.broadcast)
         self.assertLess(
             self.broadcast.index('class="panel ships-log-panel"'),
@@ -136,7 +148,7 @@ class OperatorUxStaticTests(unittest.TestCase):
         help_html = self.html.split('id="view-help"')[1]
         self.assertNotIn("Star Wars", help_html)
         self.assertIn("Choose your music", help_html)
-        self.assertIn("Raise the Black Flag", help_html)
+        self.assertIn("pirate flag stays raised", help_html)
         self.assertNotIn("Practice Mode", help_html)
         self.assertNotIn("Sandbox", help_html)
 

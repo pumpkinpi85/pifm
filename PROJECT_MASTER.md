@@ -95,7 +95,8 @@ do not depend on a browser, LAN, Internet, DNS, NTP, or cloud service.
 
 Persist only the operator's deliberate broadcast intent:
 
-- Raise the Black Flag atomically arms ON recovery before transmitter startup.
+- Moving the brass handle into the FM tuner atomically arms ON recovery before
+  transmitter startup.
 - Absolute STOP atomically disarms recovery before transmitter shutdown.
 - Fresh install / absent or corrupt marker means OFF.
 - Service and power restoration reuse the canonical readiness, media, hardware,
@@ -121,8 +122,8 @@ evidence must not be presented as validation of a newer SHA.
 
 - Fresh install / OFF intent: **TX OFF**, state not ON_AIR
 - Config changes, uploads, playlist selection: **must not** auto-TX
-- Lower the Black Flag / STOP BROADCAST: cancels in-flight start; the independent
-  masthead STOP remains available when flag position is unknown
+- OFF AIR detent / STOP BROADCAST: cancels in-flight start; the independent
+  masthead STOP remains available when handle position is unknown
 - STOP persists OFF before transmitter termination and blocks later restoration
 - Pause keeps carrier (silence hold) when ON AIR; STOP ends transmission
 - Reboot restores only valid deliberate ON intent after safety validation
@@ -133,13 +134,14 @@ evidence must not be presented as validation of a newer SHA.
 ## 11. OPERATOR UX PRINCIPLES
 
 - Centre PLAY/PAUSE primary; PREV/NEXT secondary
-- Broadcast uses one vertical Black Flag control: bottom/lower half is OFF AIR
-  travel, midpoint is `87.1 MHz`, and the top is `108.2 MHz`
+- Broadcast uses one vertical brass handle: the bottom is a small OFF AIR
+  detent, `87.1 MHz` begins at 6% travel, and `108.2 MHz` is at the top
 - Pointer movement is preview-only; release makes one canonical backend command
-- OFF AIR always renders the flag at bottom; a passive marker shows the Station
-  frequency. ON AIR and recovered intent render only from authoritative status.
+- The pirate flag remains raised as static identity artwork. OFF AIR renders the
+  handle at the bottom while a passive marker shows the Station frequency.
+  ON AIR and recovered intent render only from authoritative status.
 - FAULT, possible transmission, or disconnection never displays a definitive
-  flag position; the masthead STOP remains independent
+  handle position; the masthead STOP remains independent
 - Ship’s Log: meaningful operator transitions (idempotent pause)
 - Diagnostics under System, not the first viewport
 

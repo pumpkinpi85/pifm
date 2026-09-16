@@ -24,8 +24,8 @@ Use a spare Pi or fresh SD image — **not** the personal reference A+ station.
 
 ## Checklist results
 
-Mark each item pass / fail / N/A. Do not Raise the Black Flag on a live antenna
-unless Phase B is authorized.
+Mark each item pass / fail / N/A. Do not move the brass Broadcast handle out of
+OFF AIR on a live antenna unless Phase B is authorized.
 
 | # | Step | Result | Notes |
 |---|------|--------|-------|
