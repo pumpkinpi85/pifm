@@ -10,7 +10,9 @@
   "use strict";
 
   var REQUIRED_KEYS = [
+    "state",
     "broadcast_state",
+    "broadcast_ui",
     "broadcast_recovery",
     "tx_running",
     "fault_reason",
@@ -86,6 +88,7 @@
         markUnavailable(error.message);
         return false;
       }
+      requestSequence += 1;
       options.onSnapshot(snapshot);
       return true;
     }

@@ -397,10 +397,10 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.flush()
 
         try:
+            last_seq = self.events.seq
             st = self.controller.status()
             st["health"] = _system_health()
-            _write({"type": "status", "status": st, "seq": self.events.seq})
-            last_seq = self.events.seq
+            _write({"type": "status", "status": st, "seq": last_seq})
             while True:
                 new_seq = self.events.wait(after_seq=last_seq, timeout=15.0)
                 if new_seq > last_seq:

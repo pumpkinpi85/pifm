@@ -32,6 +32,7 @@ const assert = require("assert");
 const api = require("./appliance/web/static/js/connection.js");
 function snapshot(track) {
   return {
+    state: "ON_AIR", broadcast_ui: "ON AIR",
     broadcast_state: "on_air", broadcast_recovery: {armed: true},
     tx_running: true, fault_reason: null, program_state: "playing",
     current_track: {id: track}, next_track: {id: track + "-next"},
@@ -90,6 +91,7 @@ const pending = coordinator.reconcile();
 setImmediate(() => {
   coordinator.markUnavailable("Connection lost");
   resolveFetch({
+    state: "SAFE_OFF", broadcast_ui: "OFF",
     broadcast_state: "off", broadcast_recovery: {armed: false},
     tx_running: false, fault_reason: null, program_state: "stopped",
     current_track: null, next_track: null, active_playlist: "demo",
@@ -105,9 +107,53 @@ setImmediate(() => {
 """
         )
 
+    def test_live_snapshot_supersedes_older_inflight_http_snapshot(self):
+        self.run_node(
+            """
+const assert = require("assert");
+const api = require("./appliance/web/static/js/connection.js");
+function snapshot(track) {
+  return {
+    state: "ON_AIR", broadcast_ui: "ON AIR",
+    broadcast_state: "on_air", broadcast_recovery: {armed: true},
+    tx_running: true, fault_reason: null, program_state: "playing",
+    current_track: {id: track}, next_track: null, active_playlist: "demo",
+    queue: [{id: track}], shuffle: false, repeat: true,
+    broadcast: {ready: true}, hardware_status: "SUPPORTED"
+  };
+}
+let resolveFetch;
+let browserState = null;
+let firstFetch = true;
+const coordinator = api.createCoordinator({
+  fetchSnapshot: () => {
+    if (firstFetch) {
+      firstFetch = false;
+      return Promise.resolve(snapshot("baseline"));
+    }
+    return new Promise((resolve) => { resolveFetch = resolve; });
+  },
+  onUnavailable: () => { browserState = null; },
+  onSnapshot: (state) => { browserState = state; },
+  onSynchronized: () => {}
+});
+(async () => {
+  assert.strictEqual(await coordinator.reconcile(), true);
+  const pendingHttp = coordinator.reconcile();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.strictEqual(coordinator.acceptLiveSnapshot(snapshot("newer-sse")), true);
+  resolveFetch(snapshot("older-http"));
+  assert.strictEqual(await pendingHttp, false);
+  assert.strictEqual(browserState.current_track.id, "newer-sse");
+  assert.strictEqual(coordinator.isSynchronized(), true);
+})().catch((error) => { console.error(error); process.exit(1); });
+"""
+        )
+
     def test_mutations_are_guarded_until_synchronized(self):
         source = APP_JS.read_text()
         self.assertIn('method !== "GET" && !uiSynchronized', source)
+        self.assertIn("Remaining uploads were not sent.", source)
         self.assertIn("connectionCoordinator.reconcile()", source)
         self.assertIn("connectionCoordinator.acceptLiveSnapshot", source)
         self.assertNotIn('api("/api/queue").then', source)

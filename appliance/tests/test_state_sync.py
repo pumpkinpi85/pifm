@@ -187,6 +187,34 @@ class SseEndpointTests(unittest.TestCase):
         self.assertIn("status", chunk)
         conn.close()
 
+    def test_sse_does_not_skip_event_emitted_during_initial_snapshot(self):
+        original_status = self.ctrl.status
+        emitted = [False]
+
+        def status_with_racing_event():
+            snapshot = original_status()
+            if not emitted[0]:
+                emitted[0] = True
+                self.ctrl.events.emit("snapshot_race", "during initial status")
+            return snapshot
+
+        self.ctrl.status = status_with_racing_event
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request("GET", "/api/events/stream")
+        response = conn.getresponse()
+        messages = []
+        while len(messages) < 2:
+            line = response.readline().decode("utf-8")
+            if line.startswith("data: "):
+                messages.append(json.loads(line[len("data: ") :]))
+        conn.close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(messages[0]["type"], "status")
+        self.assertEqual(messages[1]["type"], "status")
+        self.assertGreater(messages[1]["seq"], messages[0]["seq"])
+        self.assertEqual(messages[1]["event"]["kind"], "snapshot_race")
+
     def test_tx_on_http_returns_quickly(self):
         # Force slow mock prefetch if available
         if hasattr(self.ctrl.tx, "prefetch_delay_s"):

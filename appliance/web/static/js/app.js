@@ -1300,6 +1300,11 @@
   });
 
   function uploadOne(file, progressBox, index) {
+    if (!uiSynchronized) {
+      return Promise.reject(new Error(
+        "Connection lost. Remaining uploads were not sent."
+      ));
+    }
     return new Promise(function (resolve, reject) {
       var rowId = "upload-" + Date.now() + "-" + index;
       progressBox.insertAdjacentHTML(
