@@ -9,7 +9,7 @@ See `examples/config.example.json`.
 | `tx_backend` | `pi_fm_rds` |
 | `pi_fm_rds_path` | Absolute path to `pi_fm_rds` |
 | `pi_fm_rds_ppm` | PiFmRds DMA/audio timing correction; default `0.0` |
-| `frequency_mhz` | Operator-chosen FM frequency |
+| `frequency_mhz` | Operator-chosen piFM tuning frequency, `87.1–108.2` MHz in `0.1` MHz increments |
 | `rds_ps` / `rds_rt` / `rds_pi` | RDS identity |
 | `hardware_profile` | e.g. `raspberry-pi-a-plus` |
 | `hardware_profile_mode` | `auto` (recommended) or explicit `manual` override |
@@ -24,6 +24,21 @@ restart may restore that intent only after safety validation. Absolute STOP
 removes it first.
 
 `mock` / `fake` backends exist for automated tests and developer validation only.
+
+## Frequency tuning contract
+
+piFM intentionally preserves its legacy inclusive `87.1–108.2 MHz` tuning
+range. New values must be aligned to integer tenths (`0.1 MHz`). The Broadcast
+flagpole and Station input both write this one canonical `frequency_mhz`
+setting; the flagpole stores no separate frequency.
+
+This supported tuning range is not a claim that every value is a lawful
+consumer broadcast channel in every region. The operator must choose a
+frequency and operating conditions allowed by local law.
+
+An existing in-range configuration with finer precision is preserved rather
+than silently rounded. Broadcast readiness and automatic recovery remain
+blocked until the operator explicitly corrects it on Station.
 
 ## PiFmRds timing calibration
 

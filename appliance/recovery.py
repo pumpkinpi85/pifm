@@ -40,6 +40,9 @@ class BroadcastIntentStore:
     def __init__(self, root: Path) -> None:
         self.directory = Path(root) / "data" / "recovery"
         self.path = self.directory / "broadcast-on.json"
+        self.off_tombstone_path = (
+            self.directory / "broadcast-off-tombstone.json"
+        )
         self._lock = threading.Lock()
         self._state = None  # type: Optional[Dict[str, Any]]
         self._invalid_reason = None  # type: Optional[str]
@@ -47,6 +50,14 @@ class BroadcastIntentStore:
         self._load()
 
     def _load(self) -> None:
+        if self.off_tombstone_path.exists():
+            self._state = None
+            self._invalid_reason = None
+            if self.path.exists():
+                self._last_error = (
+                    "OFF intent tombstone overrides a conflicting ON marker"
+                )
+            return
         if not self.path.exists():
             return
         try:
@@ -148,6 +159,9 @@ class BroadcastIntentStore:
         }
         with self._lock:
             try:
+                if self.off_tombstone_path.exists():
+                    self.off_tombstone_path.unlink()
+                    self._fsync_directory()
                 self._write(payload)
             except OSError as exc:
                 self._last_error = "could not persist ON intent: {}".format(exc)
@@ -155,17 +169,18 @@ class BroadcastIntentStore:
             return deepcopy(payload)
 
     def disarm(self) -> bool:
-        """Persist OFF by removing the ON marker before transmitter shutdown."""
+        """Persist OFF before transmitter shutdown, even if cleanup is interrupted."""
         with self._lock:
             existed = self.path.exists()
-            removed = False
             try:
                 if existed:
-                    self.path.unlink()
-                    removed = True
+                    os.replace(
+                        str(self.path),
+                        str(self.off_tombstone_path),
+                    )
                     self._fsync_directory()
             except OSError as exc:
-                if removed:
+                if not self.path.exists():
                     self._state = None
                     self._invalid_reason = None
                 self._last_error = "could not persist OFF intent: {}".format(exc)
@@ -173,6 +188,16 @@ class BroadcastIntentStore:
             self._state = None
             self._invalid_reason = None
             self._last_error = None
+            if existed:
+                try:
+                    self.off_tombstone_path.unlink()
+                    self._fsync_directory()
+                except OSError as exc:
+                    # The renamed tombstone is already durable OFF state. Cleanup
+                    # can be retried later without allowing automatic restore.
+                    self._last_error = (
+                        "OFF intent persisted; tombstone cleanup deferred: {}"
+                    ).format(exc)
             return existed
 
     def update_program(self, snapshot: Dict[str, Any]) -> bool:

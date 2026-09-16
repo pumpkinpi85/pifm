@@ -3,7 +3,7 @@
 ## 0.6.0 — Standalone appliance resilience
 
 - Persists deliberate operator ON intent in an atomic, fsync-backed marker;
-  marker absence remains the fail-safe OFF state.
+  no valid ON marker (including a retained OFF tombstone) means OFF.
 - Disarms recovery before absolute STOP and preserves ON intent across service
   or machine shutdown.
 - Restores only through canonical hardware, backend, media, and single-worker

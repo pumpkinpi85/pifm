@@ -10,6 +10,7 @@
   "use strict";
 
   var REQUIRED_KEYS = [
+    "authority_id",
     "snapshot_revision",
     "state",
     "broadcast_state",
@@ -34,6 +35,7 @@
     "repeat",
     "broadcast",
     "frequency_mhz",
+    "frequency_band",
     "rds_ps",
     "rds_rt",
     "rds_pi",
@@ -66,7 +68,7 @@
       throw new Error("authoritative queue is invalid");
     }
     ["state", "broadcast_state", "broadcast_ui", "program_state",
-      "program_ui", "tx_backend"].forEach(function (key) {
+      "program_ui", "tx_backend", "authority_id"].forEach(function (key) {
       if (typeof snapshot[key] !== "string") {
         throw new Error("authoritative " + key + " has an invalid type");
       }
@@ -125,11 +127,24 @@
       throw new Error("authoritative recovery flags are invalid");
     }
     ["broadcast", "network", "health", "hardware_environment",
-      "hardware_profile_doc", "tx"].forEach(function (key) {
+      "hardware_profile_doc", "tx", "frequency_band"].forEach(function (key) {
       if (!isPlainObject(snapshot[key])) {
         throw new Error("authoritative " + key + " is invalid");
       }
     });
+    var band = snapshot.frequency_band;
+    ["min_units", "max_units", "scale"].forEach(function (key) {
+      if (!Number.isInteger(band[key])) {
+        throw new Error("authoritative frequency band is invalid");
+      }
+    });
+    if (typeof band.step_mhz !== "number" ||
+        typeof band.min_mhz !== "number" ||
+        typeof band.max_mhz !== "number" ||
+        band.min_units >= band.max_units ||
+        band.scale <= 0) {
+      throw new Error("authoritative frequency band is invalid");
+    }
     if (!Array.isArray(snapshot.broadcast.blockers) ||
         !Array.isArray(snapshot.broadcast.items) ||
         !Array.isArray(snapshot.hardware_environment.checks)) {
@@ -143,19 +158,27 @@
     var epoch = 0;
     var requestSequence = 0;
     var latestSnapshotRevision = null;
+    var latestAuthorityId = null;
 
     function markUnavailable(reason) {
       epoch += 1;
       synchronized = false;
       latestSnapshotRevision = null;
+      latestAuthorityId = null;
       options.onUnavailable(reason || "Connection lost");
     }
 
-    function applyIfNewer(snapshot) {
+    function applyIfNewer(snapshot, allowAuthorityChange) {
+      if (latestAuthorityId !== null &&
+          snapshot.authority_id !== latestAuthorityId) {
+        if (!allowAuthorityChange) return false;
+        latestSnapshotRevision = null;
+      }
       if (latestSnapshotRevision !== null &&
           snapshot.snapshot_revision <= latestSnapshotRevision) {
         return false;
       }
+      latestAuthorityId = snapshot.authority_id;
       latestSnapshotRevision = snapshot.snapshot_revision;
       options.onSnapshot(snapshot);
       return true;
@@ -171,7 +194,7 @@
           if (requestEpoch !== epoch || requestId !== requestSequence) {
             return false;
           }
-          if (!applyIfNewer(snapshot)) return false;
+          if (!applyIfNewer(snapshot, true)) return false;
           synchronized = true;
           options.onSynchronized(snapshot);
           return true;
@@ -192,11 +215,7 @@
         markUnavailable(error.message);
         return false;
       }
-      if (latestSnapshotRevision !== null &&
-          snapshot.snapshot_revision <= latestSnapshotRevision) {
-        return false;
-      }
-      return applyIfNewer(snapshot);
+      return applyIfNewer(snapshot, false);
     }
 
     return {

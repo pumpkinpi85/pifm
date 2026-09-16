@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import tempfile
 import threading
 import time
@@ -10,6 +11,7 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 import sys
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -22,6 +24,7 @@ from appliance.state import State, StateError
 from appliance.tx import FakeProcessTxBackend, MockTxBackend, build_backend
 from appliance.tx_process import (
     OwnedTxProcess,
+    TransmitterProcessScanError,
     cmdline_is_tx_worker,
     count_transmitters,
     ensure_no_transmitters,
@@ -101,6 +104,15 @@ class OwnershipTests(unittest.TestCase):
                 "pifm-fake-tx-hold",
             )
         )
+
+    def test_process_table_failure_is_unknown_not_zero(self):
+        invalidate_tx_process_cache()
+        with patch(
+            "appliance.tx_process.subprocess.check_output",
+            side_effect=subprocess.CalledProcessError(1, ["ps"]),
+        ):
+            with self.assertRaises(TransmitterProcessScanError):
+                list_transmitter_processes()
 
     def test_owned_spawn_single_and_stop(self):
         owned = OwnedTxProcess(use_sudo_kill=False)
@@ -235,11 +247,19 @@ class FakeBackendControllerTests(unittest.TestCase):
 
         def pause_loop():
             for _ in range(12):
-                self.ctrl.pause()
+                try:
+                    self.ctrl.pause()
+                except StateError:
+                    # A concurrent transition may deliberately reject overlap.
+                    pass
 
         def resume_loop():
             for _ in range(12):
-                self.ctrl.play()
+                try:
+                    self.ctrl.play()
+                except StateError:
+                    # A concurrent transition may deliberately reject overlap.
+                    pass
 
         t1 = threading.Thread(target=pause_loop)
         t2 = threading.Thread(target=resume_loop)
@@ -247,6 +267,8 @@ class FakeBackendControllerTests(unittest.TestCase):
         t2.start()
         t1.join()
         t2.join()
+        self.assertFalse(t1.is_alive())
+        self.assertFalse(t2.is_alive())
         self.assertLessEqual(count_transmitters(), 1)
         self.ctrl.tx_off()
         self.assertEqual(count_transmitters(), 0)
@@ -267,8 +289,6 @@ class FakeBackendControllerTests(unittest.TestCase):
         self.ctrl.go_on_air()
         # Inject a second fake TX outside OwnedTxProcess (raw Popen) so cleanup
         # does not run — simulates Test #3 orphan/duplicate condition.
-        import subprocess
-
         rogue = subprocess.Popen(
             fake_tx_command(),
             stdin=subprocess.DEVNULL,
@@ -286,6 +306,66 @@ class FakeBackendControllerTests(unittest.TestCase):
             rogue.kill()
         except Exception:
             pass
+
+    def test_watchdog_process_scan_failure_enters_fault(self):
+        self.ctrl.go_on_air()
+        with patch(
+            "appliance.controller.count_transmitters",
+            side_effect=TransmitterProcessScanError("ps unavailable"),
+        ):
+            self.ctrl.watchdog()
+        self.assertEqual(self.ctrl.sm.state, State.FAULT)
+        self.assertIn("STATE UNKNOWN", self.ctrl.status()["broadcast_ui"])
+        self.assertFalse(self.ctrl.tx.is_running())
+
+    def test_watchdog_fault_cannot_interleave_with_flagpole_retune(self):
+        self.ctrl.go_on_air()
+        update_entered = threading.Event()
+        allow_update = threading.Event()
+        original_update = self.ctrl._update_config
+        errors = []
+
+        def blocked_update(*args, **kwargs):
+            update_entered.set()
+            self.assertTrue(allow_update.wait(3))
+            return original_update(*args, **kwargs)
+
+        def retune():
+            try:
+                self.ctrl.go_on_air_at_frequency(95.5, wait=True)
+            except Exception as exc:  # noqa: BLE001
+                errors.append(exc)
+
+        def scan_for_current_thread():
+            if threading.current_thread().name == "scan-failure-watchdog":
+                raise TransmitterProcessScanError("ps unavailable")
+            return count_transmitters()
+
+        with patch.object(
+            self.ctrl, "_update_config", side_effect=blocked_update
+        ), patch(
+            "appliance.controller.count_transmitters",
+            side_effect=scan_for_current_thread,
+        ):
+            tuner = threading.Thread(target=retune)
+            tuner.start()
+            self.assertTrue(update_entered.wait(3))
+            watcher = threading.Thread(
+                target=self.ctrl.watchdog,
+                name="scan-failure-watchdog",
+            )
+            watcher.start()
+            time.sleep(0.1)
+            self.assertTrue(watcher.is_alive())
+            self.assertNotEqual(self.ctrl.sm.state, State.FAULT)
+            allow_update.set()
+            tuner.join(5)
+            watcher.join(5)
+        self.assertFalse(tuner.is_alive())
+        self.assertFalse(watcher.is_alive())
+        self.assertFalse(errors)
+        self.assertEqual(self.ctrl.sm.state, State.FAULT)
+        self.assertFalse(self.ctrl.tx.is_running())
 
     def test_stale_pid_and_missing_pid_stop(self):
         self.ctrl.go_on_air()

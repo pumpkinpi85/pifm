@@ -52,7 +52,8 @@ unnecessary polling, excessive logging, repeated transcoding, excessive SD write
 - Python 3 package `appliance/`
 - Entry: `python3 -m appliance` (`PIFM_ROOT` supported)
 - Config: JSON under `config/appliance.json` (never persists transient ON_AIR/PIDs)
-- Broadcast intent: atomic ON marker under `data/recovery/`; absence means OFF
+- Broadcast intent: atomic ON marker under `data/recovery/`; no valid ON marker
+  (including a retained OFF tombstone) means OFF
 - Library: filesystem + SQLite index
 - Web: stdlib `ThreadingHTTPServer`, static HTML/CSS/JS
 - Live updates: SSE (`/api/events/stream`) + light polling fallback
@@ -105,27 +106,40 @@ Persist only the operator's deliberate broadcast intent:
 - A disconnected browser discards its local station authority and blocks
   mutations. Reconnection must replace it with one complete read-only status
   snapshot before SSE resumes.
+- Status snapshots carry a per-controller `authority_id`; a browser must accept
+  a new controller even when its process-local revision restarts at a lower
+  number, then reject delayed snapshots from the replaced controller.
 - Browser reconnection must have zero effect on RF or playback.
 
-Physical A+ power-restoration and network-disconnect RF behavior remain
-founder-gated until tested and must not be described as proven before then.
-That validation includes UI state loss and read-only authoritative
-reconciliation to the Pi's current track and transmitter state.
+Founder-operated A+ network-disconnect and power-restoration behavior was
+physically validated on pre-flagpole P1G product SHA
+`f57cab0583f70f431e478eda784233117b4bd56d`. Every later RF-lifecycle or
+control-surface change requires its own exact-tip founder gate; historical
+evidence must not be presented as validation of a newer SHA.
 
 ## 10. ABSOLUTE STOP / SAFETY INVARIANTS
 
 - Fresh install / OFF intent: **TX OFF**, state not ON_AIR
 - Config changes, uploads, playlist selection: **must not** auto-TX
-- Lower the Black Flag / STOP BROADCAST: always available; cancels in-flight start
+- Lower the Black Flag / STOP BROADCAST: cancels in-flight start; the independent
+  masthead STOP remains available when flag position is unknown
 - STOP persists OFF before transmitter termination and blocks later restoration
 - Pause keeps carrier (silence hold) when ON AIR; STOP ends transmission
 - Reboot restores only valid deliberate ON intent after safety validation
+- Frequency uses one canonical `87.1–108.2 MHz` value on an enforced `0.1 MHz`
+  grid. Invalid/off-grid legacy values block readiness rather than being rounded.
 - Fake/mock backends are for automated tests — not the normal operator product mode
 
 ## 11. OPERATOR UX PRINCIPLES
 
 - Centre PLAY/PAUSE primary; PREV/NEXT secondary
-- Raise the Black Flag = go on air; Lower = emergency/safety stop
+- Broadcast uses one vertical Black Flag control: bottom/lower half is OFF AIR
+  travel, midpoint is `87.1 MHz`, and the top is `108.2 MHz`
+- Pointer movement is preview-only; release makes one canonical backend command
+- OFF AIR always renders the flag at bottom; a passive marker shows the Station
+  frequency. ON AIR and recovered intent render only from authoritative status.
+- FAULT, possible transmission, or disconnection never displays a definitive
+  flag position; the masthead STOP remains independent
 - Ship’s Log: meaningful operator transitions (idempotent pause)
 - Diagnostics under System, not the first viewport
 
@@ -183,10 +197,12 @@ candidate only** — no public push until separately authorized.
 
 ## 19. CURRENT PROJECT STATUS
 
-**P1G candidate:** canonical P1F runs on the physical A+ from `/opt/pifm`.
+**P1G candidate:** canonical P1G runs on the physical A+ from `/opt/pifm`.
 P1G implements atomic operator broadcast intent, network-independent service
-startup, local program progression, and safety-gated restoration. Non-RF and
-OFF-intent A+ validation precede the founder-operated physical recovery tests.
+startup, local program progression, and safety-gated restoration. Founder
+physical network-loss and power-restoration scenarios passed on the historical
+pre-flagpole product-validation SHA. The current flagpole change remains a new
+candidate until exact-tip non-RF, A+ OFF AIR, and founder RF validation finish.
 Legacy personal trees remain read-only rollback artifacts. No public GitHub
 push has occurred.
 
@@ -196,13 +212,14 @@ push has occurred.
 - Pi 5 not supported without a proven RP1-capable backend
 - Optional panel LED/switch not required for core product
 - RF filtering/matching not measured by this software project
-- P1E audio timing was physically validated; P1G network/power restoration is
-  not physically proven until the founder-operated RF tests pass
+- P1E audio timing and the pre-flagpole P1G network/power restoration behavior
+  were physically validated; later product SHAs require fresh exact-tip evidence
 - LAN API authentication remains future security-hardening work
 - Legacy `/home/pi/pifm` and private Mac tree not deleted (retirement gated)
 
 ## 21. NEXT APPROVED PHASE
 
-**Founder-operated P1G network-disconnect and power-restoration RF validation**
-on the reference A+, followed by publication readiness review. Do not publish
-GitHub or delete legacy trees until their separate gates pass.
+**Exact-tip flagpole validation:** complete non-RF validation, deploy to the
+reference A+ while OFF AIR with preserved operator data, then stop before the
+founder-operated real-RF flag interaction. Do not publish GitHub or delete
+legacy trees until their separate gates pass.

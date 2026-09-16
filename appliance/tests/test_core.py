@@ -12,7 +12,14 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from appliance.config import Config, ConfigError
+from appliance.config import (
+    FREQ_MAX,
+    FREQ_MIN,
+    Config,
+    ConfigError,
+    frequency_units,
+    normalize_frequency_mhz,
+)
 from appliance.controller import Controller
 from appliance.events import EventLog
 from appliance.library import Library
@@ -79,6 +86,31 @@ class StateTests(unittest.TestCase):
                     Config(path, root)
 
 
+class ConfigFrequencyTests(unittest.TestCase):
+    def test_frequency_accepts_exact_boundaries_and_integer_tenths(self):
+        self.assertEqual(normalize_frequency_mhz(FREQ_MIN), 87.1)
+        self.assertEqual(normalize_frequency_mhz(FREQ_MAX), 108.2)
+        self.assertEqual(frequency_units("99.9"), 999)
+
+    def test_frequency_rejects_invalid_range_precision_and_non_finite(self):
+        for value in (87.0, 108.3, 99.95, True, None, "nan", "inf"):
+            with self.subTest(value=value):
+                with self.assertRaises(ConfigError):
+                    normalize_frequency_mhz(value)
+
+    def test_legacy_off_grid_value_loads_but_new_write_requires_correction(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "appliance.json"
+            path.write_text(json.dumps({"frequency_mhz": 99.95}))
+            config = Config(path, root)
+            self.assertEqual(config.get("frequency_mhz"), 99.95)
+            with self.assertRaises(ConfigError):
+                config.update({"rds_ps": "TEST"})
+            config.update({"frequency_mhz": 99.9})
+            self.assertEqual(config.get("frequency_mhz"), 99.9)
+
+
 class ControllerTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -133,6 +165,45 @@ class ControllerTests(unittest.TestCase):
         self.ctrl.update_config({"frequency_mhz": 95.5})
         self.assertFalse(self.ctrl.tx.is_running())
         self.assertNotEqual(self.ctrl.sm.state, State.ON_AIR)
+
+    def test_invalid_or_noop_config_does_not_stop_on_air(self):
+        self.ctrl.go_on_air()
+        started_at = self.ctrl.tx._started_at
+        with self.assertRaises(ConfigError):
+            self.ctrl.update_config({"frequency_mhz": 95.55})
+        self.assertTrue(self.ctrl.tx.is_running())
+        self.assertEqual(self.ctrl.tx._started_at, started_at)
+        self.ctrl.update_config({"frequency_mhz": self.config.get("frequency_mhz")})
+        self.assertTrue(self.ctrl.tx.is_running())
+        self.assertEqual(self.ctrl.tx._started_at, started_at)
+
+    def test_flagpole_frequency_commit_retunes_through_canonical_lifecycle(self):
+        self.ctrl.go_on_air()
+        before_revision = self.ctrl.recovery.snapshot()["intent_revision"]
+        status = self.ctrl.go_on_air_at_frequency(95.5, wait=True)
+        self.assertEqual(status["broadcast_ui"], "ON AIR")
+        self.assertEqual(status["frequency_mhz"], 95.5)
+        self.assertEqual(status["tx"]["frequency_mhz"], 95.5)
+        self.assertTrue(status["broadcast_recovery"]["armed"])
+        self.assertNotEqual(
+            self.ctrl.recovery.snapshot()["intent_revision"], before_revision
+        )
+        events = self.events.recent(50)
+        kinds = [event["kind"] for event in events]
+        self.assertIn("TX_STOP_REQUEST", kinds)
+        self.assertIn("frequency_changed", kinds)
+        stop_index = kinds.index("TX_STOP_REQUEST")
+        frequency_index = kinds.index("frequency_changed")
+        restarted_index = kinds.index("TX_START", frequency_index)
+        self.assertLess(stop_index, frequency_index)
+        self.assertLess(frequency_index, restarted_index)
+        self.assertEqual(
+            events[stop_index]["source"], "operator_flagpole_retune"
+        )
+        self.assertEqual(
+            events[frequency_index]["source"], "operator_flagpole"
+        )
+        self.assertEqual(events[restarted_index]["source"], "operator_flagpole")
 
     def test_ppm_change_does_not_start_tx_and_is_visible(self):
         status = self.ctrl.update_config({"pi_fm_rds_ppm": 125000})

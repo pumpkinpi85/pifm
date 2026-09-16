@@ -32,6 +32,7 @@ const assert = require("assert");
 const api = require("./appliance/web/static/js/connection.js");
 function snapshot(track, revision) {
   return {
+    authority_id: "boot-a",
     snapshot_revision: revision,
     state: "ON_AIR", broadcast_ui: "ON AIR",
     broadcast_state: "on_air", broadcast_recovery: {armed: true, valid: true},
@@ -45,7 +46,10 @@ function snapshot(track, revision) {
     queue: [{id: track, queue_pos: 0, is_current: true}],
     shuffle: false, repeat: true,
     broadcast: {ready: true, blockers: [], items: []},
-    frequency_mhz: 100.1, rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
+    frequency_mhz: 100.1,
+    frequency_band: {min_mhz: 87.1, max_mhz: 108.2, step_mhz: 0.1,
+      scale: 10, min_units: 871, max_units: 1082},
+    rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
     network: {ip: "127.0.0.1"}, health: {}, hardware_status: "SUPPORTED",
     hardware_environment: {checks: []}, hardware_profile_doc: {},
     software_version: "test", git_sha: "abc", build_label: "test"
@@ -102,6 +106,7 @@ const pending = coordinator.reconcile();
 setImmediate(() => {
   coordinator.markUnavailable("Connection lost");
   resolveFetch({
+    authority_id: "boot-a",
     snapshot_revision: 1,
     state: "SAFE_OFF", broadcast_ui: "OFF",
     broadcast_state: "off", broadcast_recovery: {armed: false, valid: true},
@@ -113,7 +118,10 @@ setImmediate(() => {
     selected_playlist_name: "Demo", queue_index: -1, queue_length: 0,
     queue: [], shuffle: false, repeat: true,
     broadcast: {ready: true, blockers: [], items: []},
-    frequency_mhz: 100.1, rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
+    frequency_mhz: 100.1,
+    frequency_band: {min_mhz: 87.1, max_mhz: 108.2, step_mhz: 0.1,
+      scale: 10, min_units: 871, max_units: 1082},
+    rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
     network: {}, health: {}, hardware_status: "SUPPORTED",
     hardware_environment: {checks: []}, hardware_profile_doc: {},
     software_version: "test", git_sha: "abc", build_label: "test"
@@ -134,6 +142,7 @@ const assert = require("assert");
 const api = require("./appliance/web/static/js/connection.js");
 function snapshot(track, revision) {
   return {
+    authority_id: "boot-a",
     snapshot_revision: revision,
     state: "ON_AIR", broadcast_ui: "ON AIR",
     broadcast_state: "on_air", broadcast_recovery: {armed: true, valid: true},
@@ -146,7 +155,10 @@ function snapshot(track, revision) {
     queue: [{id: track, queue_pos: 0, is_current: true}],
     shuffle: false, repeat: true,
     broadcast: {ready: true, blockers: [], items: []},
-    frequency_mhz: 100.1, rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
+    frequency_mhz: 100.1,
+    frequency_band: {min_mhz: 87.1, max_mhz: 108.2, step_mhz: 0.1,
+      scale: 10, min_units: 871, max_units: 1082},
+    rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
     network: {}, health: {}, hardware_status: "SUPPORTED",
     hardware_environment: {checks: []}, hardware_profile_doc: {},
     software_version: "test", git_sha: "abc", build_label: "test"
@@ -187,6 +199,7 @@ const assert = require("assert");
 const api = require("./appliance/web/static/js/connection.js");
 function snapshot(track, revision) {
   return {
+    authority_id: "boot-a",
     snapshot_revision: revision, state: "ON_AIR", broadcast_ui: "ON AIR",
     broadcast_state: "on_air", broadcast_recovery: {armed: true, valid: true},
     tx: {running: true}, tx_backend: "mock", tx_running: true,
@@ -198,7 +211,10 @@ function snapshot(track, revision) {
     queue: [{id: track, queue_pos: 0, is_current: true}],
     shuffle: false, repeat: true,
     broadcast: {ready: true, blockers: [], items: []},
-    frequency_mhz: 100.1, rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
+    frequency_mhz: 100.1,
+    frequency_band: {min_mhz: 87.1, max_mhz: 108.2, step_mhz: 0.1,
+      scale: 10, min_units: 871, max_units: 1082},
+    rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
     network: {}, health: {}, hardware_status: "SUPPORTED",
     hardware_environment: {checks: []}, hardware_profile_doc: {},
     software_version: "test", git_sha: "abc", build_label: "test"
@@ -219,6 +235,15 @@ const coordinator = api.createCoordinator({
     coordinator.acceptLiveSnapshot(snapshot("delayed-sse", 2)), false
   );
   assert.strictEqual(browserState.current_track.id, "newer-http");
+  const rebooted = snapshot("new-boot", 1);
+  rebooted.authority_id = "boot-b";
+  snapshots.push(rebooted);
+  assert.strictEqual(await coordinator.reconcile(), true);
+  assert.strictEqual(browserState.current_track.id, "new-boot");
+  assert.strictEqual(
+    coordinator.acceptLiveSnapshot(snapshot("old-boot-sse", 99)), false
+  );
+  assert.strictEqual(browserState.current_track.id, "new-boot");
   const malformedNested = snapshot("bad-network", 4);
   malformedNested.network = [];
   assert.throws(() => api.validateSnapshot(malformedNested));
@@ -261,6 +286,9 @@ const coordinator = api.createCoordinator({
         self.assertIn("requestAuthorityEpoch !== uiAuthorityEpoch", source)
         self.assertIn("connectionCoordinator.reconcile()", source)
         self.assertIn("connectionCoordinator.acceptLiveSnapshot", source)
+        self.assertIn("Date.now() - lastSseMessageAt > 22000", source)
+        self.assertNotIn("Math.random()", source)
+        self.assertIn("snapshot.authority_id !== activeAuthorityId", source)
         self.assertNotIn('api("/api/queue").then', source)
 
 

@@ -21,8 +21,10 @@ After connectivity returns, the browser performs one read-only
 replaces local state with that response, marks itself synchronized, and only
 then opens a new SSE stream. Every snapshot carries an appliance-generated
 monotonic revision, so delayed HTTP or SSE responses cannot replace newer
-state. Pending reads from before a disconnect are rejected. Reconciliation
-does not send playback or transmitter commands and therefore cannot restart or
+state. Pending reads from before a disconnect are rejected. Browser mutation
+requests carry that controller authority ID and are rejected if the appliance
+process has restarted since the snapshot was accepted. Reconciliation does
+not send playback or transmitter commands and therefore cannot restart or
 otherwise disturb RF.
 
 ## Broadcast recovery intent
@@ -32,8 +34,9 @@ transmitter process:
 
 - **Raise the Black Flag** atomically records desired broadcast intent **ON**
   before transmitter startup.
-- **Lower the Black Flag / Stop Broadcast** removes that ON marker before
-  stopping and verifying the transmitter.
+- **Lower the Black Flag / Stop Broadcast** atomically renames that ON marker
+  to an OFF tombstone before stopping and verifying the transmitter, then
+  removes the tombstone as cleanup.
 - A fresh installation has no ON marker and therefore starts **OFF AIR**.
 
 The small marker is stored under `data/recovery/` and is preserved during
@@ -87,17 +90,17 @@ hold and records `MEDIA_TRACK_FAILED`, avoiding an unbounded retry loop.
 ## Storage failures
 
 Intent and configuration replacement use a temporary file, file `fsync`,
-atomic rename, and directory `fsync`. OFF intent is represented by removing the
-ON marker, which normally remains possible when storage has no free data
-blocks.
+atomic rename, and directory `fsync`. STOP uses a same-directory atomic rename
+to make the ON marker ineligible for restore before RF shutdown. If tombstone
+cleanup fails, the retained tombstone still forces OFF on the next process.
 
 Uploads and WAV preparation use temporary files. A full filesystem leaves
 existing media untouched and reports a useful error. If the Ship's Log is
 unwritable, operation continues with an in-memory event buffer.
 
-If the filesystem is read-only and the ON marker cannot be removed, piFM still
-stops the transmitter but reports a fault: future OFF persistence cannot be
-guaranteed until storage is repaired.
+If even the atomic rename cannot be completed or synchronized, piFM still
+stops the transmitter and reports a fault because durable OFF state could not
+be proven. Storage must be repaired before another broadcast.
 
 ## Current validation boundary
 

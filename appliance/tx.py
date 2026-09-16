@@ -470,6 +470,7 @@ def build_pi_fm_command(
 from .tx_process import (
     DuplicateTransmitterError,
     OwnedTxProcess,
+    TransmitterProcessScanError,
     count_transmitters,
     ensure_no_transmitters,
     fake_tx_command,
@@ -487,10 +488,13 @@ def kill_all_transmitters() -> Dict[str, Any]:
         result["remaining"] = list_transmitter_processes()
         result["clear"] = count_transmitters() == 0
         return result
-    except DuplicateTransmitterError as exc:
+    except (DuplicateTransmitterError, TransmitterProcessScanError) as exc:
         return {
             "clear": False,
-            "remaining": list_transmitter_processes(),
+            "remaining": [],
+            "process_state_unknown": isinstance(
+                exc, TransmitterProcessScanError
+            ),
             "error": str(exc),
         }
 

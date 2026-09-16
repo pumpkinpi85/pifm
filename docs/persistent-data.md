@@ -51,9 +51,11 @@ These may be cleared during recovery without losing the station’s music librar
 
 ON_AIR state and transmitter PIDs are **never** persisted in
 `appliance.json`. A separate atomic marker under `data/recovery/` records only
-the operator's deliberate ON intent. Marker absence means OFF.
+the operator's deliberate ON intent. No valid ON marker means OFF. STOP first
+atomically renames an existing ON marker to an OFF tombstone; after that
+durable boundary it removes the tombstone as cleanup.
 
 Fresh installs therefore boot OFF AIR. A service or machine restart may
 restore a valid ON intent only through the complete readiness and
-single-transmitter checks. Absolute STOP removes the marker before terminating
-RF.
+single-transmitter checks. Absolute STOP durably invalidates the ON marker
+before terminating RF.

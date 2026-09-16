@@ -5,11 +5,17 @@ from __future__ import annotations
 import random
 import threading
 import time
+import uuid
 from collections import Counter
 from typing import Any, Dict, List, Optional
 
 from .build_info import resolve_build_identity
-from .config import Config
+from .config import (
+    Config,
+    frequency_band,
+    frequency_is_grid_aligned,
+    normalize_frequency_mhz,
+)
 from .events import EventLog
 from .hardware_environment import check_host_prerequisites
 from .hardware_profile import resolve_hardware_profile
@@ -18,7 +24,12 @@ from .network import NetworkManager
 from .recovery import BroadcastIntentStore, RecoveryStateError, current_boot_id
 from .state import State, StateError, StateMachine  # StateError used by API callers
 from .tx import TxBackend, build_backend, kill_all_transmitters, probe_real_tx_readiness
-from .tx_process import StartCancelled, count_transmitters, list_transmitter_processes
+from .tx_process import (
+    StartCancelled,
+    TransmitterProcessScanError,
+    count_transmitters,
+    list_transmitter_processes,
+)
 
 
 class Controller:
@@ -49,8 +60,13 @@ class Controller:
             iface=str(config.get("network_iface") or "eth0"),
         )
         self._lock = threading.RLock()
+        self._broadcast_command_lock = threading.RLock()
         self._tx_lifecycle_lock = threading.Lock()
         self._status_revision = 0
+        self._authority_id = "{}:{}".format(
+            current_boot_id(),
+            uuid.uuid4().hex,
+        )
         self._closing = False
         self._queue = []  # type: List[str]  # track ids
         self._queue_index = -1
@@ -61,6 +77,7 @@ class Controller:
         self._air_start_deadline = None  # type: Optional[float]
         self._air_start_generation = 0
         self._air_stop_pending = False
+        self._stop_revision = 0
         # Program transport transitional intent (UI only until confirmed).
         # None | starting | pausing | resuming | changing
         self._program_pending = None  # type: Optional[str]
@@ -78,6 +95,13 @@ class Controller:
             self._refresh_ready_unlocked()
 
     # --- status ---
+
+    def require_authority(self, expected_authority_id: str) -> None:
+        with self._lock:
+            if expected_authority_id != self._authority_id:
+                raise StateError(
+                    "Controller authority changed. Refresh authoritative state."
+                )
 
     def broadcast_checklist(
         self, include_setup: bool = True
@@ -141,13 +165,16 @@ class Controller:
                 }
             )
             freq = float(cfg["frequency_mhz"])
+            frequency_valid = frequency_is_grid_aligned(freq)
             items.append(
                 {
                     "id": "frequency",
                     "label": "Frequency selected",
-                    "ok": 87.1 <= freq <= 108.2,
+                    "ok": frequency_valid,
                     "detail": "{:.1f} MHz".format(freq),
-                    "operator_hint": "Set a valid FM frequency on the Station page.",
+                    "operator_hint": (
+                        "Set a frequency in 0.1 MHz increments on the Station page."
+                    ),
                     "cta": "station",
                     "cta_label": "Open Station",
                 }
@@ -408,6 +435,7 @@ class Controller:
             )
             self._status_revision += 1
             return {
+                "authority_id": self._authority_id,
                 "snapshot_revision": self._status_revision,
                 "state": self.sm.state.value,
                 "fault_reason": self.sm.fault_reason,
@@ -416,6 +444,7 @@ class Controller:
                 "system_tx_count": system_tx if system_tx >= 0 else None,
                 "system_tx_processes": system_tx_list,
                 "frequency_mhz": cfg["frequency_mhz"],
+                "frequency_band": frequency_band(),
                 "rds_ps": cfg["rds_ps"],
                 "rds_rt": cfg["rds_rt"],
                 "rds_pi": cfg["rds_pi"],
@@ -618,6 +647,23 @@ class Controller:
         return str(persisted["intent_revision"])
 
     def update_config(self, patch: Dict[str, Any]) -> Dict[str, Any]:
+        with self._broadcast_command_lock:
+            return self._update_config(patch, source="operator_config")
+
+    def _update_config(
+        self,
+        patch: Dict[str, Any],
+        source: str = "operator_config",
+    ) -> Dict[str, Any]:
+        before = self.config.as_dict()
+        candidate = self.config.validate_update(patch)
+        changes = {
+            key: candidate[key]
+            for key in patch
+            if key in candidate and candidate[key] != before.get(key)
+        }
+        if not changes:
+            return before
         with self._lock:
             must_stop = bool(
                 self.sm.state == State.ON_AIR
@@ -630,8 +676,8 @@ class Controller:
                 source="operator_config_change",
             )
         with self._lock:
-            before_freq = self.config.get("frequency_mhz")
-            data = self.config.update(patch)
+            before_freq = before.get("frequency_mhz")
+            data = self.config.update(changes)
             # Backend construction captures executable path and timing correction.
             # Rebuild for any such setting change; never auto-start TX.
             backend_keys = {
@@ -639,7 +685,7 @@ class Controller:
                 "pi_fm_rds_path",
                 "pi_fm_rds_ppm",
             }
-            backend_changed = bool(backend_keys.intersection(patch))
+            backend_changed = bool(backend_keys.intersection(changes))
             if backend_changed:
                 kill_all_transmitters()
                 self.tx = build_backend(
@@ -652,28 +698,90 @@ class Controller:
                         self.config.get("pi_fm_rds_ppm", 0.0)
                     ),
                 )
-            if "pi_fm_rds_ppm" in patch:
+            if "pi_fm_rds_ppm" in changes:
                 self.events.emit(
                     "tx_timing_changed",
                     "PiFmRds timing correction set to {} ppm".format(
                         data["pi_fm_rds_ppm"]
                     ),
+                    source=source,
                 )
-            if "frequency_mhz" in patch and patch["frequency_mhz"] != before_freq:
+            if "frequency_mhz" in changes and data["frequency_mhz"] != before_freq:
                 self.events.emit(
                     "frequency_changed",
                     "frequency set to {}".format(data["frequency_mhz"]),
+                    source=source,
                 )
-            if "active_playlist" in patch:
+            if "active_playlist" in changes:
                 self.events.emit(
                     "playlist_changed",
                     "active playlist {}".format(data["active_playlist"]),
+                    source=source,
                 )
             # Intentional queue rebuild boundaries only.
-            if "active_playlist" in patch or "shuffle" in patch:
+            if "active_playlist" in changes or "shuffle" in changes:
                 self._load_queue(rebuild=True)
             self._refresh_ready_unlocked()
             return data
+
+    def go_on_air_at_frequency(
+        self, frequency_mhz: Any, wait: bool = False
+    ) -> Dict[str, Any]:
+        """Commit one operator tune-and-broadcast action through canonical paths."""
+        frequency = normalize_frequency_mhz(frequency_mhz)
+        with self._lock:
+            operation_stop_revision = self._stop_revision
+            if self._air_stop_pending:
+                raise StateError("Broadcast is stopping. Wait until OFF AIR.")
+        with self._broadcast_command_lock:
+            with self._lock:
+                if (
+                    self._air_stop_pending
+                    or self._stop_revision != operation_stop_revision
+                ):
+                    raise StateError("Broadcast is stopping. Wait until OFF AIR.")
+                if self.sm.state == State.FAULT:
+                    raise StateError(
+                        "Clear the broadcast fault before raising the Black Flag."
+                    )
+                current = normalize_frequency_mhz(
+                    self.config.get("frequency_mhz")
+                )
+                active = bool(
+                    self.sm.state == State.ON_AIR or self.tx.is_running()
+                )
+                if self._air_start_pending:
+                    if frequency == current:
+                        return self.status()
+                    raise StateError(
+                        "Broadcast is already starting at another frequency."
+                    )
+            if active and frequency != current:
+                self._tx_off(
+                    persist_off=True,
+                    source="operator_flagpole_retune",
+                    clear_stop_pending=False,
+                )
+                with self._lock:
+                    if self._stop_revision != operation_stop_revision:
+                        raise StateError("Broadcast was stopped during tuning.")
+                    self._air_stop_pending = False
+            if frequency != current:
+                self._update_config(
+                    {"frequency_mhz": frequency},
+                    source="operator_flagpole",
+                )
+            with self._lock:
+                if (
+                    self._air_stop_pending
+                    or self._stop_revision != operation_stop_revision
+                ):
+                    raise StateError("Broadcast was stopped during tuning.")
+            return self.go_on_air(
+                wait=wait,
+                persist_intent=True,
+                source="operator_flagpole",
+            )
 
     def update_setup(self, patch: Dict[str, Any]) -> Dict[str, Any]:
         """Apply first-run choices; complete only when Broadcast is ready."""
@@ -839,13 +947,7 @@ class Controller:
                 self._program_pending = "pausing"
                 self.events.emit("program_pending", "PAUSING…", program_ui="PAUSING…")
                 # Stay ON AIR. Hold carrier with looping seekable silence.
-                if hasattr(self.tx, "start_silence"):
-                    self.tx.start_silence(
-                        frequency_mhz=float(self.config.get("frequency_mhz")),
-                        rds_ps=str(self.config.get("rds_ps")),
-                        rds_rt=str(self.config.get("rds_rt")),
-                        rds_pi=str(self.config.get("rds_pi")),
-                    )
+                self._hold_silence_unlocked()
                 self._clear_track_timing_unlocked()
                 self._update_recovery_program_unlocked()
                 self._program_pending = None
@@ -869,13 +971,7 @@ class Controller:
             if self.sm.state == State.ON_AIR:
                 # Stop the program but keep the station on air (silence hold).
                 # program_state becomes "stopped" (not paused).
-                if hasattr(self.tx, "start_silence"):
-                    self.tx.start_silence(
-                        frequency_mhz=float(self.config.get("frequency_mhz")),
-                        rds_ps=str(self.config.get("rds_ps")),
-                        rds_rt=str(self.config.get("rds_rt")),
-                        rds_pi=str(self.config.get("rds_pi")),
-                    )
+                self._hold_silence_unlocked()
                 self._update_recovery_program_unlocked()
                 self.events.emit(
                     "program_stopped",
@@ -1108,6 +1204,22 @@ class Controller:
         initial_program_state: str = "playing",
         expected_intent_revision: Optional[str] = None,
     ) -> Dict[str, Any]:
+        return self._go_on_air(
+            wait=wait,
+            persist_intent=persist_intent,
+            source=source,
+            initial_program_state=initial_program_state,
+            expected_intent_revision=expected_intent_revision,
+        )
+
+    def _go_on_air(
+        self,
+        wait: bool = True,
+        persist_intent: bool = True,
+        source: str = "operator",
+        initial_program_state: str = "playing",
+        expected_intent_revision: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Go On Air. Heavy WAV prep runs outside the controller lock on Pi A+.
 
         wait=True (default): block until ON AIR / fault (unit tests).
@@ -1126,6 +1238,8 @@ class Controller:
         with self._lock:
             if self._closing:
                 raise StateError("The appliance is shutting down.")
+            if self._air_stop_pending:
+                raise StateError("Broadcast is stopping. Wait until OFF AIR.")
             checklist = self.broadcast_checklist()
             if not checklist.get("ready"):
                 blockers = checklist.get("blockers") or []
@@ -1211,6 +1325,7 @@ class Controller:
                         audio_path,
                         initial_program_state,
                         intent_revision,
+                        source,
                     )
                 except Exception:
                     with self._lock:
@@ -1229,6 +1344,7 @@ class Controller:
             audio_path,
             initial_program_state,
             intent_revision,
+            source,
         )
 
     def _complete_go_on_air(
@@ -1237,6 +1353,7 @@ class Controller:
         audio_path: Optional[str],
         initial_program_state: str = "playing",
         expected_intent_revision: Optional[str] = None,
+        source: str = "operator",
     ) -> Dict[str, Any]:
         timed_out = False
         cancelled = False
@@ -1439,6 +1556,7 @@ class Controller:
                 self.events.emit(
                     "TX_START",
                     "ON_AIR",
+                    source=source,
                     pid=meta.get("worker_pid") or meta.get("pid"),
                     launcher_pid=meta.get("launcher_pid"),
                     **{k: meta.get(k) for k in ("wav_path", "audio_mode", "cmd")},
@@ -1476,6 +1594,7 @@ class Controller:
             with self._lock:
                 admitted = bool(
                     not self._closing
+                    and not self._air_stop_pending
                     and self._air_start_pending
                     and self._air_start_generation == generation
                     and self.recovery.matches_on_revision(
@@ -1518,6 +1637,27 @@ class Controller:
         persist_off: bool = True,
         source: str = "operator",
     ) -> Dict[str, Any]:
+        with self._lock:
+            self._stop_revision += 1
+            request_revision = self._stop_revision
+            self._air_stop_pending = True
+        with self._broadcast_command_lock:
+            self._tx_off(
+                persist_off=persist_off,
+                source=source,
+                clear_stop_pending=False,
+            )
+        with self._lock:
+            if self._stop_revision == request_revision:
+                self._air_stop_pending = False
+            return self.status()
+
+    def _tx_off(
+        self,
+        persist_off: bool = True,
+        source: str = "operator",
+        clear_stop_pending: bool = True,
+    ) -> Dict[str, Any]:
         """Absolute STOP BROADCAST — independent of state machine validity."""
         with self._lock:
             persistence_error = (
@@ -1534,7 +1674,11 @@ class Controller:
             clear_pf = getattr(self.tx, "clear_prefetch", None)
             if callable(clear_pf):
                 clear_pf()
-            self.events.emit("TX_STOP_REQUEST", "STOP BROADCAST")
+            self.events.emit(
+                "TX_STOP_REQUEST",
+                "STOP BROADCAST",
+                source=source,
+            )
             prev = self.sm.state
 
         # Wait for an already-admitted spawn, then stop and sweep while holding
@@ -1542,7 +1686,12 @@ class Controller:
         with self._tx_lifecycle_lock:
             try:
                 self.tx.stop()
-                self.events.emit("TX_TERM", "backend stop completed", previous_state=prev.value)
+                self.events.emit(
+                    "TX_TERM",
+                    "backend stop completed",
+                    source=source,
+                    previous_state=prev.value,
+                )
             except Exception as exc:  # noqa: BLE001
                 self.events.emit("tx_failure", "stop error: {}".format(exc))
             sweep = kill_all_transmitters()
@@ -1550,13 +1699,38 @@ class Controller:
         with self._lock:
             if sweep.get("actions") or sweep.get("cleaned"):
                 self.events.emit("TX_KILL", "sweep completed", kill_sweep=sweep)
+            if (
+                persist_off
+                and not persistence_error
+                and self.recovery.status().get("armed")
+            ):
+                try:
+                    self.recovery.disarm()
+                    self.events.emit(
+                        "BROADCAST_INTENT_RECONCILED",
+                        "STOP BROADCAST removed a stale ON intent",
+                        source=source,
+                        next_intent="off",
+                    )
+                except RecoveryStateError as exc:
+                    persistence_error = str(exc)
+                    self.events.emit(
+                        "RECOVERY_PERSISTENCE_FAILED",
+                        persistence_error,
+                        source=source,
+                        next_intent="off",
+                    )
             if not sweep.get("clear", True):
                 self.events.emit("TX_DUPLICATE_DETECTED", "sweep incomplete", kill_sweep=sweep)
                 self.sm.enter_fault(
                     "STOP could not prove the transmitter is off"
                 )
             else:
-                self.events.emit("TX_EXIT", "no transmitter processes remain")
+                self.events.emit(
+                    "TX_EXIT",
+                    "no transmitter processes remain",
+                    source=source,
+                )
             self._playing = False
             self._paused = False
             self._clear_track_timing_unlocked()
@@ -1570,7 +1744,8 @@ class Controller:
                     self._refresh_ready_unlocked()
             elif persistence_error:
                 self.sm.enter_fault(persistence_error)
-            self._air_stop_pending = False
+            if clear_stop_pending:
+                self._air_stop_pending = False
             self.events.emit(
                 "STATE_RECONCILE",
                 (
@@ -1584,6 +1759,7 @@ class Controller:
                 ),
                 previous_state=prev.value,
                 state=self.sm.state.value,
+                source=source,
                 kill_sweep=sweep,
             )
             return self.status()
@@ -1773,17 +1949,22 @@ class Controller:
             return self.queue_snapshot()
 
     def _start_tx_current_unlocked(self) -> None:
+        if self._air_stop_pending:
+            raise StartCancelled("STOP BROADCAST is pending")
         track = self._current_track()
         if not track:
             raise StateError("no current track")
         audio = str(self.library.absolute_path(track["path"]))
-        self.tx.start(
-            frequency_mhz=float(self.config.get("frequency_mhz")),
-            audio_path=audio,
-            rds_ps=str(self.config.get("rds_ps")),
-            rds_rt=str(self.config.get("rds_rt")),
-            rds_pi=str(self.config.get("rds_pi")),
-        )
+        with self._tx_lifecycle_lock:
+            if self._air_stop_pending:
+                raise StartCancelled("STOP BROADCAST is pending")
+            self.tx.start(
+                frequency_mhz=float(self.config.get("frequency_mhz")),
+                audio_path=audio,
+                rds_ps=str(self.config.get("rds_ps")),
+                rds_rt=str(self.config.get("rds_rt")),
+                rds_pi=str(self.config.get("rds_pi")),
+            )
         meta = self.tx.status()
         self.events.emit(
             "tx_audio",
@@ -1800,13 +1981,18 @@ class Controller:
         self._set_track_timing_unlocked()
 
     def _hold_silence_unlocked(self) -> None:
+        if self._air_stop_pending:
+            raise StartCancelled("STOP BROADCAST is pending")
         if hasattr(self.tx, "start_silence"):
-            self.tx.start_silence(
-                frequency_mhz=float(self.config.get("frequency_mhz")),
-                rds_ps=str(self.config.get("rds_ps")),
-                rds_rt=str(self.config.get("rds_rt")),
-                rds_pi=str(self.config.get("rds_pi")),
-            )
+            with self._tx_lifecycle_lock:
+                if self._air_stop_pending:
+                    raise StartCancelled("STOP BROADCAST is pending")
+                self.tx.start_silence(
+                    frequency_mhz=float(self.config.get("frequency_mhz")),
+                    rds_ps=str(self.config.get("rds_ps")),
+                    rds_rt=str(self.config.get("rds_rt")),
+                    rds_pi=str(self.config.get("rds_pi")),
+                )
 
     def _stop_tx_unlocked(self, reason: str) -> None:
         try:
@@ -1820,14 +2006,27 @@ class Controller:
         Silence re-arm is the only restart path and always goes through stop→start
         under the controller lock (single-TX invariant inside OwnedTxProcess).
         """
+        with self._broadcast_command_lock:
+            self._watchdog_serialized()
+
+    def _watchdog_serialized(self) -> None:
         advance_program = False
         with self._lock:
-            if self.sm.state != State.ON_AIR:
+            if self.sm.state != State.ON_AIR or self._air_stop_pending:
                 return
             # Duplicate discovery even if tracked child looks fine.
             backend = str(self.config.get("tx_backend") or "mock")
             if backend in ("pi_fm_rds", "fake"):
-                n = count_transmitters()
+                try:
+                    n = count_transmitters()
+                except TransmitterProcessScanError as exc:
+                    self._stop_tx_unlocked("process scan failed")
+                    kill_all_transmitters()
+                    self.sm.enter_fault(
+                        "transmitter process state could not be inspected"
+                    )
+                    self.events.emit("FAULT", str(exc))
+                    return
                 if n > 1:
                     self.events.emit(
                         "TX_DUPLICATE_DETECTED",

@@ -8,15 +8,23 @@
   var playlistsCache = null;
   var libraryLoadedOnce = false;
   var commandPending = null; // play|pause|next|prev|txon|txoff
+  var txCommandPendingRevision = null;
   var sseConnected = false;
   var uiSynchronized = false;
   var uiAuthorityEpoch = 0;
+  var activeAuthorityId = null;
   var activeEventSource = null;
   var reconnectTimer = null;
+  var lastSseMessageAt = 0;
   var lastLogFingerprint = "";
   var setupStep = 0;
   var libraryTrackCount = 0;
   var draggedTrackId = null;
+  var flagpoleGesture = null;
+  var flagpolePointerId = null;
+  var flagpoleGestureEpoch = null;
+  var flagpoleBandKey = "";
+  var flagpoleGrabOffsetY = 0;
 
   var ENGINEERING_KINDS = {
     TX_PID: 1,
@@ -55,6 +63,15 @@
       return Promise.reject(new Error(
         "Live station state is unavailable. Wait for reconnection."
       ));
+    }
+    if (method !== "GET") {
+      if (!activeAuthorityId) {
+        return Promise.reject(new Error(
+          "Authoritative controller identity is unavailable."
+        ));
+      }
+      opts.headers = opts.headers || {};
+      opts.headers["X-PiFM-Authority-ID"] = activeAuthorityId;
     }
     if (method === "GET" && !uiSynchronized && path !== "/api/status") {
       return new Promise(function () {});
@@ -101,7 +118,9 @@
     statusLoaded = false;
     sseConnected = false;
     state = null;
+    activeAuthorityId = null;
     commandPending = null;
+    txCommandPendingRevision = null;
     window._queueTracks = [];
     document.body.classList.add("state-unavailable");
     var banner = $("connectionBanner");
@@ -181,11 +200,7 @@
     $("setupHardwareOutput").textContent = "";
     $("setupHardwareChecks").innerHTML = "";
     $("setupWizard").hidden = true;
-    $("btnGoOnAir").hidden = true;
-    $("btnGoOnAir").disabled = true;
-    $("btnStopBroadcast").disabled = true;
-    $("btnStopBroadcast").innerHTML =
-      'CONTROLS UNAVAILABLE<span class="tx-sub">RECONNECTING</span>';
+    renderFlagpoleUnavailable();
     selectedPl = null;
     playlistsCache = null;
     libraryLoadedOnce = false;
@@ -194,17 +209,219 @@
   }
 
   function markStateSynchronized() {
+    var wasSynchronized = uiSynchronized;
     uiSynchronized = true;
     document.body.classList.remove("state-unavailable");
     var banner = $("connectionBanner");
-    if (banner) {
+    if (banner && (
+      !wasSynchronized ||
+      !banner.classList.contains("synchronized") ||
+      banner.textContent !== "CONNECTED — AUTHORITATIVE STATE SYNCHRONIZED"
+    )) {
       banner.classList.add("synchronized");
       banner.textContent = "CONNECTED — AUTHORITATIVE STATE SYNCHRONIZED";
     }
-    if ($("view-music").classList.contains("active")) {
+    if (!wasSynchronized &&
+        $("view-music").classList.contains("active")) {
       loadPlaylists();
       loadLibrary();
     }
+    if (!wasSynchronized && state) renderFlagpoleStatus(state);
+  }
+
+  function flagpolePositionStyle(element, position) {
+    var p = window.PifmFlagpole.clampPosition(position);
+    element.style.bottom = "calc(" + (p * 100) + "% - " + (p * 44) + "px)";
+  }
+
+  function ensureFlagpoleTicks(band) {
+    var key = [
+      band.min_units, band.max_units, band.scale
+    ].join(":");
+    if (key === flagpoleBandKey) return;
+    flagpoleBandKey = key;
+    var box = $("flagpoleTicks");
+    box.innerHTML = "";
+    for (var units = band.min_units; units <= band.max_units; units += 1) {
+      var endpoint = units === band.min_units || units === band.max_units;
+      if (!endpoint && units % 10 !== 0) continue;
+      var tick = document.createElement("div");
+      var position = window.PifmFlagpole.frequencyToPosition(
+        units / band.scale, band
+      );
+      tick.className = "flagpole-tick" + (
+        endpoint || units % 20 === 0 ? " major" : ""
+      );
+      tick.style.bottom = (position * 100) + "%";
+      if (endpoint || units % 20 === 0) {
+        var label = document.createElement("span");
+        label.textContent = (units / band.scale).toFixed(1);
+        tick.appendChild(label);
+      }
+      box.appendChild(tick);
+    }
+  }
+
+  function renderFlagpolePreview(target) {
+    var handle = $("flagpoleHandle");
+    handle.hidden = false;
+    handle.disabled = false;
+    handle.className = "flagpole-handle preview";
+    handle._previewPosition = target.position;
+    flagpolePositionStyle(handle, target.position);
+    if (target.desired_broadcast === "off") {
+      $("flagpoleReadout").textContent = "OFF AIR";
+      $("flagpoleFeedback").textContent =
+        "OFF AIR TRAVEL · RELEASE TO LOWER THE BLACK FLAG";
+      handle.setAttribute("aria-valuenow", "0");
+      handle.setAttribute("aria-valuetext", "Preview OFF AIR");
+      return;
+    }
+    var frequency = Number(target.frequency_mhz).toFixed(1);
+    $("freqBig").textContent = frequency;
+    $("flagpoleReadout").textContent = "PREVIEW " + frequency + " FM";
+    $("flagpoleFeedback").textContent =
+      target.position === window.PifmFlagpole.THRESHOLD
+        ? "ON AIR THRESHOLD · RELEASE TO BROADCAST"
+        : "TUNING · RELEASE TO COMMIT";
+    var band = state.frequency_band;
+    var units = Math.round(Number(target.frequency_mhz) * band.scale);
+    handle.setAttribute(
+      "aria-valuenow", String(units - band.min_units + 1)
+    );
+    handle.setAttribute(
+      "aria-valuetext", "Preview " + frequency + " FM"
+    );
+  }
+
+  function renderFlagpoleUnavailable() {
+    if (flagpoleGesture && flagpoleGesture.isActive()) {
+      flagpoleGesture.cancel("authority unavailable");
+    }
+    var handle = $("flagpoleHandle");
+    if (!handle) return;
+    handle.hidden = true;
+    handle.disabled = true;
+    handle._previewPosition = null;
+    $("flagpolePreset").hidden = true;
+    $("flagpoleUnknown").hidden = false;
+    $("flagpoleUnknown").textContent = "LIVE POSITION UNAVAILABLE";
+    $("flagpoleReadout").textContent = "SET —";
+    $("flagpoleFeedback").textContent = "RECONNECTING · CONTROL LOCKED";
+  }
+
+  function flagpoleSnapshotBlocksCommit(snapshot) {
+    return !window.PifmFlagpole ||
+      window.PifmFlagpole.isCommitBlocked(snapshot);
+  }
+
+  function flagpoleTxCommandPending() {
+    return commandPending === "txon" || commandPending === "txoff";
+  }
+
+  function renderFlagpoleStatus(snapshot) {
+    if (!window.PifmFlagpole || !snapshot || !snapshot.frequency_band) return;
+    var blocked = flagpoleSnapshotBlocksCommit(snapshot);
+    if (flagpoleGesture && flagpoleGesture.isActive()) {
+      if (blocked) {
+        flagpoleGesture.cancel("authoritative state changed");
+      } else {
+        renderFlagpolePreview(window.PifmFlagpole.targetForPosition(
+          $("flagpoleHandle")._previewPosition,
+          snapshot.frequency_band
+        ));
+        return;
+      }
+    }
+    var band = snapshot.frequency_band;
+    ensureFlagpoleTicks(band);
+    var frequency = Number(snapshot.frequency_mhz);
+    var presetPosition;
+    try {
+      presetPosition = window.PifmFlagpole.frequencyToPosition(
+        frequency, band
+      );
+    } catch (error) {
+      $("flagpoleHandle").hidden = true;
+      $("flagpoleHandle").disabled = true;
+      $("flagpolePreset").hidden = true;
+      $("flagpoleUnknown").hidden = false;
+      $("flagpoleUnknown").textContent = "FREQUENCY NEEDS CORRECTION";
+      $("flagpoleReadout").textContent = "SET INVALID";
+      $("flagpoleFeedback").textContent = "OPEN STATION · CHOOSE 0.1 MHz STEP";
+      return;
+    }
+    var preset = $("flagpolePreset");
+    $("freqBig").textContent = frequency.toFixed(1);
+    preset.hidden = false;
+    preset.style.bottom = (presetPosition * 100) + "%";
+    preset.querySelector("span").textContent =
+      "SET " + frequency.toFixed(1);
+    $("flagpoleReadout").textContent =
+      "SET " + frequency.toFixed(1) + " FM";
+
+    var handle = $("flagpoleHandle");
+    var unknownBox = $("flagpoleUnknown");
+    var broadcastUi = snapshot.broadcast_ui || "OFF";
+    var unknown = snapshot.state === "FAULT" ||
+      broadcastUi.indexOf("STATE UNKNOWN") === 0 ||
+      broadcastUi.indexOf("POSSIBLE TRANSMISSION") >= 0;
+    handle._previewPosition = null;
+    if (unknown) {
+      handle.hidden = true;
+      handle.disabled = true;
+      preset.hidden = true;
+      unknownBox.hidden = false;
+      unknownBox.textContent = snapshot.state === "FAULT"
+        ? "FAULT · POSITION UNKNOWN"
+        : "POSITION UNKNOWN";
+      $("flagpoleFeedback").textContent =
+        "USE STOP BROADCAST · CHECK DIAGNOSTICS";
+      return;
+    }
+
+    unknownBox.hidden = true;
+    handle.hidden = false;
+    handle.disabled = !uiSynchronized || blocked ||
+      flagpoleTxCommandPending();
+    handle.setAttribute(
+      "aria-valuemax",
+      String(band.max_units - band.min_units + 1)
+    );
+    var onAir = broadcastUi === "ON AIR";
+    var starting = broadcastUi === "STARTING BROADCAST…" ||
+      broadcastUi === "STARTING";
+    var stopping = broadcastUi === "STOPPING BROADCAST…";
+    var position = onAir || starting ? presetPosition : 0;
+    flagpolePositionStyle(handle, position);
+    if (onAir) {
+      handle.className = "flagpole-handle on-air";
+      $("flagpoleFeedback").textContent =
+        frequency.toFixed(1) + " FM · ON AIR";
+    } else if (starting) {
+      handle.className = "flagpole-handle pending";
+      $("flagpoleFeedback").textContent =
+        frequency.toFixed(1) + " FM · STARTING";
+    } else if (stopping) {
+      handle.className = "flagpole-handle pending lowering";
+      $("flagpoleFeedback").textContent = "LOWERING · STOPPING BROADCAST";
+    } else {
+      handle.className = "flagpole-handle off-air";
+      $("flagpoleFeedback").textContent =
+        "OFF AIR · SET " + frequency.toFixed(1) + " FM";
+    }
+    var valueNow = onAir || starting
+      ? Math.round(frequency * band.scale) - band.min_units + 1
+      : 0;
+    handle.setAttribute("aria-valuenow", String(valueNow));
+    handle.setAttribute(
+      "aria-valuetext",
+      onAir
+        ? frequency.toFixed(1) + " FM, ON AIR"
+        : (starting
+          ? frequency.toFixed(1) + " FM, starting"
+          : "OFF AIR, set frequency " + frequency.toFixed(1) + " FM")
+    );
   }
 
   function humanPlaylistName(name, id) {
@@ -449,10 +666,12 @@
     var harness = !!s.dev_harness || (s.tx_backend || "") === "mock";
 
     // Clear local commandPending once backend confirms the matching state.
-    if (commandPending === "txon" && (onAir || unknown || faulted || broadcastUi === "OFF")) {
-      if (onAir || unknown || faulted || (!starting && broadcastUi === "OFF")) commandPending = null;
+    if (window.PifmFlagpole.shouldResolveTxPending(
+      commandPending, txCommandPendingRevision, s
+    )) {
+      commandPending = null;
+      txCommandPendingRevision = null;
     }
-    if (commandPending === "txoff" && !onAir && !starting && !stopping) commandPending = null;
     if (commandPending === "play" && (program === "playing" || programUi === "PLAYING")) commandPending = null;
     if (commandPending === "pause" && (program === "paused" || programUi === "PAUSED")) commandPending = null;
     if ((commandPending === "next" || commandPending === "prev") && (programUi === "PLAYING" || programUi === "READY" || programUi === "PAUSED")) {
@@ -523,35 +742,7 @@
 
     renderBlocker(bc, onAir, unknown);
 
-    var goBtn = $("btnGoOnAir");
-    var stopBtn = $("btnStopBroadcast");
     var transmitting = onAir || starting || stopping || unknown;
-    if (goBtn) {
-      goBtn.disabled = onAir || unknown || starting || stopping || bc.ready === false || commandPending === "txon";
-      goBtn.hidden = !!transmitting;
-      goBtn.className = "tx-btn raise-flag";
-      if (starting || commandPending === "txon") {
-        goBtn.innerHTML = "<span class=\"flag-skull\" aria-hidden=\"true\">☠</span>STARTING BROADCAST…<span class=\"tx-sub\">PLEASE WAIT</span>";
-      } else {
-        goBtn.innerHTML = "<span class=\"flag-skull\" aria-hidden=\"true\">☠</span>RAISE THE BLACK FLAG<span class=\"tx-sub\">GO ON AIR</span>";
-      }
-    }
-    if (stopBtn) {
-      // SAFETY: never hide/disable Stop — especially UNKNOWN/FAULT/STARTING.
-      stopBtn.disabled = false;
-      stopBtn.hidden = false;
-      stopBtn.removeAttribute("aria-disabled");
-      if (stopping || commandPending === "txoff") {
-        stopBtn.innerHTML = "STOPPING BROADCAST…<span class=\"tx-sub\">ENDING TRANSMISSION</span>";
-        stopBtn.className = "tx-btn stop-btn urgent primary-flag";
-      } else if (transmitting) {
-        stopBtn.innerHTML = "LOWER THE BLACK FLAG<span class=\"tx-sub\">STOP BROADCAST</span>";
-        stopBtn.className = "tx-btn stop-btn urgent primary-flag";
-      } else {
-        stopBtn.innerHTML = "LOWER THE BLACK FLAG<span class=\"tx-sub\">STOP BROADCAST</span>";
-        stopBtn.className = "tx-btn stop-btn stop-secondary";
-      }
-    }
     var stopHead = $("btnStopBroadcastHeader");
     if (stopHead) {
       stopHead.disabled = false;
@@ -732,6 +923,7 @@
     }
 
     renderQueue(s);
+    renderFlagpoleStatus(s);
   }
 
   function renderHealth(s) {
@@ -805,6 +997,9 @@
     var msg = e.message || "";
     var freq = (s && s.frequency_mhz != null) ? Number(s.frequency_mhz).toFixed(1) : "?";
     if (kind === "TX_START" || (kind === "tx_start" && /ON_AIR/i.test(msg))) {
+      if (e.source === "power_or_service_restore") {
+        return "Broadcast restored automatically on " + freq + " FM";
+      }
       return "Black flag raised — broadcasting on " + freq + " FM";
     }
     if (kind === "TX_TERM" || kind === "TX_EXIT" || (kind === "TX_STOP_REQUEST" && /STOP/i.test(msg))) {
@@ -874,6 +1069,15 @@
   }
 
   function applyAuthoritativeSnapshot(snapshot) {
+    if (activeAuthorityId !== null &&
+        snapshot.authority_id !== activeAuthorityId) {
+      uiAuthorityEpoch += 1;
+      uiSynchronized = false;
+      if (flagpoleGesture && flagpoleGesture.isActive()) {
+        flagpoleGesture.cancel("controller authority changed");
+      }
+    }
+    activeAuthorityId = snapshot.authority_id;
     window._queueTracks = snapshot.queue || [];
     renderStatus(snapshot);
     if ($("view-broadcast").classList.contains("active")) loadOperatorLog();
@@ -1159,55 +1363,251 @@
     showTab(btn.getAttribute("data-goto"));
   });
 
-  $("btnGoOnAir").addEventListener("click", function () {
+  function commitFlagpoleTarget(target) {
+    if (!uiSynchronized || !state ||
+        flagpoleGestureEpoch !== uiAuthorityEpoch) {
+      toast("Live station state changed. Try the flag again.");
+      if (state) renderFlagpoleStatus(state);
+      return;
+    }
+    if (flagpoleSnapshotBlocksCommit(state)) {
+      toast("Broadcast state changed. Use Stop Broadcast or wait for READY.");
+      renderFlagpoleStatus(state);
+      return;
+    }
+    var broadcastUi = state.broadcast_ui || "OFF";
+    var onAir = broadcastUi === "ON AIR";
+    if (target.desired_broadcast === "off") {
+      if (!onAir && broadcastUi.indexOf("STARTING") !== 0 &&
+          state.state !== "FAULT") {
+        renderFlagpoleStatus(state);
+        return;
+      }
+      if (commandPending === "txoff") return;
+      commandPending = "txoff";
+      txCommandPendingRevision = Number(state.snapshot_revision);
+      $("flagpoleHandle").disabled = true;
+      $("flagpoleFeedback").textContent = "LOWERING · STOPPING BROADCAST";
+      post("/api/tx/off", {}).then(function () {
+        commandPending = null;
+        txCommandPendingRevision = null;
+        toast("Black Flag lowered. Broadcast is OFF.");
+        return refresh();
+      }).catch(function (error) {
+        commandPending = null;
+        txCommandPendingRevision = null;
+        toast(error.message);
+        return refresh();
+      });
+      return;
+    }
+
     var bc = (state && state.broadcast) || {};
-    if (bc.ready === false) {
+    if (!onAir && bc.ready === false) {
       toast("Not ready yet — see the message above.");
       renderBlocker(bc, false, false);
+      renderFlagpoleStatus(state);
       return;
     }
     if (commandPending === "txon") return;
+    var frequency = Number(target.frequency_mhz).toFixed(1);
+    if (onAir && Number(state.frequency_mhz).toFixed(1) === frequency) {
+      renderFlagpoleStatus(state);
+      return;
+    }
     var harness = !!(state && state.dev_harness);
     var pl = humanPlaylistName(bc.playlist_name, state && state.active_playlist);
-    var msg =
-      "Go on air now?\n\n" +
-      "Playlist: " + pl + " (" + (bc.track_count || 0) + " tracks)\n" +
-      "Frequency: " + (bc.frequency_mhz || "?") + " MHz\n" +
-      "Station: " + (bc.rds_ps || "?") + "\n\n" +
-      "This starts the selected program AND the FM transmitter.\n" +
-      (harness
-        ? "\nNOTE: This console is running the internal test harness (no FM)."
-        : "\nThis will transmit on FM.");
-    if (!confirm(msg)) return;
+    var msg;
+    if (onAir) {
+      msg =
+        "Retune the live station to " + frequency + " FM?\n\n" +
+        "This safely stops and restarts the transmitter. The current song " +
+        "will restart from the beginning.";
+    } else {
+      msg =
+        "Raise the Black Flag at " + frequency + " FM?\n\n" +
+        "Playlist: " + pl + " (" + (bc.track_count || 0) + " tracks)\n" +
+        "Station: " + (bc.rds_ps || "?") + "\n\n" +
+        "This starts the selected program AND the FM transmitter.\n" +
+        (harness
+          ? "\nNOTE: This console is running the internal test harness (no FM)."
+          : "\nThis will transmit on FM.");
+    }
+    if (!confirm(msg)) {
+      renderFlagpoleStatus(state);
+      return;
+    }
     commandPending = "txon";
+    txCommandPendingRevision = Number(state.snapshot_revision);
+    $("flagpoleHandle").disabled = true;
     var stateEl = $("broadcastState");
     if (stateEl) {
       stateEl.textContent = "STARTING BROADCAST…";
       stateEl.className = "broadcast-state starting";
     }
-    var goBtn = $("btnGoOnAir");
-    if (goBtn) {
-      goBtn.disabled = true;
-      goBtn.innerHTML = "<span class=\"flag-skull\" aria-hidden=\"true\">☠</span>STARTING BROADCAST…<span class=\"tx-sub\">PLEASE WAIT</span>";
-    }
+    $("flagpoleHandle").className = "flagpole-handle pending";
+    $("flagpoleFeedback").textContent = frequency + " FM · STARTING";
     toast(harness ? "Starting test harness…" : "Starting broadcast…");
-    post("/api/tx/on", {}).then(function () {
+    post("/api/tx/on", {
+      frequency_mhz: Number(target.frequency_mhz)
+    }).then(function () {
       toast(harness
         ? "Starting (test harness) — no FM signal."
         : "Starting — preparing audio…");
       return refresh();
     }).catch(function (e) {
       commandPending = null;
+      txCommandPendingRevision = null;
       toast(e.message);
       return refresh();
     });
-  });
+  }
+
+  function flagpolePositionFromPointer(event, applyGrabOffset) {
+    var rect = $("flagpoleTrack").getBoundingClientRect();
+    var handleHeight = $("flagpoleHandle").getBoundingClientRect().height || 44;
+    return window.PifmFlagpole.pointerPosition(
+      event.clientY - (applyGrabOffset ? flagpoleGrabOffsetY : 0),
+      rect.top,
+      rect.height,
+      handleHeight
+    );
+  }
+
+  function initializeFlagpole() {
+    var handle = $("flagpoleHandle");
+    flagpoleGesture = window.PifmFlagpole.createGesture({
+      onPreview: renderFlagpolePreview,
+      onCancel: function () {
+        handle._previewPosition = null;
+        if (state) renderFlagpoleStatus(state);
+      },
+      onCommit: commitFlagpoleTarget
+    });
+
+    handle.addEventListener("pointerdown", function (event) {
+      if (!uiSynchronized || !state || handle.disabled) return;
+      event.preventDefault();
+      flagpolePointerId = event.pointerId;
+      flagpoleGestureEpoch = uiAuthorityEpoch;
+      var handleRect = handle.getBoundingClientRect();
+      flagpoleGrabOffsetY = event.clientY -
+        (handleRect.top + (handleRect.height / 2));
+      handle.setPointerCapture(event.pointerId);
+      flagpoleGesture.begin(
+        flagpolePositionFromPointer(event, true), state.frequency_band
+      );
+    });
+    handle.addEventListener("pointermove", function (event) {
+      if (!flagpoleGesture.isActive() ||
+          event.pointerId !== flagpolePointerId) return;
+      event.preventDefault();
+      flagpoleGesture.move(
+        flagpolePositionFromPointer(event, true), state.frequency_band
+      );
+    });
+    handle.addEventListener("pointerup", function (event) {
+      if (!flagpoleGesture.isActive() ||
+          event.pointerId !== flagpolePointerId) return;
+      event.preventDefault();
+      var position = flagpolePositionFromPointer(event, true);
+      flagpoleGesture.release(position, state.frequency_band);
+      try { handle.releasePointerCapture(event.pointerId); } catch (error) {}
+      flagpolePointerId = null;
+      flagpoleGrabOffsetY = 0;
+    });
+    handle.addEventListener("pointercancel", function () {
+      flagpolePointerId = null;
+      flagpoleGrabOffsetY = 0;
+      flagpoleGesture.cancel("pointer cancelled");
+    });
+    handle.addEventListener("lostpointercapture", function () {
+      if (flagpoleGesture.isActive()) {
+        flagpolePointerId = null;
+        flagpoleGrabOffsetY = 0;
+        flagpoleGesture.cancel("pointer capture lost");
+      }
+    });
+    handle.addEventListener("blur", function () {
+      if (flagpoleGesture.isActive() && flagpolePointerId === null) {
+        flagpoleGesture.cancel("keyboard focus left control");
+      }
+    });
+    handle.addEventListener("keydown", function (event) {
+      if (!uiSynchronized || !state || handle.disabled) return;
+      var band = state.frequency_band;
+      var position = handle._previewPosition;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        flagpoleGesture.cancel("keyboard cancelled");
+        return;
+      }
+      if (event.key === "Enter" || event.key === " ") {
+        if (flagpoleGesture.isActive()) {
+          event.preventDefault();
+          flagpoleGesture.release(position, band);
+        }
+        return;
+      }
+      if (position == null) {
+        position = state.broadcast_ui === "ON AIR" ||
+          state.broadcast_ui.indexOf("STARTING") === 0
+          ? window.PifmFlagpole.frequencyToPosition(
+            state.frequency_mhz, band
+          )
+          : 0;
+      }
+      var nextPosition = null;
+      if (event.key === "Home") {
+        nextPosition = 0;
+      } else if (event.key === "End") {
+        nextPosition = 1;
+      } else if (event.key === "ArrowUp" || event.key === "ArrowRight") {
+        if (position == null || position < window.PifmFlagpole.THRESHOLD) {
+          nextPosition = window.PifmFlagpole.THRESHOLD;
+        } else {
+          var upUnits = window.PifmFlagpole.positionToUnits(position, band);
+          upUnits = Math.min(band.max_units, upUnits + 1);
+          nextPosition = window.PifmFlagpole.frequencyToPosition(
+            upUnits / band.scale, band
+          );
+        }
+      } else if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
+        if (position <= window.PifmFlagpole.THRESHOLD) {
+          nextPosition = 0;
+        } else {
+          var downUnits = window.PifmFlagpole.positionToUnits(position, band);
+          downUnits = Math.max(band.min_units, downUnits - 1);
+          nextPosition = window.PifmFlagpole.frequencyToPosition(
+            downUnits / band.scale, band
+          );
+        }
+      }
+      if (nextPosition == null) return;
+      event.preventDefault();
+      flagpoleGestureEpoch = uiAuthorityEpoch;
+      if (flagpoleGesture.isActive()) {
+        flagpoleGesture.move(nextPosition, band);
+      } else {
+        flagpoleGesture.begin(nextPosition, band);
+      }
+    });
+  }
 
   function bindStop(el) {
     if (!el) return;
     el.addEventListener("click", function () {
       if (!confirm("STOP BROADCAST?\n\nThis immediately ends FM transmission.\nUse this any time — including after a fault.")) return;
       commandPending = "txoff";
+      txCommandPendingRevision = Number(
+        state && state.snapshot_revision
+      );
+      if (flagpoleGesture && flagpoleGesture.isActive()) {
+        flagpoleGesture.cancel("STOP BROADCAST requested");
+      }
+      if ($("flagpoleHandle")) {
+        $("flagpoleHandle").disabled = true;
+      }
       var stateEl = $("broadcastState");
       if (stateEl) {
         stateEl.textContent = "STOPPING BROADCAST…";
@@ -1215,16 +1615,17 @@
       }
       post("/api/tx/off", {}).then(function () {
         commandPending = null;
+        txCommandPendingRevision = null;
         toast("Broadcast stopped. Transmitter is OFF.");
         return refresh();
       }).catch(function (e) {
         commandPending = null;
+        txCommandPendingRevision = null;
         toast(e.message);
         return refresh();
       });
     });
   }
-  bindStop($("btnStopBroadcast"));
   bindStop($("btnStopBroadcastHeader"));
 
   $("btnRfQuiet").addEventListener("click", function () {
@@ -1393,6 +1794,7 @@
       var xhr = new XMLHttpRequest();
       xhr.open("POST", "/api/upload");
       xhr.setRequestHeader("Content-Type", "application/octet-stream");
+      xhr.setRequestHeader("X-PiFM-Authority-ID", activeAuthorityId);
       xhr.setRequestHeader("X-Filename-Encoded", encodeURIComponent(file.name));
       if (batchPlaylistId) {
         xhr.setRequestHeader("X-Playlist-ID", batchPlaylistId);
@@ -1702,13 +2104,17 @@
     }
     activeEventSource = es;
     es.onopen = function () {
-      if (activeEventSource === es) sseConnected = true;
+      if (activeEventSource === es) {
+        sseConnected = true;
+        lastSseMessageAt = Date.now();
+      }
     };
     es.onerror = function () {
       if (activeEventSource !== es) return;
       sseConnected = false;
       activeEventSource = null;
       try { es.close(); } catch (closeError) {}
+      lastSseMessageAt = 0;
       connectionCoordinator.markUnavailable("Connection lost");
       scheduleReconnect();
     };
@@ -1716,6 +2122,7 @@
       if (activeEventSource !== es) return;
       var msg;
       try { msg = JSON.parse(ev.data); } catch (error) { return; }
+      lastSseMessageAt = Date.now();
       if (!msg || msg.type === "ping") return;
       if (msg.type === "status" && msg.status) {
         connectionCoordinator.acceptLiveSnapshot(msg.status);
@@ -1723,6 +2130,7 @@
     };
   }
 
+  initializeFlagpole();
   renderStateUnavailable("Connecting");
   connectionCoordinator.reconcile().then(function (ok) {
     if (ok) {
@@ -1737,8 +2145,20 @@
   setInterval(function () {
     if (!connectionCoordinator.isSynchronized()) {
       scheduleReconnect();
-    } else if (!sseConnected || Math.random() < 0.25) {
-      connectionCoordinator.reconcile();
+    } else if (sseConnected && lastSseMessageAt &&
+        Date.now() - lastSseMessageAt > 22000) {
+      if (activeEventSource) {
+        try { activeEventSource.close(); } catch (closeError) {}
+        activeEventSource = null;
+      }
+      sseConnected = false;
+      lastSseMessageAt = 0;
+      connectionCoordinator.markUnavailable("Live updates timed out");
+      scheduleReconnect();
+    } else {
+      connectionCoordinator.reconcile().then(function (ok) {
+        if (ok && !sseConnected) connectSSE();
+      });
     }
   }, 8000);
 
@@ -1747,6 +2167,7 @@
       try { activeEventSource.close(); } catch (closeError) {}
       activeEventSource = null;
     }
+    lastSseMessageAt = 0;
     connectionCoordinator.markUnavailable("Connection lost");
   });
   window.addEventListener("online", function () {

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>piFM Pirate Radio</title>
-  <link rel="stylesheet" href="/css/app.css?v=16" />
+  <link rel="stylesheet" href="/css/app.css?v=18" />
 </head>
 <body>
   <section id="setupWizard" class="setup-shell" hidden aria-label="First-run setup">
@@ -107,61 +107,81 @@
     </nav>
 
     <section id="view-broadcast" class="view active">
-      <div class="panel deck-hero">
-        <div class="freq-hero">
-          <span id="freqBig" class="freq">89.9</span>
-          <span class="mhz">FM</span>
-        </div>
-        <div class="label">BROADCAST STATE</div>
-        <div id="broadcastState" class="broadcast-state off" data-testid="broadcast-state">OFF AIR</div>
-        <div id="statusBadge" class="status-badge ready" hidden>READY</div>
-        <p id="readyHint" class="ready-hint" hidden>Ready</p>
-      </div>
+      <div class="broadcast-deck-grid">
+        <div class="broadcast-deck-main">
+          <div class="panel deck-hero">
+            <div class="freq-hero">
+              <span id="freqBig" class="freq">89.9</span>
+              <span class="mhz">FM</span>
+            </div>
+            <div class="label">BROADCAST STATE</div>
+            <div id="broadcastState" class="broadcast-state off" data-testid="broadcast-state">OFF AIR</div>
+            <div id="statusBadge" class="status-badge ready" hidden>READY</div>
+            <p id="readyHint" class="ready-hint" hidden>Ready</p>
+          </div>
 
-      <div id="blockerBox" class="blocker" hidden data-testid="blocker-panel"></div>
+          <div id="blockerBox" class="blocker" hidden data-testid="blocker-panel"></div>
 
-      <div class="panel player" data-testid="compact-player">
-        <div class="player-main">
-          <div class="player-mode" id="nowLabel" data-testid="player-mode">READY</div>
-          <div id="nowTrack" class="now-title">Ready to broadcast</div>
-          <div id="nowPlaylist" class="meta player-playlist">Choose a playlist to get started.</div>
-        </div>
-        <div class="player-upnext">
-          <span class="label" id="upNextLabel">THEN</span>
-          <div id="nowNext" class="meta">—</div>
-        </div>
-        <div class="player-transport" role="group" aria-label="Program controls">
-          <button type="button" data-act="prev" class="transport-side" title="Previous track" aria-label="Previous track">
-            <span class="glyph" aria-hidden="true">◀</span> PREV
-          </button>
-          <button type="button" data-act="playpause" id="btnPlayPause" class="transport-play" title="Play or pause the music program" aria-label="Play">
-            <span class="glyph play-glyph" aria-hidden="true">▶</span>
-            <span class="play-label">PLAY</span>
-          </button>
-          <button type="button" data-act="next" class="transport-side" title="Next track" aria-label="Next track">
-            NEXT <span class="glyph" aria-hidden="true">▶</span>
-          </button>
-        </div>
-        <p class="explain player-hint">Pause keeps the FM broadcast alive. Ending transmission uses Lower the Black Flag.</p>
-      </div>
+          <div class="panel player" data-testid="compact-player">
+            <div class="player-main">
+              <div class="player-mode" id="nowLabel" data-testid="player-mode">READY</div>
+              <div id="nowTrack" class="now-title">Ready to broadcast</div>
+              <div id="nowPlaylist" class="meta player-playlist">Choose a playlist to get started.</div>
+            </div>
+            <div class="player-upnext">
+              <span class="label" id="upNextLabel">THEN</span>
+              <div id="nowNext" class="meta">—</div>
+            </div>
+            <div class="player-transport" role="group" aria-label="Program controls">
+              <button type="button" data-act="prev" class="transport-side" title="Previous track" aria-label="Previous track">
+                <span class="glyph" aria-hidden="true">◀</span> PREV
+              </button>
+              <button type="button" data-act="playpause" id="btnPlayPause" class="transport-play" title="Play or pause the music program" aria-label="Play">
+                <span class="glyph play-glyph" aria-hidden="true">▶</span>
+                <span class="play-label">PLAY</span>
+              </button>
+              <button type="button" data-act="next" class="transport-side" title="Next track" aria-label="Next track">
+                NEXT <span class="glyph" aria-hidden="true">▶</span>
+              </button>
+            </div>
+            <p class="explain player-hint">Pause keeps the FM broadcast alive. Ending transmission uses Lower the Black Flag.</p>
+          </div>
 
-      <div class="panel tx-panel">
-        <div class="label">BROADCAST CONTROL</div>
-        <div class="tx-actions">
-          <button type="button" id="btnGoOnAir" class="tx-btn raise-flag" data-testid="go-on-air" disabled>
-            <span class="flag-skull" aria-hidden="true">☠</span>
-            RAISE THE BLACK FLAG
-            <span class="tx-sub">GO ON AIR</span>
-          </button>
-          <button type="button" id="btnStopBroadcast" class="tx-btn stop-btn stop-secondary" data-testid="stop-broadcast">
-            LOWER THE BLACK FLAG
-            <span class="tx-sub">STOP BROADCAST</span>
-          </button>
         </div>
-        <p class="explain center" id="txExplain">
-          <strong>Raise the Black Flag</strong> starts your music and the FM transmitter.
-          <strong>Lower the Black Flag</strong> always ends transmission — including after a fault.
-        </p>
+
+        <aside class="panel flagpole-panel" data-testid="flagpole-control">
+          <div class="label">BROADCAST CONTROL</div>
+          <p class="flagpole-instruction">DRAG FLAG TO CONTROL TRANSMISSION</p>
+          <div id="flagpoleReadout" class="flagpole-readout">SET —</div>
+          <div id="flagpoleTrack" class="flagpole-track">
+            <div id="flagpoleTicks" class="flagpole-ticks" aria-hidden="true"></div>
+            <div class="flagpole-mast" aria-hidden="true"></div>
+            <div class="flagpole-threshold" aria-hidden="true">
+              <span>ON AIR</span>
+            </div>
+            <div id="flagpolePreset" class="flagpole-preset" aria-hidden="true">
+              <span>SET</span>
+            </div>
+            <button
+              type="button"
+              id="flagpoleHandle"
+              class="flagpole-handle"
+              role="slider"
+              aria-label="Black Flag broadcast and frequency control"
+              aria-valuemin="0"
+              aria-valuemax="212"
+              aria-valuenow="0"
+              aria-valuetext="OFF AIR"
+              data-testid="flagpole-handle"
+            >
+              <span class="flag-cloth" aria-hidden="true"><span class="flag-skull">☠</span></span>
+              <span class="flag-grip" aria-hidden="true"></span>
+            </button>
+            <div id="flagpoleUnknown" class="flagpole-unknown" hidden>POSITION UNKNOWN</div>
+          </div>
+          <div id="flagpoleFeedback" class="flagpole-feedback">OFF AIR · SET FREQUENCY READY</div>
+          <p class="flagpole-help">Bottom is OFF AIR. Release at or above the midpoint to broadcast. The upper half tunes FM.</p>
+        </aside>
       </div>
 
       <div class="panel">
@@ -319,13 +339,13 @@
         <ol class="steps">
           <li><strong>Choose your music</strong> on the Music page.</li>
           <li><strong>Check your station and frequency</strong> on the Station page.</li>
-          <li>Return to <strong>Broadcast</strong> and press <strong>Raise the Black Flag · Go On Air</strong>.</li>
+          <li>Return to <strong>Broadcast</strong>, drag the Black Flag into the upper half of the pole, and release to confirm.</li>
         </ol>
-        <p class="explain">To end transmission: press <strong>Lower the Black Flag · Stop Broadcast</strong>.</p>
+        <p class="explain">To end transmission: drag the Black Flag below the midpoint and release, or use <strong>Stop Broadcast</strong> in the masthead.</p>
       </div>
       <div class="panel help">
         <h3>Raise the Black Flag</h3>
-        <p>Starts the selected playlist and the FM transmitter together. You are on the air.</p>
+        <p>Drag the flag up the pole. The lower half is safe OFF AIR travel. The upper half previews frequency; release there and confirm to start the selected playlist and FM transmitter together.</p>
         <h3>Pause vs Lower the Black Flag</h3>
         <p><strong>Pause</strong> holds silence on the carrier while staying on air.</p>
         <p><strong>Lower the Black Flag / Stop Broadcast</strong> immediately ends FM transmission. Always available — including while starting, after a fault, or when state is unknown.</p>
@@ -341,7 +361,8 @@
 
   <div id="toast" class="toast" hidden></div>
   <div id="faultLine" class="fault-banner" hidden></div>
-  <script src="/js/connection.js?v=16"></script>
-  <script src="/js/app.js?v=16"></script>
+  <script src="/js/connection.js?v=18"></script>
+  <script src="/js/flagpole.js?v=18"></script>
+  <script src="/js/app.js?v=18"></script>
 </body>
 </html>

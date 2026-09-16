@@ -43,6 +43,10 @@ class DuplicateTransmitterError(RuntimeError):
     """Raised when a second transmitter would violate the single-TX invariant."""
 
 
+class TransmitterProcessScanError(RuntimeError):
+    """Raised when the OS process table cannot prove transmitter state."""
+
+
 class StartCancelled(Exception):
     """Raised when Go On Air preparation is cancelled (STOP or timeout)."""
 
@@ -79,8 +83,10 @@ def _ps_ax_lines() -> List[str]:
             ["ps", "-ax", "-o", "pid=,command="],
             stderr=subprocess.DEVNULL,
         ).decode("utf-8", errors="replace")
-    except (OSError, subprocess.CalledProcessError):
-        return []
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise TransmitterProcessScanError(
+            "could not inspect transmitter process table: {}".format(exc)
+        )
     lines = []  # type: List[str]
     for ln in out.splitlines():
         ln = ln.strip()
@@ -407,9 +413,27 @@ class OwnedTxProcess(object):
                     except Exception:
                         pass
             self.launcher_pid = self.proc.pid
-            self.worker_pid = resolve_worker_pid(self.launcher_pid) or self.launcher_pid
-            invalidate_tx_process_cache()
-            live = list_transmitter_processes()
+            try:
+                self.worker_pid = (
+                    resolve_worker_pid(self.launcher_pid) or self.launcher_pid
+                )
+                invalidate_tx_process_cache()
+                live = list_transmitter_processes()
+            except TransmitterProcessScanError:
+                exact_pids = children_of(self.launcher_pid)
+                exact_pids.append(self.launcher_pid)
+                terminate_pids(
+                    exact_pids,
+                    use_sudo=self.use_sudo_kill,
+                )
+                try:
+                    self.proc.wait(timeout=1)
+                except Exception:
+                    pass
+                self.proc = None
+                self.launcher_pid = None
+                self.worker_pid = None
+                raise
             result = {
                 "launcher_pid": self.launcher_pid,
                 "worker_pid": self.worker_pid,
@@ -450,8 +474,12 @@ class OwnedTxProcess(object):
             pids.append(int(self.launcher_pid))
         if self.proc is not None and self.proc.pid:
             pids.append(int(self.proc.pid))
-        for p in list_transmitter_processes():
-            pids.append(int(p["pid"]))
+        scan_error = None  # type: Optional[str]
+        try:
+            for p in list_transmitter_processes():
+                pids.append(int(p["pid"]))
+        except TransmitterProcessScanError as exc:
+            scan_error = str(exc)
         audit = terminate_pids(pids, use_sudo=self.use_sudo_kill)
         if self.proc is not None:
             try:
@@ -463,9 +491,15 @@ class OwnedTxProcess(object):
         self.worker_pid = None
         try:
             ensure_no_transmitters(allow_clean=True, use_sudo=self.use_sudo_kill)
-        except DuplicateTransmitterError as exc:
+        except (DuplicateTransmitterError, TransmitterProcessScanError) as exc:
             audit["final_error"] = str(exc)
-        audit["clear"] = count_transmitters() == 0
+        if scan_error and "final_error" not in audit:
+            audit["final_error"] = scan_error
+        try:
+            audit["clear"] = count_transmitters() == 0
+        except TransmitterProcessScanError as exc:
+            audit["clear"] = False
+            audit["final_error"] = str(exc)
         return audit
 
 

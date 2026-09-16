@@ -135,6 +135,18 @@ class Handler(BaseHTTPRequestHandler):
         if origin not in ("http://{}".format(host), "https://{}".format(host)):
             raise ValueError("cross-origin request rejected")
 
+    def _require_current_browser_authority(self) -> None:
+        """Bind browser mutations to the controller snapshot that authorized them."""
+        assert self.controller
+        expected = str(
+            self.headers.get("X-PiFM-Authority-ID") or ""
+        ).strip()
+        origin = str(self.headers.get("Origin") or "").strip()
+        if origin and not expected:
+            raise ValueError("authoritative controller id required")
+        if expected:
+            self.controller.require_authority(expected)
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path
@@ -198,6 +210,7 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         try:
             self._require_same_origin()
+            self._require_current_browser_authority()
             assert self.controller and self.library and self.events
             data = {}
             if self.headers.get("Content-Type", "").startswith("application/json"):
@@ -205,7 +218,12 @@ class Handler(BaseHTTPRequestHandler):
 
             if path == "/api/tx/on":
                 # Return immediately with STARTING; completion is backgrounded.
-                st = self.controller.go_on_air(wait=False)
+                if "frequency_mhz" in data:
+                    st = self.controller.go_on_air_at_frequency(
+                        data["frequency_mhz"], wait=False
+                    )
+                else:
+                    st = self.controller.go_on_air(wait=False)
             elif path == "/api/tx/off":
                 st = self.controller.tx_off()
             elif path == "/api/play":
@@ -303,6 +321,7 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         try:
             self._require_same_origin()
+            self._require_current_browser_authority()
             assert self.controller and self.library and self.events
             data = self._read_json()
             if path.startswith("/api/playlists/") and not path.endswith("/tracks"):
@@ -323,6 +342,7 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         try:
             self._require_same_origin()
+            self._require_current_browser_authority()
             assert self.controller and self.library and self.events
             if path.startswith("/api/playlists/"):
                 parts = path.strip("/").split("/")

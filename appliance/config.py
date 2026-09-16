@@ -7,6 +7,7 @@ import math
 import os
 import tempfile
 from copy import deepcopy
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -44,10 +45,59 @@ DEFAULTS = {
 
 FREQ_MIN = 87.1
 FREQ_MAX = 108.2
+FREQ_SCALE = 10
+FREQ_MIN_UNITS = 871
+FREQ_MAX_UNITS = 1082
+FREQ_STEP_UNITS = 1
 
 
 class ConfigError(ValueError):
     pass
+
+
+def frequency_units(value: Any, require_grid: bool = True) -> int:
+    """Validate MHz and return integer tenths without float drift."""
+    if isinstance(value, bool):
+        raise ConfigError("frequency_mhz must be a finite number")
+    try:
+        decimal = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        raise ConfigError("frequency_mhz must be a finite number")
+    if not decimal.is_finite():
+        raise ConfigError("frequency_mhz must be a finite number")
+    scaled = decimal * FREQ_SCALE
+    if require_grid and scaled != scaled.to_integral_value():
+        raise ConfigError("frequency_mhz must use 0.1 MHz increments")
+    if decimal < Decimal(str(FREQ_MIN)) or decimal > Decimal(str(FREQ_MAX)):
+        raise ConfigError(
+            "frequency_mhz {} out of range {}-{}".format(
+                decimal, FREQ_MIN, FREQ_MAX
+            )
+        )
+    return int(scaled.to_integral_value())
+
+
+def normalize_frequency_mhz(value: Any) -> float:
+    return frequency_units(value, require_grid=True) / float(FREQ_SCALE)
+
+
+def frequency_is_grid_aligned(value: Any) -> bool:
+    try:
+        frequency_units(value, require_grid=True)
+    except ConfigError:
+        return False
+    return True
+
+
+def frequency_band() -> Dict[str, Any]:
+    return {
+        "min_mhz": FREQ_MIN,
+        "max_mhz": FREQ_MAX,
+        "step_mhz": FREQ_STEP_UNITS / float(FREQ_SCALE),
+        "scale": FREQ_SCALE,
+        "min_units": FREQ_MIN_UNITS,
+        "max_units": FREQ_MAX_UNITS,
+    }
 
 
 class Config:
@@ -68,16 +118,18 @@ class Config:
             loaded.pop("state", None)
             loaded.pop("on_air", None)
             data.update(loaded)
-        self._validate(data)
+        # Preserve legacy in-range values without silently rounding human data.
+        # Readiness blocks off-grid values until the operator corrects Station.
+        self._validate(data, enforce_frequency_grid=False)
         self._data = data
 
-    def _validate(self, data: Dict[str, Any]) -> None:
-        freq = float(data["frequency_mhz"])
-        if not (FREQ_MIN <= freq <= FREQ_MAX):
-            raise ConfigError(
-                "frequency_mhz {} out of range {}-{}".format(freq, FREQ_MIN, FREQ_MAX)
-            )
-        data["frequency_mhz"] = freq
+    def _validate(
+        self, data: Dict[str, Any], enforce_frequency_grid: bool = True
+    ) -> None:
+        frequency_units(
+            data["frequency_mhz"], require_grid=enforce_frequency_grid
+        )
+        data["frequency_mhz"] = float(data["frequency_mhz"])
         ps = str(data.get("rds_ps", "piFM"))[:8]
         data["rds_ps"] = ps
         data["rds_rt"] = str(data.get("rds_rt", ""))[:64]
@@ -169,11 +221,7 @@ class Config:
         return deepcopy(self._data)
 
     def update(self, patch: Dict[str, Any]) -> Dict[str, Any]:
-        forbidden = {"tx_on_air", "state", "on_air"}
-        clean = {k: v for k, v in patch.items() if k not in forbidden}
-        merged = deepcopy(self._data)
-        merged.update(clean)
-        self._validate(merged)
+        merged = self.validate_update(patch)
         previous = self._data
         self._data = merged
         try:
@@ -182,6 +230,15 @@ class Config:
             self._data = previous
             raise
         return self.as_dict()
+
+    def validate_update(self, patch: Dict[str, Any]) -> Dict[str, Any]:
+        """Return a normalized candidate without mutating or writing config."""
+        forbidden = {"tx_on_air", "state", "on_air"}
+        clean = {k: v for k, v in patch.items() if k not in forbidden}
+        merged = deepcopy(self._data)
+        merged.update(clean)
+        self._validate(merged)
+        return merged
 
     def resolve(self, key: str) -> Path:
         raw = Path(str(self._data[key]))

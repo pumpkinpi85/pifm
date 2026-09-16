@@ -19,7 +19,7 @@ from appliance.events import EventLog
 from appliance.library import Library
 from appliance.media_import import MediaImportError, import_media_stream
 from appliance.recovery import BroadcastIntentStore, RecoveryStateError
-from appliance.state import State
+from appliance.state import State, StateError
 from appliance.tx import prepare_seekable_wav
 
 
@@ -174,16 +174,40 @@ class BroadcastIntentStoreTests(unittest.TestCase):
             )
             self.assertFalse(store.status()["armed"])
 
-    def test_unwritable_stop_reports_failure_without_hiding_on_intent(self):
+    def test_stop_cleanup_failure_retains_durable_off_tombstone(self):
         with tempfile.TemporaryDirectory() as td:
-            store = BroadcastIntentStore(Path(td))
+            root = Path(td)
+            store = BroadcastIntentStore(root)
             store.arm(recovery_snapshot(), "operator")
             with patch.object(
                 Path, "unlink", side_effect=OSError(errno.EROFS, "read only")
             ):
+                self.assertTrue(store.disarm())
+            self.assertFalse(store.status()["armed"])
+            self.assertFalse(
+                (root / "data/recovery/broadcast-on.json").exists()
+            )
+            self.assertTrue(store.off_tombstone_path.exists())
+            replacement = BroadcastIntentStore(root)
+            self.assertFalse(replacement.status()["armed"])
+            state, reason = replacement.begin_restore("boot-after-stop")
+            self.assertIsNone(state)
+            self.assertIn("not armed", reason)
+
+    def test_stop_fsync_failure_fails_closed_on_next_process(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            store = BroadcastIntentStore(root)
+            store.arm(recovery_snapshot(), "operator")
+            with patch.object(
+                store,
+                "_fsync_directory",
+                side_effect=OSError(errno.EIO, "fsync failed"),
+            ):
                 with self.assertRaises(RecoveryStateError):
                     store.disarm()
-            self.assertTrue(store.status()["armed"])
+            self.assertFalse(store.status()["armed"])
+            self.assertFalse(BroadcastIntentStore(root).status()["armed"])
 
 
 class ControllerRecoveryTests(unittest.TestCase):
@@ -250,6 +274,46 @@ class ControllerRecoveryTests(unittest.TestCase):
         ):
             self.controller.tx_off()
         self.assertFalse(marker.exists())
+
+    def test_watchdog_does_not_report_false_fault_during_deliberate_stop(self):
+        self.controller.go_on_air()
+        with self.controller._lock:
+            self.controller._air_stop_pending = True
+            self.controller.tx.stop()
+        self.controller.watchdog()
+        self.assertEqual(self.controller.sm.state, State.ON_AIR)
+        self.assertFalse(
+            any(
+                event["kind"] == "FAULT"
+                and "TX child died" in event["message"]
+                for event in self.controller.events.recent(20)
+            )
+        )
+        with self.controller._lock:
+            self.controller._air_stop_pending = False
+        self.controller.tx_off()
+
+    def test_stop_reconciles_stale_on_intent_before_returning(self):
+        self.controller.go_on_air()
+        original_stop = self.controller.tx.stop
+
+        def stop_and_rearm():
+            original_stop()
+            self.controller.recovery.arm(
+                recovery_snapshot(),
+                "simulated_stale_start",
+            )
+
+        with patch.object(
+            self.controller.tx,
+            "stop",
+            side_effect=stop_and_rearm,
+        ):
+            status = self.controller.tx_off()
+        self.assertFalse(status["broadcast_recovery"]["armed"])
+        self.assertFalse(
+            (self.root / "data/recovery/broadcast-on.json").exists()
+        )
 
     def test_missing_media_refuses_restore_and_latches_attempt(self):
         self.controller.go_on_air()
@@ -426,6 +490,55 @@ class ControllerRecoveryTests(unittest.TestCase):
             starter.join(3)
             stopper.join(3)
         self.assertTrue(stop_returned.is_set())
+        self.assertFalse(self.controller.tx.is_running())
+        self.assertFalse(self.controller.recovery.status()["armed"])
+
+    def test_stop_preempts_queued_flagpole_start(self):
+        errors = []
+        started = threading.Event()
+
+        def queue_flagpole_start():
+            started.set()
+            try:
+                self.controller.go_on_air_at_frequency(95.5, wait=True)
+            except StateError as exc:
+                errors.append(str(exc))
+
+        command_lock = self.controller._broadcast_command_lock
+        command_lock.acquire()
+        try:
+            flagpole = threading.Thread(target=queue_flagpole_start)
+            flagpole.start()
+            self.assertTrue(started.wait(1))
+            stopper = threading.Thread(target=self.controller.tx_off)
+            stopper.start()
+            deadline = time.time() + 2
+            while time.time() < deadline:
+                with self.controller._lock:
+                    if self.controller._air_stop_pending:
+                        break
+                time.sleep(0.01)
+            with self.controller._lock:
+                self.assertTrue(self.controller._air_stop_pending)
+        finally:
+            command_lock.release()
+        flagpole.join(3)
+        stopper.join(3)
+        self.assertFalse(flagpole.is_alive())
+        self.assertFalse(stopper.is_alive())
+        self.assertTrue(errors)
+        status = self.controller.status()
+        self.assertEqual(status["broadcast_state"], "off")
+        self.assertFalse(status["broadcast_recovery"]["armed"])
+        self.assertFalse(status["tx_running"])
+
+    def test_flagpole_frequency_command_cannot_clear_fault(self):
+        before = self.controller.config.get("frequency_mhz")
+        self.controller.sm.enter_fault("test fault")
+        with self.assertRaises(StateError):
+            self.controller.go_on_air_at_frequency(95.5, wait=True)
+        self.assertEqual(self.controller.sm.state, State.FAULT)
+        self.assertEqual(self.controller.config.get("frequency_mhz"), before)
         self.assertFalse(self.controller.tx.is_running())
         self.assertFalse(self.controller.recovery.status()["armed"])
 

@@ -37,14 +37,12 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertNotIn("How to Broadcast", self.html)
 
     def test_stop_broadcast_always_in_markup(self):
-        self.assertIn('id="btnStopBroadcast"', self.html)
         self.assertIn('id="btnStopBroadcastHeader"', self.html)
         self.assertIn("STOP BROADCAST", self.html)
-        self.assertIn("LOWER THE BLACK FLAG", self.html)
-        self.assertIn("RAISE THE BLACK FLAG", self.html)
-        self.assertIn("never hide/disable Stop", self.js)
-        self.assertIn("stopBtn.disabled = false", self.js)
-        self.assertIn("stopBtn.hidden = false", self.js)
+        self.assertIn("Lower the Black Flag", self.html)
+        self.assertIn("Raise the Black Flag", self.html)
+        self.assertIn("stopHead.disabled = false", self.js)
+        self.assertIn('bindStop($("btnStopBroadcastHeader"))', self.js)
 
     def test_practice_mode_removed_from_operator_ui(self):
         self.assertNotIn("PRACTICE — NO FM SIGNAL", self.html)
@@ -61,8 +59,38 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertNotIn("MUSIC CONTROLS", self.broadcast)
         self.assertNotIn(">PROGRAM<", self.broadcast)
         self.assertNotIn('data-testid="stop-music"', self.broadcast)
-        self.assertIn("RAISE THE BLACK FLAG", self.broadcast)
-        self.assertIn("LOWER THE BLACK FLAG", self.broadcast)
+        self.assertIn('data-testid="flagpole-control"', self.broadcast)
+        self.assertIn("DRAG FLAG TO CONTROL TRANSMISSION", self.broadcast)
+        self.assertIn("Bottom is OFF AIR", self.broadcast)
+
+    def test_flagpole_is_accessible_responsive_and_replaces_old_buttons(self):
+        self.assertIn('role="slider"', self.broadcast)
+        self.assertIn('aria-valuemin="0"', self.broadcast)
+        self.assertIn('data-testid="flagpole-handle"', self.broadcast)
+        self.assertNotIn('id="btnGoOnAir"', self.html)
+        self.assertNotIn('id="btnStopBroadcast"', self.html)
+        for key in ("ArrowUp", "ArrowDown", "Home", "End", "Escape"):
+            self.assertIn(key, self.js)
+        self.assertIn("pointerdown", self.js)
+        self.assertIn("pointercancel", self.js)
+        self.assertIn('addEventListener("blur"', self.js)
+        self.assertIn("flagpoleGrabOffsetY", self.js)
+        self.assertIn("flagpoleSnapshotBlocksCommit", self.js)
+        self.assertIn("flagpoleTxCommandPending", self.js)
+        self.assertIn("shouldResolveTxPending", self.js)
+        self.assertIn("txCommandPendingRevision", self.js)
+        self.assertIn("STOP BROADCAST requested", self.js)
+        self.assertIn('"X-PiFM-Authority-ID"', self.js)
+        self.assertIn("FAULT · POSITION UNKNOWN", self.js)
+        self.assertIn("preset.hidden = true", self.js)
+        self.assertNotIn(
+            'id="flagpoleReadout" class="flagpole-readout" aria-live',
+            self.html,
+        )
+        self.assertIn("var wasSynchronized = uiSynchronized", self.js)
+        self.assertIn("!wasSynchronized ||", self.js)
+        self.assertIn("@media (max-width: 700px)", self.css)
+        self.assertIn("touch-action: none", self.css)
 
     def test_program_reset_lives_on_music_page(self):
         self.assertIn('data-testid="stop-music"', self.music)
@@ -124,6 +152,8 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("BROADCAST RECOVERY", self.html)
         self.assertIn('id="recoverySummary"', self.html)
         self.assertIn("After power returns", self.js)
+        self.assertIn('e.source === "power_or_service_restore"', self.js)
+        self.assertIn("Broadcast restored automatically", self.js)
 
     def test_connection_loss_never_presents_stale_state_as_live(self):
         self.assertIn('data-testid="connection-state"', self.html)

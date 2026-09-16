@@ -201,6 +201,7 @@ class SseEndpointTests(unittest.TestCase):
 
         self.assertEqual(response.status, 200)
         for key in (
+            "authority_id",
             "snapshot_revision",
             "state",
             "broadcast_state",
@@ -226,6 +227,7 @@ class SseEndpointTests(unittest.TestCase):
             "repeat",
             "broadcast",
             "frequency_mhz",
+            "frequency_band",
             "network",
             "health",
             "hardware_status",
@@ -239,6 +241,25 @@ class SseEndpointTests(unittest.TestCase):
         self.assertGreater(
             second["snapshot_revision"], first["snapshot_revision"]
         )
+        self.assertEqual(first["authority_id"], second["authority_id"])
+
+    def test_tx_on_can_commit_frequency_once_through_controller(self):
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        body = json.dumps({"frequency_mhz": 95.5}).encode("utf-8")
+        conn.request(
+            "POST",
+            "/api/tx/on",
+            body=body,
+            headers={"Content-Type": "application/json"},
+        )
+        response = conn.getresponse()
+        status = json.loads(response.read().decode("utf-8"))
+        conn.close()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(status["frequency_mhz"], 95.5)
+        self.assertEqual(self.ctrl.config.get("frequency_mhz"), 95.5)
+        self.assertTrue(self.ctrl.recovery.status()["armed"])
+        self.ctrl.tx_off()
 
     def test_sse_does_not_skip_event_emitted_during_initial_snapshot(self):
         original_status = self.ctrl.status
@@ -325,6 +346,37 @@ class SseEndpointTests(unittest.TestCase):
         self.assertEqual(response.status, 400)
         self.assertIn("cross-origin", payload["error"])
         conn.close()
+
+    def test_browser_mutations_require_current_controller_authority(self):
+        origin = "http://127.0.0.1:{}".format(self.port)
+        body = json.dumps({"rds_ps": "BOUND"}).encode("utf-8")
+        cases = (
+            ({"Content-Type": "application/json", "Origin": origin}, 400),
+            (
+                {
+                    "Content-Type": "application/json",
+                    "Origin": origin,
+                    "X-PiFM-Authority-ID": "stale-authority",
+                },
+                400,
+            ),
+            (
+                {
+                    "Content-Type": "application/json",
+                    "Origin": origin,
+                    "X-PiFM-Authority-ID": self.ctrl.status()["authority_id"],
+                },
+                200,
+            ),
+        )
+        for headers, expected_status in cases:
+            conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+            conn.request("POST", "/api/config", body=body, headers=headers)
+            response = conn.getresponse()
+            response.read()
+            self.assertEqual(response.status, expected_status)
+            conn.close()
+        self.assertEqual(self.ctrl.config.get("rds_ps"), "BOUND")
 
     @patch(
         "appliance.media_import._probe_media",
