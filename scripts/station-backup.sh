@@ -2,9 +2,8 @@
 # Generic piFM station backup (never starts RF).
 # Local:
 #   ./scripts/station-backup.sh --root /opt/pifm --dest ./backups
-#   ./scripts/station-backup.sh --root /opt/pifm --dest ./backups --dry-run
-# Remote (runs on host; dest is a path ON the remote host):
-#   ./scripts/station-backup.sh --remote pifm --root /opt/pifm --dest /home/pi/backups --dry-run
+# Remote (dest is a path ON the remote host):
+#   ./scripts/station-backup.sh --remote pifm --root /home/pi/pifm --dest /home/pi/backups
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 OPS="$ROOT_DIR/scripts/pifm_station_ops.py"
@@ -34,10 +33,17 @@ EXTRA=()
 [[ "$DRY" -eq 1 ]] && EXTRA+=(--dry-run)
 
 if [[ -n "$REMOTE" ]]; then
-  TMP_REMOTE="/tmp/pifm_station_ops.py"
-  scp -q "$OPS" "$REMOTE:$TMP_REMOTE"
-  ssh -o BatchMode=yes "$REMOTE" \
-    "python3 '$TMP_REMOTE' backup --root '$ROOT' --dest '$DEST' ${EXTRA[*]+${EXTRA[*]}}"
+  BUNDLE="$(mktemp /tmp/pifm-ops-bundle.XXXXXX.tgz)"
+  "$ROOT_DIR/scripts/pack-ops-bundle.sh" "$BUNDLE" >/dev/null
+  scp -q "$BUNDLE" "$REMOTE:/tmp/pifm-ops-bundle.tgz"
+  rm -f "$BUNDLE"
+  ssh -o BatchMode=yes "$REMOTE" bash -s <<EOF
+set -euo pipefail
+rm -rf /tmp/pifm_ops
+mkdir -p /tmp/pifm_ops
+tar -C /tmp/pifm_ops -xzf /tmp/pifm-ops-bundle.tgz
+python3 /tmp/pifm_ops/pifm_station_ops.py backup --root '$ROOT' --dest '$DEST' ${EXTRA[*]+${EXTRA[*]}}
+EOF
 else
   python3 "$OPS" backup --root "$ROOT" --dest "$DEST" "${EXTRA[@]}"
 fi

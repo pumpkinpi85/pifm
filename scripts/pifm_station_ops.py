@@ -22,10 +22,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-# Allow `python3 scripts/pifm_station_ops.py` from repo root.
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
+# Allow running from repo (`scripts/pifm_station_ops.py`) or a remote ops bundle
+# that contains sibling `appliance/` package modules.
+_HERE = Path(__file__).resolve().parent
+for candidate in (_HERE, _HERE.parent):
+    if (candidate / "appliance" / "build_info.py").is_file():
+        if str(candidate) not in sys.path:
+            sys.path.insert(0, str(candidate))
+        break
 
 from appliance.build_info import (  # noqa: E402
     BUILD_META_NAME,
