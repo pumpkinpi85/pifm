@@ -169,25 +169,25 @@ python3 "\$OPS" backup --root "\$TARGET" --dest "\$BACKUP_PARENT"
 echo "Deploy application"
 python3 "\$OPS" deploy --stage "\$STAGE" --target "\$TARGET" --previous "\$PREV"
 
-python3 - <<PY
+python3 -c "
 from pathlib import Path
 import importlib.util, json
-spec = importlib.util.spec_from_file_location("pifm_station_ops", "/tmp/pifm_ops/pifm_station_ops.py")
+spec = importlib.util.spec_from_file_location('pifm_station_ops', '/tmp/pifm_ops/pifm_station_ops.py')
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
-cfg_path = Path("$TARGET") / "config" / "appliance.json"
+cfg_path = Path('$TARGET') / 'config' / 'appliance.json'
 mod.ensure_config_off_air(cfg_path)
 if cfg_path.is_file():
     cfg = json.loads(cfg_path.read_text())
-    cfg["pi_fm_rds_path"] = "/usr/local/bin/pi_fm_rds"
-    cfg["hardware_profile"] = cfg.get("hardware_profile") or "raspberry-pi-a-plus"
-    cfg["network_iface"] = cfg.get("network_iface") or "eth0"
-    cfg.pop("state", None)
-    cfg.pop("on_air", None)
-    cfg.pop("tx_on_air", None)
-    cfg_path.write_text(json.dumps(cfg, indent=2, sort_keys=True) + "\n")
-print("config_normalized_ok")
-PY
+    cfg['pi_fm_rds_path'] = '/usr/local/bin/pi_fm_rds'
+    cfg['hardware_profile'] = cfg.get('hardware_profile') or 'raspberry-pi-a-plus'
+    cfg['network_iface'] = cfg.get('network_iface') or 'eth0'
+    cfg.pop('state', None)
+    cfg.pop('on_air', None)
+    cfg.pop('tx_on_air', None)
+    cfg_path.write_text(json.dumps(cfg, indent=2, sort_keys=True) + '\n')
+print('config_normalized_ok')
+"
 
 TXC=\$(pgrep -x pi_fm_rds 2>/dev/null | wc -l | tr -d ' ')
 FTC=\$(pgrep -x fm_transmitter 2>/dev/null | wc -l | tr -d ' ')
