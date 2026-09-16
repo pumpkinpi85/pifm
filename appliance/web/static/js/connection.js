@@ -50,7 +50,11 @@
   ];
 
   function validateSnapshot(snapshot) {
-    if (!snapshot || typeof snapshot !== "object") {
+    function isPlainObject(value) {
+      return !!value && typeof value === "object" && !Array.isArray(value);
+    }
+
+    if (!isPlainObject(snapshot)) {
       throw new Error("authoritative state snapshot is missing");
     }
     REQUIRED_KEYS.forEach(function (key) {
@@ -79,9 +83,7 @@
     });
     ["current_track", "next_track", "now_playing", "up_next",
       "first_up"].forEach(function (key) {
-      if (snapshot[key] !== null &&
-          (!snapshot[key] || typeof snapshot[key] !== "object" ||
-           Array.isArray(snapshot[key]))) {
+      if (snapshot[key] !== null && !isPlainObject(snapshot[key])) {
         throw new Error("authoritative " + key + " has an invalid type");
       }
     });
@@ -89,19 +91,33 @@
         snapshot.snapshot_revision < 1) {
       throw new Error("authoritative snapshot revision is invalid");
     }
+    var previousQueuePosition = -1;
+    var currentRows = 0;
     snapshot.queue.forEach(function (track) {
-      if (!track || typeof track !== "object" ||
+      if (!isPlainObject(track) ||
           !Object.prototype.hasOwnProperty.call(track, "id") ||
           !Object.prototype.hasOwnProperty.call(track, "queue_pos") ||
           !Object.prototype.hasOwnProperty.call(track, "is_current") ||
-          typeof track.id !== "string" ||
+          typeof track.id !== "string" || !track.id ||
           !Number.isInteger(track.queue_pos) ||
-          typeof track.is_current !== "boolean") {
+          track.queue_pos <= previousQueuePosition ||
+          track.queue_pos < 0 ||
+          track.queue_pos >= snapshot.queue_length ||
+          typeof track.is_current !== "boolean" ||
+          track.is_current !== (track.queue_pos === snapshot.queue_index)) {
         throw new Error("authoritative queue metadata is incomplete");
       }
+      previousQueuePosition = track.queue_pos;
+      if (track.is_current) currentRows += 1;
     });
-    if (!snapshot.broadcast_recovery ||
-        typeof snapshot.broadcast_recovery !== "object") {
+    if (snapshot.queue_length < snapshot.queue.length ||
+        !Number.isInteger(snapshot.queue_index) ||
+        snapshot.queue_index < -1 ||
+        snapshot.queue_index >= snapshot.queue_length ||
+        currentRows > 1) {
+      throw new Error("authoritative queue state is inconsistent");
+    }
+    if (!isPlainObject(snapshot.broadcast_recovery)) {
       throw new Error("authoritative recovery state is invalid");
     }
     if (typeof snapshot.broadcast_recovery.armed !== "boolean" ||
@@ -110,7 +126,7 @@
     }
     ["broadcast", "network", "health", "hardware_environment",
       "hardware_profile_doc", "tx"].forEach(function (key) {
-      if (!snapshot[key] || typeof snapshot[key] !== "object") {
+      if (!isPlainObject(snapshot[key])) {
         throw new Error("authoritative " + key + " is invalid");
       }
     });

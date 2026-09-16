@@ -219,6 +219,12 @@ const coordinator = api.createCoordinator({
     coordinator.acceptLiveSnapshot(snapshot("delayed-sse", 2)), false
   );
   assert.strictEqual(browserState.current_track.id, "newer-http");
+  const malformedNested = snapshot("bad-network", 4);
+  malformedNested.network = [];
+  assert.throws(() => api.validateSnapshot(malformedNested));
+  const contradictoryQueue = snapshot("bad-queue", 4);
+  contradictoryQueue.queue[0].is_current = false;
+  assert.throws(() => api.validateSnapshot(contradictoryQueue));
 })().catch((error) => { console.error(error); process.exit(1); });
 """
         )
@@ -250,6 +256,8 @@ const coordinator = api.createCoordinator({
         self.assertIn('method !== "GET" && !uiSynchronized', source)
         self.assertIn("Remaining uploads were not sent.", source)
         self.assertIn("batchAuthorityEpoch !== uiAuthorityEpoch", source)
+        self.assertIn("batchPlaylistId = state && state.active_playlist", source)
+        self.assertIn('"X-Playlist-ID", batchPlaylistId', source)
         self.assertIn("requestAuthorityEpoch !== uiAuthorityEpoch", source)
         self.assertIn("connectionCoordinator.reconcile()", source)
         self.assertIn("connectionCoordinator.acceptLiveSnapshot", source)

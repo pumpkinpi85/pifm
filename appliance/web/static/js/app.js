@@ -152,6 +152,8 @@
     $("applianceBox").textContent = "Live appliance identity unavailable.";
     $("operatorLog").innerHTML =
       '<div class="empty">Live Ship’s Log unavailable.</div>';
+    $("operatorLog").dataset.hydrated = "";
+    lastLogFingerprint = "";
     $("eventsBox").textContent = "Live diagnostics unavailable.";
     $("libList").innerHTML =
       '<div class="empty">Live music library unavailable.</div>';
@@ -160,6 +162,8 @@
     $("plDetail").innerHTML = "";
     $("libraryPlaylistTargets").innerHTML =
       '<span class="meta">Live playlists unavailable.</span>';
+    $("uploadProgress").innerHTML = "";
+    $("setupUploadProgress").innerHTML = "";
     ["cfgFreq", "cfgPs", "cfgRt", "cfgPi", "setupFreq", "setupPs",
       "setupRt"].forEach(function (id) {
       if ($(id)) $(id).value = "";
@@ -177,6 +181,11 @@
     $("setupHardwareOutput").textContent = "";
     $("setupHardwareChecks").innerHTML = "";
     $("setupWizard").hidden = true;
+    $("btnGoOnAir").hidden = true;
+    $("btnGoOnAir").disabled = true;
+    $("btnStopBroadcast").disabled = true;
+    $("btnStopBroadcast").innerHTML =
+      'CONTROLS UNAVAILABLE<span class="tx-sub">RECONNECTING</span>';
     selectedPl = null;
     playlistsCache = null;
     libraryLoadedOnce = false;
@@ -1362,7 +1371,9 @@
     $("libSearch")._t = setTimeout(loadLibrary, 280);
   });
 
-  function uploadOne(file, progressBox, index, batchAuthorityEpoch) {
+  function uploadOne(
+    file, progressBox, index, batchAuthorityEpoch, batchPlaylistId
+  ) {
     if (!uiSynchronized || batchAuthorityEpoch !== uiAuthorityEpoch) {
       return Promise.reject(new Error(
         "Connection lost. Remaining uploads were not sent."
@@ -1383,16 +1394,21 @@
       xhr.open("POST", "/api/upload");
       xhr.setRequestHeader("Content-Type", "application/octet-stream");
       xhr.setRequestHeader("X-Filename-Encoded", encodeURIComponent(file.name));
-      if (state && state.active_playlist) {
-        xhr.setRequestHeader("X-Playlist-ID", state.active_playlist);
+      if (batchPlaylistId) {
+        xhr.setRequestHeader("X-Playlist-ID", batchPlaylistId);
       }
       xhr.upload.onprogress = function (event) {
+        if (batchAuthorityEpoch !== uiAuthorityEpoch) return;
         if (event.lengthComputable) {
           progress.value = Math.round((event.loaded / event.total) * 100);
           result.textContent = progress.value + "%";
         }
       };
       xhr.onload = function () {
+        if (batchAuthorityEpoch !== uiAuthorityEpoch) {
+          reject(new Error("Connection changed during upload."));
+          return;
+        }
         var payload = {};
         try { payload = JSON.parse(xhr.responseText || "{}"); } catch (e) {}
         if (xhr.status < 200 || xhr.status >= 300) {
@@ -1410,6 +1426,10 @@
         resolve(payload);
       };
       xhr.onerror = function () {
+        if (batchAuthorityEpoch !== uiAuthorityEpoch) {
+          reject(new Error("Connection changed during upload."));
+          return;
+        }
         result.textContent = "Connection lost during upload.";
         result.classList.add("error");
         reject(new Error(result.textContent));
@@ -1427,6 +1447,7 @@
     var list = Array.prototype.slice.call(files || []);
     if (!list.length) return Promise.resolve([]);
     var batchAuthorityEpoch = uiAuthorityEpoch;
+    var batchPlaylistId = state && state.active_playlist;
     var progressBox = $(progressId);
     progressBox.innerHTML = "";
     var results = [];
@@ -1435,7 +1456,7 @@
     list.forEach(function (file, index) {
       chain = chain.then(function () {
         return uploadOne(
-          file, progressBox, index, batchAuthorityEpoch
+          file, progressBox, index, batchAuthorityEpoch, batchPlaylistId
         ).then(function (result) {
           results.push(result);
         }).catch(function (error) {
@@ -1444,6 +1465,7 @@
       });
     });
     return chain.then(function () {
+      if (batchAuthorityEpoch !== uiAuthorityEpoch) return results;
       libraryLoadedOnce = false;
       playlistsCache = null;
       loadLibrary();
