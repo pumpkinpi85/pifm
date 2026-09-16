@@ -128,6 +128,14 @@
         "active", pane.getAttribute("data-music-pane") === name
       );
     });
+    if (name === "library") {
+      loadLibraryPlaylistTargets();
+      loadLibrary();
+    } else if (name === "playlists") {
+      loadPlaylists();
+    } else if (name === "queue" && state) {
+      renderQueue(state);
+    }
   }
 
   document.querySelectorAll(".music-tab").forEach(function (button) {
@@ -858,6 +866,7 @@
     }
     api("/api/playlists").then(function (data) {
       playlistsCache = data.playlists || [];
+      renderLibraryPlaylistTargets(playlistsCache);
       var showEmpty = $("showEmptyPl") && $("showEmptyPl").checked;
       var playlists = playlistsCache.filter(function (p) {
         var n = p.track_count != null ? p.track_count : 0;
