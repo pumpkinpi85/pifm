@@ -728,6 +728,7 @@
     }
     var q = ($("libSearch") && $("libSearch").value.trim()) || "";
     var url = "/api/library" + (q ? ("?q=" + encodeURIComponent(q)) : "");
+    loadLibraryPlaylistTargets();
     api(url).then(function (data) {
       libraryLoadedOnce = true;
       var tracks = data.tracks || [];
@@ -741,13 +742,45 @@
           '"><span class="title">' + esc(trackLabel(t)) +
           '</span><span class="meta">' + esc(t.format || "") +
           '</span><span><button type="button" data-add="' + esc(t.id) +
-          '">Add to playlist</button> <button type="button" data-delete-track="' +
+          '">Add to ' + esc(humanPlaylistName(
+            null, state && state.active_playlist
+          )) + '</button> <button type="button" data-delete-track="' +
           esc(t.id) + '" data-track-label="' + esc(trackLabel(t)) +
           '">Delete</button></span></div>';
       }).join("");
     }).catch(function (e) {
       if (!libraryLoadedOnce) box.innerHTML = '<div class="empty">' + esc(e.message) + "</div>";
       toast(e.message);
+    });
+  }
+
+  function renderLibraryPlaylistTargets(playlists) {
+    var box = $("libraryPlaylistTargets");
+    if (!box) return;
+    if (!playlists.length) {
+      box.innerHTML = '<span class="meta">Create a playlist first.</span>';
+      return;
+    }
+    box.innerHTML = playlists.map(function (playlist) {
+      var id = playlist.id || playlist.name;
+      var active = state && state.active_playlist === id;
+      return '<button type="button" class="playlist-target' +
+        (active ? " active-row" : "") + '" data-playlist-target="' + esc(id) +
+        '">' + esc(humanPlaylistName(playlist.name, id)) +
+        (active ? " · active" : "") + "</button>";
+    }).join("");
+  }
+
+  function loadLibraryPlaylistTargets() {
+    if (playlistsCache) {
+      renderLibraryPlaylistTargets(playlistsCache);
+      return;
+    }
+    api("/api/playlists").then(function (data) {
+      playlistsCache = data.playlists || [];
+      renderLibraryPlaylistTargets(playlistsCache);
+    }).catch(function () {
+      renderLibraryPlaylistTargets([]);
     });
   }
 
@@ -787,6 +820,35 @@
     if (!row) return;
     draggedTrackId = row.getAttribute("data-track-id");
     if (ev.dataTransfer) ev.dataTransfer.setData("text/plain", draggedTrackId);
+  });
+
+  $("libraryPlaylistTargets").addEventListener("dragover", function (ev) {
+    var target = ev.target.closest("[data-playlist-target]");
+    if (!target) return;
+    ev.preventDefault();
+    target.classList.add("dragging");
+  });
+  $("libraryPlaylistTargets").addEventListener("dragleave", function (ev) {
+    var target = ev.target.closest("[data-playlist-target]");
+    if (target) target.classList.remove("dragging");
+  });
+  $("libraryPlaylistTargets").addEventListener("drop", function (ev) {
+    var target = ev.target.closest("[data-playlist-target]");
+    var trackId = draggedTrackId ||
+      (ev.dataTransfer && ev.dataTransfer.getData("text/plain"));
+    if (!target || !trackId) return;
+    ev.preventDefault();
+    target.classList.remove("dragging");
+    var playlistId = target.getAttribute("data-playlist-target");
+    post("/api/playlists/" + encodeURIComponent(playlistId) + "/tracks", {
+      track_id: trackId
+    }).then(function () {
+      toast("Added to " + humanPlaylistName(null, playlistId) + ".");
+      playlistsCache = null;
+      loadLibraryPlaylistTargets();
+      loadPlaylists();
+      return refresh();
+    }).catch(function (e) { toast(e.message); });
   });
 
   function loadPlaylists() {

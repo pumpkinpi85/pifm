@@ -649,6 +649,22 @@ button:disabled {
 .upload-row progress { width: 100%; accent-color: var(--amber); }
 .upload-result { color: var(--green); font-size: 0.82rem; }
 .upload-result.error { color: #ffb4b4; }
+.playlist-targets-wrap { margin-top: 1rem; }
+.playlist-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.playlist-target {
+  min-height: 42px;
+  padding: 0.4rem 0.65rem;
+  border: 1px dashed #58647a;
+  background: #10131a;
+  color: var(--text);
+  font: inherit;
+}
+.playlist-target.active-row { border-color: var(--warm); color: var(--amber); }
+.playlist-target.dragging { border-color: var(--green); color: var(--green); }
 
 .setup-shell {
   position: fixed;

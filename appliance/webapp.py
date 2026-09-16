@@ -418,6 +418,7 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     _write({"type": "ping", "ts": time.time(), "seq": last_seq})
         except (BrokenPipeError, ConnectionResetError, OSError):
+            self.close_connection = True
             return
 
     def _upload(self) -> Dict[str, Any]:

@@ -111,6 +111,8 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("data-upload-zone", self.html)
         self.assertIn("xhr.upload.onprogress", self.js)
         self.assertIn("/api/library/", self.js)
+        self.assertIn('id="libraryPlaylistTargets"', self.html)
+        self.assertIn("data-playlist-target", self.js)
 
     def test_hardware_override_is_advanced(self):
         self.assertIn("Advanced — change hardware profile", self.html)

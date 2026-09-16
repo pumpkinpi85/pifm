@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>piFM Pirate Radio</title>
-  <link rel="stylesheet" href="/css/app.css?v=12" />
+  <link rel="stylesheet" href="/css/app.css?v=13" />
 </head>
 <body>
   <section id="setupWizard" class="setup-shell" hidden aria-label="First-run setup">
@@ -184,6 +184,10 @@
           <label class="upload primary-upload">Choose Files<input type="file" id="fileUpload" multiple accept=".mp3,.wav,.flac,.ogg,.m4a,.aac,audio/*" /></label>
         </div>
         <div id="uploadProgress" class="upload-progress" aria-live="polite"></div>
+        <div class="playlist-targets-wrap">
+          <div class="label">DRAG TO A PLAYLIST</div>
+          <div id="libraryPlaylistTargets" class="playlist-targets"></div>
+        </div>
       </div>
       <div class="panel">
         <div class="label">ACTIVE PLAYLIST</div>
@@ -329,6 +333,6 @@
 
   <div id="toast" class="toast" hidden></div>
   <div id="faultLine" class="fault-banner" hidden></div>
-  <script src="/js/app.js?v=12"></script>
+  <script src="/js/app.js?v=13"></script>
 </body>
 </html>
