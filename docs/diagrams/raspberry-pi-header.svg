@@ -2,8 +2,8 @@
   <title id="title">piFM Raspberry Pi 40-pin header guide</title>
   <desc id="desc">Original diagram highlighting physical pin 7, GPIO 4, and ground pins.</desc>
   <rect width="760" height="650" fill="#0c0d10"/>
-  <text x="40" y="45" fill="#e0b060" font-family="sans-serif" font-size="24">piFM · 40-PIN HEADER</text>
-  <text x="40" y="75" fill="#9aa3b5" font-family="sans-serif" font-size="15">Board edge / USB ports face right ’</text>
+  <text x="40" y="45" fill="#e0b060" font-family="sans-serif" font-size="24">piFM  |  40-PIN HEADER</text>
+  <text x="40" y="75" fill="#9aa3b5" font-family="sans-serif" font-size="15">Board edge / USB ports face right  to </text>
   <rect x="210" y="95" width="340" height="500" rx="12" fill="#151820" stroke="#58647a" stroke-width="3"/>
   <defs><circle id="pin" r="8" fill="currentColor" stroke="#9aa3b5"/></defs>
   <g color="#2a3144">
@@ -30,9 +30,9 @@
   </g>
   <path d="M251 192H115" stroke="#e0b060" stroke-width="3"/>
   <text x="40" y="185" fill="#e0b060" font-family="sans-serif" font-size="17">PIN 7</text>
-  <text x="40" y="209" fill="#e8e4d8" font-family="sans-serif" font-size="15">GPIO 4 · FM output</text>
+  <text x="40" y="209" fill="#e8e4d8" font-family="sans-serif" font-size="15">GPIO 4  |  FM output</text>
   <path d="M509 168H650" stroke="#5ecf8a" stroke-width="3"/>
   <text x="570" y="157" fill="#5ecf8a" font-family="sans-serif" font-size="17">GROUND</text>
-  <text x="570" y="181" fill="#9aa3b5" font-family="sans-serif" font-size="14">Pin 6 shown · green pins</text>
+  <text x="570" y="181" fill="#9aa3b5" font-family="sans-serif" font-size="14">Pin 6 shown  |  green pins</text>
   <text x="40" y="630" fill="#c44b4b" font-family="sans-serif" font-size="14">Raw GPIO is not a compliant finished transmitter. Use filtering and follow local law.</text>
 </svg>
