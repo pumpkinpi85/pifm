@@ -128,6 +128,23 @@ def _available_destination(directory: Path, filename: str) -> Path:
     raise MediaImportError("Too many files already use this name.")
 
 
+def _find_duplicate(library_dir: Path, uploaded: Path) -> Optional[Path]:
+    uploaded_size = uploaded.stat().st_size
+    uploaded_hash = None  # type: Optional[str]
+    for candidate in sorted(library_dir.rglob("*")):
+        if (
+            not candidate.is_file()
+            or candidate.suffix.lower() not in AUDIO_EXT
+            or candidate.stat().st_size != uploaded_size
+        ):
+            continue
+        if uploaded_hash is None:
+            uploaded_hash = _sha256(uploaded)
+        if _sha256(candidate) == uploaded_hash:
+            return candidate
+    return None
+
+
 def import_media_stream(
     library: Library,
     stream: BinaryIO,
@@ -156,21 +173,21 @@ def import_media_stream(
                 handle.write(chunk)
                 remaining -= len(chunk)
         probe = _probe_media(partial)
-        original = library.library_dir / safe_name
-        if original.is_file() and original.stat().st_size == partial.stat().st_size:
-            if _sha256(original) == _sha256(partial):
-                partial.unlink()
-                indexed = library.reindex()
-                track = library.get_track_by_path(original.name)
-                return {
-                    "ok": True,
-                    "filename": original.name,
-                    "indexed": indexed,
-                    "duplicate": True,
-                    "renamed": False,
-                    "media": probe,
-                    "track": track,
-                }
+        duplicate = _find_duplicate(library.library_dir, partial)
+        if duplicate is not None:
+            partial.unlink()
+            indexed = library.reindex()
+            relative_path = str(duplicate.relative_to(library.library_dir))
+            track = library.get_track_by_path(relative_path)
+            return {
+                "ok": True,
+                "filename": duplicate.name,
+                "indexed": indexed,
+                "duplicate": True,
+                "renamed": False,
+                "media": probe,
+                "track": track,
+            }
         destination = _available_destination(library.library_dir, safe_name)
         os.replace(str(partial), str(destination))
         indexed = library.reindex()

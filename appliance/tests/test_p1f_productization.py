@@ -198,6 +198,27 @@ class MediaImportTests(unittest.TestCase):
 
     @patch(
         "appliance.media_import._probe_media",
+        return_value={"codec": "pcm_s16le", "duration": 1.0},
+    )
+    def test_duplicate_detection_covers_nested_library(self, _probe):
+        with tempfile.TemporaryDirectory() as td:
+            library = make_library(Path(td))
+            nested = library.library_dir / "testing" / "Song.wav"
+            nested.parent.mkdir(parents=True)
+            nested.write_bytes(b"audio-one")
+            library.reindex()
+
+            result = import_media_stream(
+                library, io.BytesIO(b"audio-one"), "Song.wav", 9
+            )
+
+            self.assertTrue(result["duplicate"])
+            self.assertEqual(result["track"]["path"], "testing/Song.wav")
+            self.assertFalse((library.library_dir / "Song.wav").exists())
+            self.assertEqual(len(library.search()), 1)
+
+    @patch(
+        "appliance.media_import._probe_media",
         return_value={"codec": "mp3", "duration": 1.0},
     )
     def test_incomplete_upload_is_removed(self, _probe):
