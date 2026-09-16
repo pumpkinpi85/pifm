@@ -34,7 +34,7 @@ function snapshot(track, revision) {
   return {
     snapshot_revision: revision,
     state: "ON_AIR", broadcast_ui: "ON AIR",
-    broadcast_state: "on_air", broadcast_recovery: {armed: true},
+    broadcast_state: "on_air", broadcast_recovery: {armed: true, valid: true},
     tx: {running: true}, tx_backend: "mock", tx_running: true,
     fault_reason: null, program_state: "playing", program_ui: "PLAYING",
     program_pending: null,
@@ -43,10 +43,11 @@ function snapshot(track, revision) {
     first_up: null, active_playlist: "demo",
     selected_playlist_name: "Demo", queue_index: 0, queue_length: 1,
     queue: [{id: track, queue_pos: 0, is_current: true}],
-    shuffle: false, repeat: true, broadcast: {ready: true},
+    shuffle: false, repeat: true,
+    broadcast: {ready: true, blockers: [], items: []},
     frequency_mhz: 100.1, rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
     network: {ip: "127.0.0.1"}, health: {}, hardware_status: "SUPPORTED",
-    hardware_environment: {}, hardware_profile_doc: {},
+    hardware_environment: {checks: []}, hardware_profile_doc: {},
     software_version: "test", git_sha: "abc", build_label: "test"
   };
 }
@@ -103,17 +104,18 @@ setImmediate(() => {
   resolveFetch({
     snapshot_revision: 1,
     state: "SAFE_OFF", broadcast_ui: "OFF",
-    broadcast_state: "off", broadcast_recovery: {armed: false},
+    broadcast_state: "off", broadcast_recovery: {armed: false, valid: true},
     tx: {running: false}, tx_backend: "mock", tx_running: false,
     fault_reason: null, program_state: "stopped", program_ui: "READY",
     program_pending: null,
     current_track: null, next_track: null, active_playlist: "demo",
     now_playing: null, up_next: null, first_up: null,
     selected_playlist_name: "Demo", queue_index: -1, queue_length: 0,
-    queue: [], shuffle: false, repeat: true, broadcast: {ready: true},
+    queue: [], shuffle: false, repeat: true,
+    broadcast: {ready: true, blockers: [], items: []},
     frequency_mhz: 100.1, rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
     network: {}, health: {}, hardware_status: "SUPPORTED",
-    hardware_environment: {}, hardware_profile_doc: {},
+    hardware_environment: {checks: []}, hardware_profile_doc: {},
     software_version: "test", git_sha: "abc", build_label: "test"
   });
 });
@@ -134,7 +136,7 @@ function snapshot(track, revision) {
   return {
     snapshot_revision: revision,
     state: "ON_AIR", broadcast_ui: "ON AIR",
-    broadcast_state: "on_air", broadcast_recovery: {armed: true},
+    broadcast_state: "on_air", broadcast_recovery: {armed: true, valid: true},
     tx: {running: true}, tx_backend: "mock", tx_running: true,
     fault_reason: null, program_state: "playing", program_ui: "PLAYING",
     program_pending: null, current_track: {id: track}, next_track: null,
@@ -142,10 +144,11 @@ function snapshot(track, revision) {
     active_playlist: "demo", selected_playlist_name: "Demo",
     queue_index: 0, queue_length: 1,
     queue: [{id: track, queue_pos: 0, is_current: true}],
-    shuffle: false, repeat: true, broadcast: {ready: true},
+    shuffle: false, repeat: true,
+    broadcast: {ready: true, blockers: [], items: []},
     frequency_mhz: 100.1, rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
     network: {}, health: {}, hardware_status: "SUPPORTED",
-    hardware_environment: {}, hardware_profile_doc: {},
+    hardware_environment: {checks: []}, hardware_profile_doc: {},
     software_version: "test", git_sha: "abc", build_label: "test"
   };
 }
@@ -185,7 +188,7 @@ const api = require("./appliance/web/static/js/connection.js");
 function snapshot(track, revision) {
   return {
     snapshot_revision: revision, state: "ON_AIR", broadcast_ui: "ON AIR",
-    broadcast_state: "on_air", broadcast_recovery: {armed: true},
+    broadcast_state: "on_air", broadcast_recovery: {armed: true, valid: true},
     tx: {running: true}, tx_backend: "mock", tx_running: true,
     fault_reason: null, program_state: "playing", program_ui: "PLAYING",
     program_pending: null, current_track: {id: track}, next_track: null,
@@ -193,10 +196,11 @@ function snapshot(track, revision) {
     active_playlist: "demo", selected_playlist_name: "Demo",
     queue_index: 0, queue_length: 1,
     queue: [{id: track, queue_pos: 0, is_current: true}],
-    shuffle: false, repeat: true, broadcast: {ready: true},
+    shuffle: false, repeat: true,
+    broadcast: {ready: true, blockers: [], items: []},
     frequency_mhz: 100.1, rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
     network: {}, health: {}, hardware_status: "SUPPORTED",
-    hardware_environment: {}, hardware_profile_doc: {},
+    hardware_environment: {checks: []}, hardware_profile_doc: {},
     software_version: "test", git_sha: "abc", build_label: "test"
   };
 }
@@ -245,6 +249,8 @@ const coordinator = api.createCoordinator({
         source = APP_JS.read_text()
         self.assertIn('method !== "GET" && !uiSynchronized', source)
         self.assertIn("Remaining uploads were not sent.", source)
+        self.assertIn("batchAuthorityEpoch !== uiAuthorityEpoch", source)
+        self.assertIn("requestAuthorityEpoch !== uiAuthorityEpoch", source)
         self.assertIn("connectionCoordinator.reconcile()", source)
         self.assertIn("connectionCoordinator.acceptLiveSnapshot", source)
         self.assertNotIn('api("/api/queue").then', source)

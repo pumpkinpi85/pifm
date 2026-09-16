@@ -72,6 +72,12 @@
         }
         return j;
       });
+    }).catch(function (error) {
+      if (method === "GET" && path !== "/api/status" &&
+          (requestAuthorityEpoch !== uiAuthorityEpoch || !uiSynchronized)) {
+        return new Promise(function () {});
+      }
+      throw error;
     });
   }
 
@@ -131,6 +137,8 @@
     $("hardwareSummary").textContent = "Live state unavailable";
     $("hardwareOutput").textContent = "";
     $("hardwareChecks").innerHTML = "";
+    $("devHarnessBanner").hidden = true;
+    document.body.classList.remove("has-dev-harness");
     $("btnStopBroadcastHeader").hidden = true;
     $("blockerBox").hidden = true;
     $("blockerBox").innerHTML = "";
@@ -1354,8 +1362,8 @@
     $("libSearch")._t = setTimeout(loadLibrary, 280);
   });
 
-  function uploadOne(file, progressBox, index) {
-    if (!uiSynchronized) {
+  function uploadOne(file, progressBox, index, batchAuthorityEpoch) {
+    if (!uiSynchronized || batchAuthorityEpoch !== uiAuthorityEpoch) {
       return Promise.reject(new Error(
         "Connection lost. Remaining uploads were not sent."
       ));
@@ -1418,6 +1426,7 @@
     }
     var list = Array.prototype.slice.call(files || []);
     if (!list.length) return Promise.resolve([]);
+    var batchAuthorityEpoch = uiAuthorityEpoch;
     var progressBox = $(progressId);
     progressBox.innerHTML = "";
     var results = [];
@@ -1425,7 +1434,9 @@
     var chain = Promise.resolve();
     list.forEach(function (file, index) {
       chain = chain.then(function () {
-        return uploadOne(file, progressBox, index).then(function (result) {
+        return uploadOne(
+          file, progressBox, index, batchAuthorityEpoch
+        ).then(function (result) {
           results.push(result);
         }).catch(function (error) {
           failures.push(error);

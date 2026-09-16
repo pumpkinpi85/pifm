@@ -87,7 +87,6 @@ class Controller:
         Read-only: must not reshuffle or otherwise mutate the queue.
         """
         with self._lock:
-            self._ensure_queue_loaded_unlocked()
             cfg = self.config.as_dict()
             pl_id = str(cfg.get("active_playlist") or "")
             pl_name = pl_id
@@ -307,7 +306,6 @@ class Controller:
     def status(self) -> Dict[str, Any]:
         with self._lock:
             cfg = self.config.as_dict()
-            self._ensure_queue_loaded_unlocked()
             cur = self._current_track()
             nxt = self._next_track_peek()
             first_up = self._first_up_unlocked()

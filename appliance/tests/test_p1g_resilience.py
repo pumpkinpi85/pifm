@@ -344,6 +344,19 @@ class ControllerRecoveryTests(unittest.TestCase):
         self.assertEqual(self.controller.tx._started_at, tx_started_before)
         self.assertTrue(self.controller.tx.is_running())
 
+    def test_status_does_not_rebuild_or_shuffle_empty_runtime_queue(self):
+        self.controller.update_config({"shuffle": True})
+        with self.controller._lock:
+            self.controller._queue = []
+            self.controller._queue_index = -1
+        with patch("appliance.controller.random.shuffle") as shuffle:
+            snapshot = self.controller.status()
+            checklist = self.controller.broadcast_checklist()
+        shuffle.assert_not_called()
+        self.assertEqual(snapshot["queue"], [])
+        self.assertEqual(snapshot["queue_fingerprint"], [])
+        self.assertEqual(checklist["track_count"], 0)
+
     def test_bad_next_track_holds_silence_without_retry_loop(self):
         self.controller.go_on_air()
         self.controller.tx.prefetch_fail = True

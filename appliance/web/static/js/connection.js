@@ -61,6 +61,30 @@
     if (!Array.isArray(snapshot.queue)) {
       throw new Error("authoritative queue is invalid");
     }
+    ["state", "broadcast_state", "broadcast_ui", "program_state",
+      "program_ui", "tx_backend"].forEach(function (key) {
+      if (typeof snapshot[key] !== "string") {
+        throw new Error("authoritative " + key + " has an invalid type");
+      }
+    });
+    ["tx_running", "shuffle", "repeat"].forEach(function (key) {
+      if (typeof snapshot[key] !== "boolean") {
+        throw new Error("authoritative " + key + " has an invalid type");
+      }
+    });
+    ["queue_index", "queue_length", "frequency_mhz"].forEach(function (key) {
+      if (typeof snapshot[key] !== "number" || !Number.isFinite(snapshot[key])) {
+        throw new Error("authoritative " + key + " has an invalid type");
+      }
+    });
+    ["current_track", "next_track", "now_playing", "up_next",
+      "first_up"].forEach(function (key) {
+      if (snapshot[key] !== null &&
+          (!snapshot[key] || typeof snapshot[key] !== "object" ||
+           Array.isArray(snapshot[key]))) {
+        throw new Error("authoritative " + key + " has an invalid type");
+      }
+    });
     if (!Number.isInteger(snapshot.snapshot_revision) ||
         snapshot.snapshot_revision < 1) {
       throw new Error("authoritative snapshot revision is invalid");
@@ -69,7 +93,10 @@
       if (!track || typeof track !== "object" ||
           !Object.prototype.hasOwnProperty.call(track, "id") ||
           !Object.prototype.hasOwnProperty.call(track, "queue_pos") ||
-          !Object.prototype.hasOwnProperty.call(track, "is_current")) {
+          !Object.prototype.hasOwnProperty.call(track, "is_current") ||
+          typeof track.id !== "string" ||
+          !Number.isInteger(track.queue_pos) ||
+          typeof track.is_current !== "boolean") {
         throw new Error("authoritative queue metadata is incomplete");
       }
     });
@@ -77,12 +104,21 @@
         typeof snapshot.broadcast_recovery !== "object") {
       throw new Error("authoritative recovery state is invalid");
     }
+    if (typeof snapshot.broadcast_recovery.armed !== "boolean" ||
+        typeof snapshot.broadcast_recovery.valid !== "boolean") {
+      throw new Error("authoritative recovery flags are invalid");
+    }
     ["broadcast", "network", "health", "hardware_environment",
       "hardware_profile_doc", "tx"].forEach(function (key) {
       if (!snapshot[key] || typeof snapshot[key] !== "object") {
         throw new Error("authoritative " + key + " is invalid");
       }
     });
+    if (!Array.isArray(snapshot.broadcast.blockers) ||
+        !Array.isArray(snapshot.broadcast.items) ||
+        !Array.isArray(snapshot.hardware_environment.checks)) {
+      throw new Error("authoritative readiness details are invalid");
+    }
     return snapshot;
   }
 
