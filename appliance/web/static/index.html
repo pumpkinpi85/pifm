@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>piFM Pirate Radio</title>
-  <link rel="stylesheet" href="/css/app.css?v=15" />
+  <link rel="stylesheet" href="/css/app.css?v=16" />
 </head>
 <body>
   <section id="setupWizard" class="setup-shell" hidden aria-label="First-run setup">
@@ -78,6 +78,9 @@
   </section>
   <div id="devHarnessBanner" class="dev-harness" hidden data-testid="dev-harness">
     DEVELOPMENT / TEST HARNESS — mock transmitter (no FM). Not the production station.
+  </div>
+  <div id="connectionBanner" class="connection-banner" data-testid="connection-state" role="status" aria-live="assertive">
+    CONNECTING — LIVE STATION STATE UNAVAILABLE
   </div>
   <div class="shell">
     <header class="masthead">
@@ -338,6 +341,7 @@
 
   <div id="toast" class="toast" hidden></div>
   <div id="faultLine" class="fault-banner" hidden></div>
-  <script src="/js/app.js?v=15"></script>
+  <script src="/js/connection.js?v=16"></script>
+  <script src="/js/app.js?v=16"></script>
 </body>
 </html>

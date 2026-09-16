@@ -315,6 +315,32 @@ class ControllerRecoveryTests(unittest.TestCase):
         self.assertNotEqual(self.controller._queue_index, original)
         self.assertEqual(self.controller.sm.state, State.ON_AIR)
 
+    def test_authoritative_status_snapshot_is_complete_and_read_only(self):
+        self.controller.go_on_air()
+        before = self.controller.status()
+        tx_started_before = self.controller.tx._started_at
+        snapshot = self.controller.status()
+        for key in (
+            "broadcast_state",
+            "broadcast_recovery",
+            "tx_running",
+            "fault_reason",
+            "program_state",
+            "current_track",
+            "next_track",
+            "active_playlist",
+            "queue",
+            "shuffle",
+            "repeat",
+            "broadcast",
+            "hardware_status",
+        ):
+            self.assertIn(key, snapshot)
+        self.assertEqual(snapshot["queue_index"], before["queue_index"])
+        self.assertEqual(snapshot["queue_fingerprint"], before["queue_fingerprint"])
+        self.assertEqual(self.controller.tx._started_at, tx_started_before)
+        self.assertTrue(self.controller.tx.is_running())
+
     def test_bad_next_track_holds_silence_without_retry_loop(self):
         self.controller.go_on_air()
         self.controller.tx.prefetch_fail = True

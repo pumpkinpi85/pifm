@@ -825,6 +825,24 @@ button:disabled {
 }
 body.has-dev-harness { padding-top: 0; }
 
+.connection-banner {
+  background: #3a2010;
+  color: #ffe0a0;
+  text-align: center;
+  padding: 0.65rem 1rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid #8a5a30;
+}
+.connection-banner.synchronized { display: none; }
+body.state-unavailable .view button:not(.tab):not(.music-tab),
+body.state-unavailable .view input,
+body.state-unavailable .view select {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 
 @media (max-width: 700px) {
   .masthead { flex-direction: column; }

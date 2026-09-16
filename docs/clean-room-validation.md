@@ -52,3 +52,17 @@ Checklist:
 
 Founder/maintainer authorization required. Prefer shielded feed to a receiver.
 Document spectrum caution; no compliance claims without measurement.
+
+For the founder-operated P1G network-disconnection test:
+
+1. Record the candidate SHA, current track, next track, broadcast intent, TX PID,
+   and receiver observation while ON AIR.
+2. Disconnect Ethernet and confirm the already-open browser changes to **Live
+   station state unavailable** without issuing a station command.
+3. Allow local playback to progress while isolated; confirm RF and program
+   continuity independently at the receiver/appliance.
+4. Restore Ethernet. Confirm the browser performs a read-only status
+   reconciliation, displays the Pi's current (not pre-disconnect) broadcast,
+   recovery, playback, queue, fault, and hardware state, then resumes SSE.
+5. Confirm the TX PID/start event did not change because of browser
+   reconnection and no playback reset/skip occurred.

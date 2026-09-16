@@ -125,6 +125,12 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn('id="recoverySummary"', self.html)
         self.assertIn("After power returns", self.js)
 
+    def test_connection_loss_never_presents_stale_state_as_live(self):
+        self.assertIn('data-testid="connection-state"', self.html)
+        self.assertIn("LIVE STATION STATE UNAVAILABLE", self.html)
+        self.assertIn("Previous station state discarded", self.js)
+        self.assertIn("method !== \"GET\" && !uiSynchronized", self.js)
+
 
 def _make_ctrl(root: Path) -> Controller:
     (root / "config").mkdir(parents=True, exist_ok=True)

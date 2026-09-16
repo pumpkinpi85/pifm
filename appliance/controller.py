@@ -474,6 +474,7 @@ class Controller:
                 "gpio_enabled": bool(cfg.get("gpio_enabled")),
                 "broadcast_recovery": self.recovery.status(),
                 "broadcast": checklist,
+                "queue": self.queue_snapshot(),
                 "queue_fingerprint": list(self._queue),
             }
 
@@ -1730,8 +1731,9 @@ class Controller:
     def queue_snapshot(self) -> List[Dict[str, Any]]:
         with self._lock:
             out = []
+            tracks = self.library.get_tracks(self._queue)
             for i, tid in enumerate(self._queue):
-                tr = self.library.get_track(tid)
+                tr = tracks.get(tid)
                 if tr:
                     row = dict(tr)
                     row["queue_pos"] = i

@@ -122,6 +122,27 @@ class Library:
             ).fetchone()
         return dict(row) if row else None
 
+    def get_tracks(self, track_ids: List[str]) -> Dict[str, Dict[str, Any]]:
+        """Fetch an ordered queue's track metadata without one query per track."""
+        unique_ids = list(dict.fromkeys(str(track_id) for track_id in track_ids))
+        if not unique_ids:
+            return {}
+        found = {}  # type: Dict[str, Dict[str, Any]]
+        with closing(self._conn()) as conn, conn:
+            for start in range(0, len(unique_ids), 500):
+                chunk = unique_ids[start : start + 500]
+                placeholders = ",".join("?" for _ in chunk)
+                rows = conn.execute(
+                    "SELECT * FROM tracks WHERE id IN ({})".format(
+                        placeholders
+                    ),
+                    chunk,
+                ).fetchall()
+                for row in rows:
+                    item = dict(row)
+                    found[str(item["id"])] = item
+        return found
+
     def get_track_by_path(self, rel_path: str) -> Optional[Dict[str, Any]]:
         with closing(self._conn()) as conn, conn:
             row = conn.execute(

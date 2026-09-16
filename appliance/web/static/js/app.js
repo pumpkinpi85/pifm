@@ -9,6 +9,9 @@
   var libraryLoadedOnce = false;
   var commandPending = null; // play|pause|next|prev|txon|txoff
   var sseConnected = false;
+  var uiSynchronized = false;
+  var activeEventSource = null;
+  var reconnectTimer = null;
   var lastLogFingerprint = "";
   var setupStep = 0;
   var libraryTrackCount = 0;
@@ -45,6 +48,12 @@
 
   function api(path, opts) {
     opts = opts || {};
+    var method = String(opts.method || "GET").toUpperCase();
+    if (method !== "GET" && !uiSynchronized) {
+      return Promise.reject(new Error(
+        "Live station state is unavailable. Wait for reconnection."
+      ));
+    }
     return fetch(path, opts).then(function (r) {
       return r.text().then(function (text) {
         var j = {};
@@ -70,6 +79,60 @@
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;")
       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function renderStateUnavailable(reason) {
+    uiSynchronized = false;
+    statusLoaded = false;
+    sseConnected = false;
+    state = null;
+    commandPending = null;
+    window._queueTracks = [];
+    document.body.classList.add("state-unavailable");
+    var banner = $("connectionBanner");
+    if (banner) {
+      banner.classList.remove("synchronized");
+      banner.textContent = reason === "Connecting"
+        ? "CONNECTING — LIVE STATION STATE UNAVAILABLE"
+        : "CONNECTION LOST — LIVE STATION STATE UNAVAILABLE";
+    }
+    $("broadcastState").textContent = "LIVE STATE UNAVAILABLE";
+    $("broadcastState").className = "broadcast-state unknown";
+    $("statusBadge").hidden = false;
+    $("statusBadge").className = "status-badge attention";
+    $("statusBadge").textContent = "CONNECTION LOST";
+    $("nowLabel").textContent = "STATE UNAVAILABLE";
+    $("nowLabel").className = "player-mode mode-busy";
+    $("nowTrack").textContent = "Waiting for the Raspberry Pi";
+    $("nowPlaylist").textContent = "Previous station state discarded";
+    $("upNextLabel").textContent = "UP NEXT";
+    $("nowNext").textContent = "—";
+    $("netLamp").className = "lamp warn";
+    $("netLamp").textContent = "LOST";
+    $("txLamp").className = "lamp warn";
+    $("txLamp").textContent = "?";
+    $("activePlSummary").textContent = "Live state unavailable";
+    $("queueBox").innerHTML =
+      '<div class="empty">Live queue unavailable — reconnecting…</div>';
+    $("recoverySummary").textContent = "Unavailable";
+    $("recoveryDetail").textContent =
+      "Reconnect to read persisted broadcast intent from the appliance.";
+    $("faultRecoveryText").textContent =
+      "Live fault and transmitter state unavailable.";
+    $("hardwareSummary").textContent = "Live state unavailable";
+    $("hardwareOutput").textContent = "";
+    $("hardwareChecks").innerHTML = "";
+    $("btnStopBroadcastHeader").hidden = true;
+  }
+
+  function markStateSynchronized() {
+    uiSynchronized = true;
+    document.body.classList.remove("state-unavailable");
+    var banner = $("connectionBanner");
+    if (banner) {
+      banner.classList.add("synchronized");
+      banner.textContent = "CONNECTED — AUTHORITATIVE STATE SYNCHRONIZED";
+    }
   }
 
   function humanPlaylistName(name, id) {
@@ -738,17 +801,21 @@
     });
   }
 
+  function applyAuthoritativeSnapshot(snapshot) {
+    window._queueTracks = snapshot.queue || [];
+    renderStatus(snapshot);
+    if ($("view-broadcast").classList.contains("active")) loadOperatorLog();
+  }
+
+  var connectionCoordinator = window.PifmConnection.createCoordinator({
+    fetchSnapshot: function () { return api("/api/status"); },
+    onUnavailable: renderStateUnavailable,
+    onSnapshot: applyAuthoritativeSnapshot,
+    onSynchronized: markStateSynchronized
+  });
+
   function refresh() {
-    return api("/api/status").then(function (s) {
-      return api("/api/queue").then(function (q) {
-        s.queue = q.queue || [];
-        window._queueTracks = s.queue;
-        renderStatus(s);
-        if ($("view-broadcast").classList.contains("active")) loadOperatorLog();
-      }).catch(function () { renderStatus(s); });
-    }).catch(function (e) {
-      toast("Console offline: " + e.message);
-    });
+    return connectionCoordinator.reconcile();
   }
 
   function loadLibrary() {
@@ -953,17 +1020,7 @@
   }
 
   function loadSystem() {
-    api("/api/status").then(function (s) {
-      renderHealth(s);
-      renderAppliance(s);
-      renderFaultRecovery(s);
-      renderRecovery(s);
-      var net = s.network || {};
-      $("netSummary").textContent = net.rf_quiet_active
-        ? "Network quiet"
-        : (net.ip ? "Connected" : "Disconnected");
-      $("netDetail").textContent = net.ip ? ("IP " + net.ip) : "No IP address";
-    });
+    refresh();
     var box = $("eventsBox");
     if (box && !box.dataset.hydrated) {
       box.textContent = "Loading…";
@@ -1012,15 +1069,7 @@
         }
         renderStatus(optimistic);
       }
-      post(path, {}).then(function (st) {
-        if (st && st.program_state) {
-          return api("/api/queue").then(function (q) {
-            st.queue = q.queue || [];
-            window._queueTracks = st.queue;
-            renderStatus(st);
-            if ($("view-broadcast").classList.contains("active")) loadOperatorLog();
-          }).catch(function () { renderStatus(st); });
-        }
+      post(path, {}).then(function () {
         return refresh();
       }).catch(function (e) {
         commandPending = null;
@@ -1070,8 +1119,7 @@
       goBtn.innerHTML = "<span class=\"flag-skull\" aria-hidden=\"true\">☠</span>STARTING BROADCAST…<span class=\"tx-sub\">PLEASE WAIT</span>";
     }
     toast(harness ? "Starting test harness…" : "Starting broadcast…");
-    post("/api/tx/on", {}).then(function (st) {
-      if (st) renderStatus(st);
+    post("/api/tx/on", {}).then(function () {
       toast(harness
         ? "Starting (test harness) — no FM signal."
         : "Starting — preparing audio…");
@@ -1093,10 +1141,9 @@
         stateEl.textContent = "STOPPING BROADCAST…";
         stateEl.className = "broadcast-state starting";
       }
-      post("/api/tx/off", {}).then(function (st) {
+      post("/api/tx/off", {}).then(function () {
         commandPending = null;
         toast("Broadcast stopped. Transmitter is OFF.");
-        if (st) renderStatus(st);
         return refresh();
       }).catch(function (e) {
         commandPending = null;
@@ -1304,6 +1351,11 @@
   }
 
   function uploadFiles(files, progressId) {
+    if (!uiSynchronized) {
+      return Promise.reject(new Error(
+        "Live station state is unavailable. Wait for reconnection."
+      ));
+    }
     var list = Array.prototype.slice.call(files || []);
     if (!list.length) return Promise.resolve([]);
     var progressBox = $(progressId);
@@ -1531,43 +1583,83 @@
     }).catch(function (e) { toast(e.message); });
   });
 
-  refresh();
-  loadOperatorLog();
-  // Lightweight polling remains as reconciliation fallback; SSE is primary.
-  setInterval(function () {
-    if (!sseConnected) refresh();
-    else if (Math.random() < 0.25) refresh(); // occasional reconcile while SSE healthy
-  }, 8000);
+  function scheduleReconnect() {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(function () {
+      connectionCoordinator.reconcile().then(function (ok) {
+        if (ok) connectSSE();
+        else scheduleReconnect();
+      });
+    }, 2500);
+  }
 
   function connectSSE() {
-    if (typeof EventSource === "undefined") return;
+    if (typeof EventSource === "undefined" ||
+        !connectionCoordinator.isSynchronized()) return;
+    if (activeEventSource) {
+      try { activeEventSource.close(); } catch (closeError) {}
+    }
     var es;
     try {
       es = new EventSource("/api/events/stream");
-    } catch (e) {
+    } catch (error) {
+      connectionCoordinator.markUnavailable(error.message);
+      scheduleReconnect();
       return;
     }
-    es.onopen = function () { sseConnected = true; };
+    activeEventSource = es;
+    es.onopen = function () {
+      if (activeEventSource === es) sseConnected = true;
+    };
     es.onerror = function () {
+      if (activeEventSource !== es) return;
       sseConnected = false;
-      try { es.close(); } catch (e2) {}
-      setTimeout(connectSSE, 2500);
+      activeEventSource = null;
+      try { es.close(); } catch (closeError) {}
+      connectionCoordinator.markUnavailable("Connection lost");
+      scheduleReconnect();
     };
     es.onmessage = function (ev) {
-      sseConnected = true;
+      if (activeEventSource !== es) return;
       var msg;
-      try { msg = JSON.parse(ev.data); } catch (e) { return; }
+      try { msg = JSON.parse(ev.data); } catch (error) { return; }
       if (!msg || msg.type === "ping") return;
       if (msg.type === "status" && msg.status) {
-        var s = msg.status;
-        api("/api/queue").then(function (q) {
-          s.queue = q.queue || [];
-          window._queueTracks = s.queue;
-          renderStatus(s);
-          if ($("view-broadcast").classList.contains("active")) loadOperatorLog();
-        }).catch(function () { renderStatus(s); });
+        connectionCoordinator.acceptLiveSnapshot(msg.status);
       }
     };
   }
-  connectSSE();
+
+  renderStateUnavailable("Connecting");
+  connectionCoordinator.reconcile().then(function (ok) {
+    if (ok) {
+      loadOperatorLog();
+      connectSSE();
+    } else {
+      scheduleReconnect();
+    }
+  });
+
+  // Reconciliation is always a complete read-only appliance snapshot.
+  setInterval(function () {
+    if (!connectionCoordinator.isSynchronized()) {
+      scheduleReconnect();
+    } else if (!sseConnected || Math.random() < 0.25) {
+      connectionCoordinator.reconcile();
+    }
+  }, 8000);
+
+  window.addEventListener("offline", function () {
+    if (activeEventSource) {
+      try { activeEventSource.close(); } catch (closeError) {}
+      activeEventSource = null;
+    }
+    connectionCoordinator.markUnavailable("Connection lost");
+  });
+  window.addEventListener("online", function () {
+    connectionCoordinator.reconcile().then(function (ok) {
+      if (ok) connectSSE();
+      else scheduleReconnect();
+    });
+  });
 })();

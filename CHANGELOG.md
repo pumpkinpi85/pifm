@@ -13,6 +13,9 @@
   systemd restart throttling.
 - Removes network-online ordering from the appliance service and keeps browser,
   LAN, DNS, NTP, Internet, and cloud state outside the playback lifecycle.
+- Makes connection loss explicitly unverified in the browser, rejects stale
+  responses, blocks disconnected mutations, and requires a complete read-only
+  appliance snapshot before reopening SSE.
 - Persists useful playlist/current-track/program state and adds local,
   duration-based playlist progression.
 - Defines repeat-disabled completion as Broadcast ON with a stopped program and

@@ -8,6 +8,21 @@ browser, another computer, LAN access, DNS, NTP, Internet access, or cloud
 services. Removing the network does not issue a playback or transmitter
 command. Reconnecting a browser reads the authoritative state from the Pi.
 
+## Browser reconnection
+
+The Raspberry Pi is always authoritative. If the browser loses its live
+connection, it discards its local station snapshot and shows **Live station
+state unavailable**. Broadcast, playback, playlist, queue, recovery, fault,
+and hardware information are no longer presented as confirmed, and mutation
+requests are blocked.
+
+After connectivity returns, the browser performs one read-only
+`GET /api/status` containing the complete station and queue snapshot. It
+replaces local state with that response, marks itself synchronized, and only
+then opens a new SSE stream. Stale in-flight responses from before the
+disconnect are rejected. Reconciliation does not send playback or transmitter
+commands and therefore cannot restart or otherwise disturb RF.
+
 ## Broadcast recovery intent
 
 piFM persists the operator's command, not the incidental presence of a
@@ -88,3 +103,6 @@ The recovery state machine, storage failures, service restart, progression,
 network independence, and single-worker behavior are covered by non-RF tests.
 Physical A+ power-loss restoration and network-disconnect behavior require the
 founder-operated RF tests before they may be described as physically proven.
+The network-disconnect test must also confirm that the browser visibly loses
+authority and later displays the Pi's current track/state after read-only
+reconciliation, without any transmitter restart.

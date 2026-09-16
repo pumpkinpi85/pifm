@@ -102,9 +102,15 @@ Persist only the operator's deliberate broadcast intent:
 - Failed recovery is latched for the current machine boot to prevent systemd
   restart loops.
 - Service shutdown stops RF without rewriting deliberate operator intent.
+- A disconnected browser discards its local station authority and blocks
+  mutations. Reconnection must replace it with one complete read-only status
+  snapshot before SSE resumes.
+- Browser reconnection must have zero effect on RF or playback.
 
 Physical A+ power-restoration and network-disconnect RF behavior remain
 founder-gated until tested and must not be described as proven before then.
+That validation includes UI state loss and read-only authoritative
+reconciliation to the Pi's current track and transmitter state.
 
 ## 10. ABSOLUTE STOP / SAFETY INVARIANTS
 
