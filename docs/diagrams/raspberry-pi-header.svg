@@ -5,28 +5,28 @@
   <text x="40" y="45" fill="#e0b060" font-family="sans-serif" font-size="24">piFM · 40-PIN HEADER</text>
   <text x="40" y="75" fill="#9aa3b5" font-family="sans-serif" font-size="15">Board edge / USB ports face right ’</text>
   <rect x="210" y="95" width="340" height="500" rx="12" fill="#151820" stroke="#58647a" stroke-width="3"/>
-  <defs><circle id="pin" r="8" fill="#2a3144" stroke="#9aa3b5"/></defs>
-  <g>
+  <defs><circle id="pin" r="8" fill="currentColor" stroke="#9aa3b5"/></defs>
+  <g color="#2a3144">
     <use href="#pin" x="260" y="120"/><use href="#pin" x="500" y="120"/>
     <use href="#pin" x="260" y="144"/><use href="#pin" x="500" y="144"/>
-    <use href="#pin" x="260" y="168"/><use href="#pin" x="500" y="168" fill="#5ecf8a"/>
-    <use href="#pin" x="260" y="192" fill="#e0b060"/><use href="#pin" x="500" y="192"/>
-    <use href="#pin" x="260" y="216" fill="#5ecf8a"/><use href="#pin" x="500" y="216" fill="#5ecf8a"/>
+    <use href="#pin" x="260" y="168"/><use href="#pin" x="500" y="168" color="#5ecf8a"/>
+    <use href="#pin" x="260" y="192" color="#e0b060"/><use href="#pin" x="500" y="192"/>
+    <use href="#pin" x="260" y="216" color="#5ecf8a"/><use href="#pin" x="500" y="216" color="#5ecf8a"/>
     <use href="#pin" x="260" y="240"/><use href="#pin" x="500" y="240"/>
-    <use href="#pin" x="260" y="264"/><use href="#pin" x="500" y="264" fill="#5ecf8a"/>
+    <use href="#pin" x="260" y="264"/><use href="#pin" x="500" y="264" color="#5ecf8a"/>
     <use href="#pin" x="260" y="288"/><use href="#pin" x="500" y="288"/>
     <use href="#pin" x="260" y="312"/><use href="#pin" x="500" y="312"/>
-    <use href="#pin" x="260" y="336"/><use href="#pin" x="500" y="336" fill="#5ecf8a"/>
+    <use href="#pin" x="260" y="336"/><use href="#pin" x="500" y="336" color="#5ecf8a"/>
     <use href="#pin" x="260" y="360"/><use href="#pin" x="500" y="360"/>
     <use href="#pin" x="260" y="384"/><use href="#pin" x="500" y="384"/>
-    <use href="#pin" x="260" y="408" fill="#5ecf8a"/><use href="#pin" x="500" y="408"/>
+    <use href="#pin" x="260" y="408" color="#5ecf8a"/><use href="#pin" x="500" y="408"/>
     <use href="#pin" x="260" y="432"/><use href="#pin" x="500" y="432"/>
-    <use href="#pin" x="260" y="456"/><use href="#pin" x="500" y="456" fill="#5ecf8a"/>
+    <use href="#pin" x="260" y="456"/><use href="#pin" x="500" y="456" color="#5ecf8a"/>
     <use href="#pin" x="260" y="480"/><use href="#pin" x="500" y="480"/>
-    <use href="#pin" x="260" y="504"/><use href="#pin" x="500" y="504" fill="#5ecf8a"/>
+    <use href="#pin" x="260" y="504"/><use href="#pin" x="500" y="504" color="#5ecf8a"/>
     <use href="#pin" x="260" y="528"/><use href="#pin" x="500" y="528"/>
     <use href="#pin" x="260" y="552"/><use href="#pin" x="500" y="552"/>
-    <use href="#pin" x="260" y="576" fill="#5ecf8a"/><use href="#pin" x="500" y="576"/>
+    <use href="#pin" x="260" y="576" color="#5ecf8a"/><use href="#pin" x="500" y="576"/>
   </g>
   <path d="M251 192H115" stroke="#e0b060" stroke-width="3"/>
   <text x="40" y="185" fill="#e0b060" font-family="sans-serif" font-size="17">PIN 7</text>
