@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.3 — Canonical PiFmRds timing calibration
+
+- Add validated `pi_fm_rds_ppm` station configuration, defaulting to zero.
+- Pass the correction to PiFmRds as `-ppm <value>` for audio/DMA timing.
+- Expose the configured/applied value in status, System diagnostics, TX metadata,
+  and transmitter diagnostic logs.
+- Preserve OFF AIR behavior when timing configuration changes and add non-RF
+  regression coverage for zero, positive, negative, invalid, and STOP paths.
+
 ## 0.4.2 — P1C/P1D canonical deployment & reference A+ cutover
 
 P1C machinery plus authorized P1D physical cutover of the reference A+:

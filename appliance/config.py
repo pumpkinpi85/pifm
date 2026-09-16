@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import tempfile
 from copy import deepcopy
@@ -28,6 +29,7 @@ DEFAULTS = {
     "web_port": 8080,
     "tx_backend": "pi_fm_rds",
     "pi_fm_rds_path": "/usr/local/bin/pi_fm_rds",
+    "pi_fm_rds_ppm": 0.0,
     "network_iface": "eth0",
     "hardware_profile": "raspberry-pi-a-plus",
     "gpio_enabled": False,
@@ -35,7 +37,7 @@ DEFAULTS = {
     "rf_quiet_mode": "simulate",
     "rf_quiet_seconds": 60,
     "product_name": "piFM Pirate Radio",
-    "software_version": "0.4.2",
+    "software_version": "0.4.3",
 }
 
 FREQ_MIN = 87.1
@@ -89,6 +91,22 @@ class Config:
         if backend not in ("mock", "pi_fm_rds", "fake"):
             raise ConfigError("tx_backend must be mock, pi_fm_rds, or fake")
         data["tx_backend"] = backend
+        if isinstance(data.get("pi_fm_rds_ppm"), bool):
+            raise ConfigError("pi_fm_rds_ppm must be a finite number")
+        try:
+            ppm = float(data.get("pi_fm_rds_ppm", 0.0))
+        except (OverflowError, TypeError, ValueError):
+            raise ConfigError("pi_fm_rds_ppm must be a finite number")
+        if not math.isfinite(ppm):
+            raise ConfigError("pi_fm_rds_ppm must be a finite number")
+        # PiFmRds divides by (1 + ppm / 1e6); -1,000,000 or lower is invalid.
+        # Keep an upper sanity bound while allowing the large corrections
+        # reported by some PiFmRds hardware combinations.
+        if not (-999999.0 <= ppm <= 10000000.0):
+            raise ConfigError(
+                "pi_fm_rds_ppm must be between -999999 and 10000000"
+            )
+        data["pi_fm_rds_ppm"] = ppm
         rq = str(data.get("rf_quiet_mode", "simulate"))
         if rq not in ("simulate", "timed"):
             raise ConfigError("rf_quiet_mode must be simulate or timed")

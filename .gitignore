@@ -29,3 +29,5 @@ build_meta.json
 /tmp/
 *.wav
 !appliance/tests/**
+appliance/tests/__pycache__/
+appliance/tests/**/*.py[cod]

@@ -30,6 +30,7 @@ class Controller:
             log_dir=config.root / "data" / "logs",
             work_dir=config.root / "data" / "logs" / "wav",
             silence_wav=config.root / "data" / "audio" / "silence_30s.wav",
+            pi_fm_rds_ppm=float(config.get("pi_fm_rds_ppm", 0.0)),
         )  # type: TxBackend
         self.network = NetworkManager(
             events=events,
@@ -338,6 +339,7 @@ class Controller:
                 "show_stop_broadcast": True,
                 "uptime_s": time.time() - self._started,
                 "tx_backend": cfg["tx_backend"],
+                "pi_fm_rds_ppm": float(cfg.get("pi_fm_rds_ppm", 0.0)),
                 "led_pin": cfg["led_pin"],
                 "switch_pin": cfg["switch_pin"],
                 "network": self.network.status(),
@@ -392,8 +394,14 @@ class Controller:
         with self._lock:
             before_freq = self.config.get("frequency_mhz")
             data = self.config.update(patch)
-            # Rebuild backend only if backend name changed — never auto TX
-            backend_changed = "tx_backend" in patch and patch["tx_backend"] != self.tx.status().get("backend")
+            # Backend construction captures executable path and timing correction.
+            # Rebuild for any such setting change; never auto-start TX.
+            backend_keys = {
+                "tx_backend",
+                "pi_fm_rds_path",
+                "pi_fm_rds_ppm",
+            }
+            backend_changed = bool(backend_keys.intersection(patch))
             if self.sm.state == State.ON_AIR or self.tx.is_running():
                 # Changing freq/RDS/backend while on air: emergency stop first
                 self._stop_tx_unlocked("config changed while on air")
@@ -402,7 +410,7 @@ class Controller:
                     self.sm.transition(
                         State.READY if self._queue else State.SAFE_OFF, "config"
                     )
-            if backend_changed or "tx_backend" in patch:
+            if backend_changed:
                 kill_all_transmitters()
                 self.tx = build_backend(
                     str(self.config.get("tx_backend")),
@@ -410,6 +418,16 @@ class Controller:
                     log_dir=self.config.root / "data" / "logs",
                     work_dir=self.config.root / "data" / "logs" / "wav",
                     silence_wav=self.config.root / "data" / "audio" / "silence_30s.wav",
+                    pi_fm_rds_ppm=float(
+                        self.config.get("pi_fm_rds_ppm", 0.0)
+                    ),
+                )
+            if "pi_fm_rds_ppm" in patch:
+                self.events.emit(
+                    "tx_timing_changed",
+                    "PiFmRds timing correction set to {} ppm".format(
+                        data["pi_fm_rds_ppm"]
+                    ),
                 )
             if "frequency_mhz" in patch and patch["frequency_mhz"] != before_freq:
                 self.events.emit(

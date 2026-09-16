@@ -8,6 +8,7 @@ See `examples/config.example.json`.
 |-----|-------------------|
 | `tx_backend` | `pi_fm_rds` |
 | `pi_fm_rds_path` | Absolute path to `pi_fm_rds` |
+| `pi_fm_rds_ppm` | PiFmRds DMA/audio timing correction; default `0.0` |
 | `frequency_mhz` | Operator-chosen FM frequency |
 | `rds_ps` / `rds_rt` / `rds_pi` | RDS identity |
 | `hardware_profile` | e.g. `raspberry-pi-a-plus` |
@@ -18,3 +19,13 @@ See `examples/config.example.json`.
 ON_AIR is **never** persisted. Service restart → OFF AIR.
 
 `mock` / `fake` backends exist for automated tests and developer validation only.
+
+## PiFmRds timing calibration
+
+`pi_fm_rds_ppm` is passed directly as `-ppm <value>`. It accepts finite numeric
+values from `-999999` through `10000000`. Invalid values fail configuration
+loading clearly.
+
+The product default is always `0.0`. Do not guess a board correction or alter
+source audio to compensate. A measured value belongs in the station's local
+`appliance.json` and its validation evidence, not an A+-specific code fork.

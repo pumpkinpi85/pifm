@@ -484,6 +484,7 @@
       "Version: " + (s.software_version || "—"),
       "Build: " + (s.build_label || s.git_sha || "—"),
       "Hardware: " + (s.hardware_profile || "—"),
+      "PiFmRds timing: " + (s.pi_fm_rds_ppm != null ? s.pi_fm_rds_ppm + " ppm" : "—"),
       "Transmitter: " + (s.dev_harness ? "test harness (mock)" : "FM transmitter"),
       "GPIO: " + (s.gpio_enabled ? "enabled" : "disabled"),
       "Product: " + (s.product_name || "piFM Pirate Radio")

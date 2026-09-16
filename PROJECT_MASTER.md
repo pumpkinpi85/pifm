@@ -3,7 +3,7 @@
 **Durable project authority.** A new contributor or Cursor session should be able
 to understand piFM from this file without the private reference-station history.
 
-Version of this document: **0.4.2 P1D (reference A+ canonical cutover)**
+Version of this document: **0.4.3 P1E (PiFmRds timing calibration capability)**
 
 ---
 

@@ -45,7 +45,7 @@ that repository.
 
 ## Status
 
-Public candidate **0.4.2** with P1D reference-hardware cutover: the A+ reference
+Public candidate **0.4.3** with canonical PiFmRds timing calibration: the A+ reference
 station runs this canonical product from `/opt/pifm`.
 Legacy personal trees remain pending authorized RF validation and retirement.
 GitHub publication is not performed until separately authorized.

@@ -18,6 +18,7 @@ from appliance.events import EventLog
 from appliance.library import Library
 from appliance.network import NetworkManager, NetState
 from appliance.state import State, StateError, StateMachine
+from appliance.tx import PiFmRdsBackend, build_pi_fm_command, prepare_seekable_wav
 
 
 class StateTests(unittest.TestCase):
@@ -41,6 +42,41 @@ class StateTests(unittest.TestCase):
             self.assertNotIn("state", cfg.as_dict())
             self.assertNotIn("on_air", cfg.as_dict())
             self.assertNotEqual(cfg.get("tx_backend"), "ON_AIR")
+
+    def test_pi_fm_rds_ppm_defaults_to_zero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "config" / "appliance.json"
+            path.parent.mkdir()
+            path.write_text("{}")
+            self.assertEqual(Config(path, root).get("pi_fm_rds_ppm"), 0.0)
+
+    def test_pi_fm_rds_ppm_accepts_positive_and_negative(self):
+        for value in (125000, -250.5):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                path = root / "config" / "appliance.json"
+                path.parent.mkdir()
+                path.write_text(json.dumps({"pi_fm_rds_ppm": value}))
+                self.assertEqual(Config(path, root).get("pi_fm_rds_ppm"), float(value))
+
+    def test_pi_fm_rds_ppm_rejects_invalid_values(self):
+        for value in (
+            "not-a-number",
+            None,
+            True,
+            float("inf"),
+            10**400,
+            -1000000,
+            10000001,
+        ):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                path = root / "config" / "appliance.json"
+                path.parent.mkdir()
+                path.write_text(json.dumps({"pi_fm_rds_ppm": value}))
+                with self.assertRaises(ConfigError):
+                    Config(path, root)
 
 
 class ControllerTests(unittest.TestCase):
@@ -97,6 +133,13 @@ class ControllerTests(unittest.TestCase):
         self.ctrl.update_config({"frequency_mhz": 95.5})
         self.assertFalse(self.ctrl.tx.is_running())
         self.assertNotEqual(self.ctrl.sm.state, State.ON_AIR)
+
+    def test_ppm_change_does_not_start_tx_and_is_visible(self):
+        status = self.ctrl.update_config({"pi_fm_rds_ppm": 125000})
+        self.assertEqual(status["pi_fm_rds_ppm"], 125000.0)
+        self.assertFalse(self.ctrl.tx.is_running())
+        self.assertNotEqual(self.ctrl.sm.state, State.ON_AIR)
+        self.assertEqual(self.ctrl.status()["pi_fm_rds_ppm"], 125000.0)
 
     def test_rds_change_does_not_start_tx(self):
         self.ctrl.update_config({"rds_ps": "PIRATE", "rds_rt": "Test"})
@@ -259,14 +302,43 @@ class ControllerTests(unittest.TestCase):
 
 class TxPipelineTests(unittest.TestCase):
     def test_build_command_rejects_stdin(self):
-        from appliance.tx import build_pi_fm_command
-
         with self.assertRaises(ValueError):
             build_pi_fm_command("/bin/true", 89.9, "-", "piFM", "RT", "1234")
 
-    def test_prepare_failure_cleans_temp(self):
-        from appliance.tx import prepare_seekable_wav
+    def test_build_command_always_passes_default_zero_ppm(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            wav = Path(tmp) / "audio.wav"
+            wav.write_bytes(b"RIFF")
+            cmd = build_pi_fm_command(
+                "/bin/true", 89.9, str(wav), "piFM", "RT", "1234"
+            )
+            self.assertEqual(cmd[cmd.index("-ppm") + 1], "0.0")
+            self.assertLess(cmd.index("-ppm"), cmd.index("-audio"))
 
+    def test_build_command_passes_positive_and_negative_ppm(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            wav = Path(tmp) / "audio.wav"
+            wav.write_bytes(b"RIFF")
+            for ppm in (1000000.0, -125.25):
+                with self.subTest(ppm=ppm):
+                    cmd = build_pi_fm_command(
+                        "/bin/true",
+                        89.9,
+                        str(wav),
+                        "piFM",
+                        "RT",
+                        "1234",
+                        ppm,
+                    )
+                    self.assertEqual(cmd[cmd.index("-ppm") + 1], str(ppm))
+
+    def test_pi_fm_rds_status_exposes_applied_ppm_before_start(self):
+        backend = PiFmRdsBackend("/bin/true", ppm=-125.25)
+        status = backend.status()
+        self.assertEqual(status["pi_fm_rds_ppm"], -125.25)
+        self.assertFalse(status["running"])
+
+    def test_prepare_failure_cleans_temp(self):
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp) / "wav"
             work.mkdir()

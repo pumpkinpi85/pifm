@@ -443,6 +443,7 @@ def build_pi_fm_command(
     rds_ps: str,
     rds_rt: str,
     rds_pi: str,
+    ppm: float = 0.0,
 ) -> List[str]:
     if not wav_path or wav_path == "-":
         raise ValueError("pi_fm_rds requires a seekable WAV path; stdin '-' is forbidden")
@@ -459,6 +460,8 @@ def build_pi_fm_command(
         (rds_ps or "piFM")[:8],
         "-rt",
         (rds_rt or "")[:64],
+        "-ppm",
+        str(float(ppm)),
         "-audio",
         wav_path,
     ]
@@ -601,8 +604,10 @@ class PiFmRdsBackend(TxBackend):
         log_dir: Optional[Path] = None,
         work_dir: Optional[Path] = None,
         silence_wav: Optional[Path] = None,
+        ppm: float = 0.0,
     ) -> None:
         self.binary_path = binary_path
+        self.ppm = float(ppm)
         self.log_dir = Path(log_dir) if log_dir else Path("/tmp")
         self.work_dir = Path(work_dir) if work_dir else self.log_dir / "wav"
         self.silence_wav = Path(silence_wav) if silence_wav else None
@@ -709,7 +714,13 @@ class PiFmRdsBackend(TxBackend):
             self._temp_wav = None
 
         cmd = build_pi_fm_command(
-            self.binary_path, frequency_mhz, wav_path, rds_ps, rds_rt, rds_pi
+            self.binary_path,
+            frequency_mhz,
+            wav_path,
+            rds_ps,
+            rds_rt,
+            rds_pi,
+            self.ppm,
         )
         if "-audio" in cmd and cmd[cmd.index("-audio") + 1] == "-":
             raise RuntimeError("Refusing stdin audio path (Test #2 defect)")
@@ -720,13 +731,14 @@ class PiFmRdsBackend(TxBackend):
         with open(str(self._stderr_path), "ab") as err_fh:
             err_fh.write(
                 (
-                    "\n--- start {} freq={} src={!r} wav={!r} "
+                    "\n--- start {} freq={} ppm={} src={!r} wav={!r} "
                     "duration_s={} seekable={} converted={} ---\n"
                     "cmd: {}\n"
                 )
                 .format(
                     time.strftime("%Y-%m-%dT%H:%M:%S"),
                     frequency_mhz,
+                    self.ppm,
                     audio_path,
                     wav_path,
                     wav_info.get("duration_s"),
@@ -759,6 +771,7 @@ class PiFmRdsBackend(TxBackend):
         self._meta = {
             "backend": "pi_fm_rds",
             "frequency_mhz": frequency_mhz,
+            "pi_fm_rds_ppm": self.ppm,
             "audio_path": audio_path,
             "wav_path": wav_path,
             "wav_duration_s": wav_info.get("duration_s"),
@@ -818,7 +831,11 @@ class PiFmRdsBackend(TxBackend):
 
     def status(self) -> Dict[str, Any]:
         running = self.is_running()
-        out = {"backend": "pi_fm_rds", "running": running}
+        out = {
+            "backend": "pi_fm_rds",
+            "running": running,
+            "pi_fm_rds_ppm": self.ppm,
+        }
         out.update(self._meta)
         if running and self._started_at:
             out["uptime_s"] = time.time() - self._started_at
@@ -832,6 +849,7 @@ def build_backend(
     log_dir: Optional[Path] = None,
     work_dir: Optional[Path] = None,
     silence_wav: Optional[Path] = None,
+    pi_fm_rds_ppm: float = 0.0,
 ) -> TxBackend:
     if name == "pi_fm_rds":
         return PiFmRdsBackend(
@@ -839,6 +857,7 @@ def build_backend(
             log_dir=log_dir,
             work_dir=work_dir,
             silence_wav=silence_wav,
+            ppm=pi_fm_rds_ppm,
         )
     if name == "fake":
         return FakeProcessTxBackend(work_dir=(work_dir or Path("/tmp")) / "fake-tx")
