@@ -9,15 +9,15 @@
 }(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  // Visual / mapping: lowest FM sits at 10% travel; OFF snaps to position 0.
-  var OFF_DETENT_TRIGGER = 0.10;
-  var TUNER_MIN_POSITION = 0.10;
+  // Visual / mapping: lowest FM sits at 18% travel so OFF owns a clear bottom
+  // pocket; OFF snaps to position 0.
+  var OFF_DETENT_TRIGGER = 0.18;
+  var TUNER_MIN_POSITION = 0.18;
   // Pointer hit thresholds. OFF_HIT_ENTER must not sit above TUNER_MIN_POSITION
-  // or the lowest FM band (87.1–~88.5) would latch OFF on every grab/move.
-  // Easier OFF comes from travel below the track + grab-offset mapping, not
-  // from expanding the hit zone into on-frequency travel.
-  var OFF_HIT_ENTER = 0.10;
-  var OFF_HIT_LEAVE = 0.10;
+  // or the lowest FM band would latch OFF on every grab/move. The raised floor
+  // gives operators room to park on 87.1 without brushing the OFF edge.
+  var OFF_HIT_ENTER = 0.18;
+  var OFF_HIT_LEAVE = 0.18;
 
   function clampPosition(position) {
     var value = Number(position);

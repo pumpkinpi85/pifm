@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>piFM Pirate Radio</title>
-  <link rel="stylesheet" href="/css/app.css?v=29" />
+  <link rel="stylesheet" href="/css/app.css?v=31" />
 </head>
 <body>
   <section id="setupWizard" class="setup-shell" hidden aria-label="First-run setup">
@@ -186,7 +186,10 @@
               <div id="flagpoleTicks" class="flagpole-ticks" aria-hidden="true"></div>
               <div class="flagpole-mast" aria-hidden="true"></div>
               <div id="flagpoleActiveRail" class="flagpole-active-rail" hidden aria-hidden="true"></div>
-              <div class="flagpole-off-label" aria-hidden="true">OFF AIR</div>
+              <div class="flagpole-off-zone" aria-hidden="true">
+                <div class="flagpole-off-wash"></div>
+                <div class="flagpole-off-label">OFF AIR</div>
+              </div>
               <button
                 type="button"
                 id="flagpolePreset"
@@ -424,7 +427,7 @@
   <div id="toast" class="toast" hidden></div>
   <div id="faultLine" class="fault-banner" hidden></div>
   <script src="/js/connection.js?v=18"></script>
-  <script src="/js/flagpole.js?v=24"></script>
-  <script src="/js/app.js?v=34"></script>
+  <script src="/js/flagpole.js?v=25"></script>
+  <script src="/js/app.js?v=35"></script>
 </body>
 </html>

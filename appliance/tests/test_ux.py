@@ -106,6 +106,15 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("syncRaisedFlagArtwork", self.js)
         self.assertIn('ui === "ON AIR"', self.js)
         self.assertIn("TUNER_MIN_POSITION", self.js)
+        self.assertIn("tuner-off-lit", self.js)
+        self.assertIn("previewOff", self.js)
+        self.assertIn('class="flagpole-off-zone"', self.html)
+        self.assertIn("flagpole-off-wash", self.html)
+        self.assertIn(".flagpole-panel.tuner-off-lit", self.css)
+        self.assertIn(
+            ".flagpole-panel.tuner-live:not(.tuner-off-lit)",
+            self.css,
+        )
         self.assertIn("connectionCoordinator.acceptLiveSnapshot(result.status)", self.js)
 
     def test_flagpole_uses_supplied_physical_artwork_and_reference_layout(self):
