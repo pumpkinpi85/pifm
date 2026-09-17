@@ -71,6 +71,45 @@ class HardwareDetectionTests(unittest.TestCase):
             )
         self.assertEqual(resolved["hardware_status"], "EXPERIMENTAL")
         self.assertFalse(resolved["hardware_profile_match"])
+        detected = resolved["detected_hardware"]
+        self.assertEqual(detected["status"], "UNKNOWN")
+        self.assertEqual(detected["display_name"], "Raspberry Pi 5 Model B Rev 1.0")
+        self.assertEqual(
+            resolved["hardware_profile_doc"]["display_name"],
+            "Raspberry Pi Model A+ (Rev 1.1)",
+        )
+
+    def test_detected_hardware_uses_device_tree_not_profile_name(self):
+        with patch(
+            "appliance.hardware_profile.detect_board_hints",
+            return_value={
+                "model": "Raspberry Pi Model A Plus Rev 1.1",
+                "revision": "900021",
+                "hardware": "BCM2835",
+                "soc_family": "BCM2835",
+            },
+        ):
+            resolved = resolve_hardware_profile(
+                ROOT, profile_mode="auto", include_detection=True
+            )
+        detected = resolved["detected_hardware"]
+        self.assertEqual(
+            detected["display_name"], "Raspberry Pi Model A Plus Rev 1.1"
+        )
+        self.assertEqual(detected["status"], "SUPPORTED")
+        self.assertEqual(detected["rf_gpio_bcm"], 4)
+        self.assertEqual(detected["rf_header_pin"], 7)
+        self.assertEqual(resolved["hardware_profile"], "raspberry-pi-a-plus")
+        self.assertEqual(resolved["hardware_profile_mode"], "auto")
+        self.assertEqual(resolved["hardware_profile_source"], "detected")
+
+    def test_only_implemented_profiles_are_listed(self):
+        profiles = resolve_hardware_profile(
+            ROOT, include_detection=False
+        )["available_hardware_profiles"]
+        ids = [item["id"] for item in profiles]
+        self.assertEqual(ids, ["raspberry-pi-a-plus"])
+        self.assertNotIn("raspberry-pi-5", ids)
 
     def test_a_plus_prerequisites_are_read_only_and_detected(self):
         with tempfile.TemporaryDirectory() as td:
@@ -118,6 +157,59 @@ class HardwareDetectionTests(unittest.TestCase):
             self.assertFalse(result["ready"])
             self.assertFalse(result["onboard_audio_disabled"])
             self.assertFalse(result["headless"])
+
+
+class HardwareProfilePersistenceTests(unittest.TestCase):
+    def test_manual_mode_persists_across_reload(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            path = root / "config" / "appliance.json"
+            path.parent.mkdir(parents=True)
+            path.write_text(
+                json.dumps(
+                    {
+                        "tx_backend": "mock",
+                        "hardware_profile": "raspberry-pi-a-plus",
+                        "hardware_profile_mode": "auto",
+                    }
+                )
+            )
+            config = Config(path, root)
+            config.update(
+                {
+                    "hardware_profile_mode": "manual",
+                    "hardware_profile": "raspberry-pi-a-plus",
+                }
+            )
+            reloaded = Config(path, root)
+            self.assertEqual(reloaded.get("hardware_profile_mode"), "manual")
+            self.assertEqual(
+                reloaded.get("hardware_profile"), "raspberry-pi-a-plus"
+            )
+            with patch(
+                "appliance.hardware_profile.detect_board_hints",
+                return_value={
+                    "model": "Raspberry Pi Model A Plus Rev 1.1",
+                    "revision": "900021",
+                    "hardware": "BCM2835",
+                    "soc_family": "BCM2835",
+                },
+            ):
+                resolved = resolve_hardware_profile(
+                    ROOT,
+                    profile_id=str(reloaded.get("hardware_profile")),
+                    profile_mode=str(reloaded.get("hardware_profile_mode")),
+                    include_detection=True,
+                )
+            self.assertEqual(resolved["hardware_profile_mode"], "manual")
+            self.assertEqual(resolved["hardware_profile_source"], "manual")
+            self.assertEqual(
+                resolved["detected_hardware"]["display_name"],
+                "Raspberry Pi Model A Plus Rev 1.1",
+            )
+            self.assertEqual(
+                resolved["detected_hardware"]["status"], "SUPPORTED"
+            )
 
 
 class FirstRunConfigTests(unittest.TestCase):

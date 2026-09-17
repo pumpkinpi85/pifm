@@ -272,6 +272,8 @@ class SseEndpointTests(unittest.TestCase):
             "hardware_status",
             "hardware_environment",
             "hardware_profile_doc",
+            "detected_hardware",
+            "hardware_profile_mode",
             "software_version",
             "git_sha",
             "build_label",

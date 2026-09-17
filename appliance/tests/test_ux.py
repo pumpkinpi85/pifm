@@ -161,6 +161,14 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("pirate flag remains hidden while OFF AIR", help_html)
         self.assertNotIn("Practice Mode", help_html)
         self.assertNotIn("Sandbox", help_html)
+        self.assertIn("DOCS &amp; PROJECT", help_html)
+        self.assertIn("https://github.com/pumpkinpi85/pifm", help_html)
+        self.assertIn("https://github.com/pumpkinpi85/pifm/tree/main/docs", help_html)
+        self.assertIn("USER-MANUAL.md", help_html)
+        self.assertIn("HARDWARE.md", help_html)
+        self.assertIn("TROUBLESHOOTING.md", help_html)
+        self.assertIn("INSTALL.md", help_html)
+        self.assertIn('rel="noopener noreferrer"', help_html)
 
     def test_program_labels_ready_now_playing_paused(self):
         self.assertIn("Ready to broadcast", self.js)
@@ -198,7 +206,12 @@ class OperatorUxStaticTests(unittest.TestCase):
     def test_hardware_override_is_advanced(self):
         self.assertIn("Advanced — change hardware profile", self.html)
         self.assertIn('value="auto">Detect automatically', self.html)
+        self.assertIn('id="hardwareProfileSummary"', self.html)
+        self.assertIn("Hardware profile:", self.js)
+        self.assertIn("hardwareFormDirty", self.js)
+        self.assertIn("detected_hardware", self.js)
         self.assertIn("FM output: GPIO ", self.js)
+        self.assertIn("does not rewrite detected hardware", self.html)
 
     def test_broadcast_recovery_status_is_explained_under_system(self):
         self.assertIn("BROADCAST RECOVERY", self.html)

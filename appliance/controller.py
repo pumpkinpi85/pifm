@@ -170,11 +170,8 @@ class Controller:
         )
         hardware = resolve_hardware_profile(
             self.config.root,
-            profile_id=(
-                str(cfg.get("hardware_profile") or "")
-                if cfg.get("hardware_profile_mode") == "manual"
-                else None
-            ),
+            profile_id=str(cfg.get("hardware_profile") or "") or None,
+            profile_mode=str(cfg.get("hardware_profile_mode") or "auto"),
             include_detection=True,
         )
         value = {"build": build, "hardware": hardware}
@@ -305,6 +302,10 @@ class Controller:
                 hardware_status = str(
                     hw.get("hardware_status") or "UNKNOWN"
                 ).upper()
+                detected = hw.get("detected_hardware") or {}
+                detected_status = str(
+                    detected.get("status") or "UNKNOWN"
+                ).upper()
                 hardware_ok = hardware_status in ("SUPPORTED", "EXPERIMENTAL")
                 items.append(
                     {
@@ -312,8 +313,12 @@ class Controller:
                         "label": "Hardware identified",
                         "ok": hardware_ok,
                         "detail": "{} · {}".format(
-                            profile.get("display_name") or "Unknown hardware",
-                            hardware_status,
+                            detected.get("display_name")
+                            or profile.get("display_name")
+                            or "Unknown hardware",
+                            detected_status
+                            if detected.get("detected")
+                            else hardware_status,
                         ),
                         "severity": True,
                         "operator_hint": (
@@ -551,12 +556,20 @@ class Controller:
                 "hardware_profile_found": hw["hardware_profile_found"],
                 "hardware_profile_doc": hw["hardware_profile_doc"],
                 "board_hints": hw["board_hints"],
+                "detected_hardware": hw.get("detected_hardware") or {},
                 "suggested_hardware_profile": hw.get(
                     "suggested_hardware_profile"
+                ),
+                "hardware_profile_mode": str(
+                    cfg.get("hardware_profile_mode") or "auto"
                 ),
                 "hardware_profile_source": hw.get("hardware_profile_source"),
                 "hardware_profile_match": hw.get("hardware_profile_match"),
                 "hardware_status": hw.get("hardware_status"),
+                "available_hardware_profiles": hw.get(
+                    "available_hardware_profiles"
+                )
+                or [],
                 "hardware_environment": hardware_environment,
                 "setup_completed": bool(cfg.get("setup_completed", True)),
                 "setup_required": not bool(cfg.get("setup_completed", True)),
