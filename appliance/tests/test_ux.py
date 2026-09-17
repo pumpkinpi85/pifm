@@ -95,34 +95,62 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("touch-action: none", self.css)
         self.assertIn("flagpoleActiveRailStyle", self.js)
         self.assertIn("setRaisedFlagVisible", self.js)
-        self.assertIn("setRaisedFlagVisible(true)", self.js)
+        self.assertIn("syncRaisedFlagArtwork", self.js)
+        self.assertIn('ui === "ON AIR"', self.js)
         self.assertIn("TUNER_MIN_POSITION", self.js)
         self.assertIn("connectionCoordinator.acceptLiveSnapshot(result.status)", self.js)
 
     def test_flagpole_uses_supplied_physical_artwork_and_reference_layout(self):
         assets = STATIC / "images" / "broadcast-control"
         for name in (
-            "flagpole.png",
-            "pirate-flag.png",
-            "flag-ropes.png",
-            "slider-handle.png",
-            "slider-handle-active.png",
-            "slider-handle-pressed.png",
+            "broadcast-flagpole.png",
+            "broadcast-flag-off.png",
+            "broadcast-flag-on.png",
+            "broadcast-tuner-handle.png",
+            "broadcast-tuner-handle-active.png",
+            "broadcast-tuner-handle-pressed.png",
         ):
             self.assertTrue((assets / name).is_file(), name)
+        for name in (
+            "broadcast-flagpole.png",
+            "broadcast-flag-off.png",
+            "broadcast-flag-on.png",
+            "broadcast-tuner-handle.png",
+            "broadcast-tuner-handle-active.png",
+            "broadcast-tuner-handle-pressed.png",
+        ):
             self.assertIn("/images/broadcast-control/{}".format(name), self.broadcast)
-        self.assertNotIn("pirate-flag-waving.png", self.broadcast)
+        # Abandoned experimental artwork must not remain in production markup
+        for stale in (
+            "/images/broadcast-control/flagpole.png",
+            "/images/broadcast-control/flagpole-clean.png",
+            "/images/broadcast-control/flagpole-long.png",
+            "/images/broadcast-control/flagpole-candidate.png",
+            "/images/broadcast-control/flag-ropes.png",
+            "/images/broadcast-control/pirate-flag.png",
+            "pirate-flag-waving.png",
+            "pirate-flag-candidate.png",
+            "pirate-flag-offair",
+            "pirate-flag-onair",
+            "/images/broadcast-control/slider-handle.png",
+            "/images/broadcast-control/slider-handle-active.png",
+            "/images/broadcast-control/slider-handle-pressed.png",
+        ):
+            self.assertNotIn(stale, self.broadcast)
+        self.assertNotIn("raised-flag-rope", self.broadcast)
         self.assertIn("grid-template-columns: minmax(0, 1fr) 184px", self.css)
         self.assertIn("height: 43px", self.css)
         self.assertIn('class="raised-flag"', self.broadcast)
-        self.assertIn('id="raisedFlag" class="raised-flag" hidden', self.broadcast)
+        self.assertIn('id="raisedFlag" class="raised-flag"', self.broadcast)
+        self.assertIn('id="raisedFlagOffAir"', self.broadcast)
+        self.assertIn('id="raisedFlagOnAir"', self.broadcast)
         self.assertIn('class="flagpole-travel"', self.broadcast)
         self.assertIn('id="flagpolePreset"', self.broadcast)
         self.assertIn('aria-label="Start broadcasting at the selected frequency"', self.broadcast)
         self.assertIn('class="flagpole-off-label"', self.broadcast)
         self.assertNotIn('class="flagpole-detent"', self.broadcast)
         self.assertNotIn("rgba(205,100,80,0.78)", self.css)
-        self.assertIn("clip-path: polygon(", self.css)
+        self.assertNotIn("clip-path: polygon(", self.css)
         self.assertLess(
             self.broadcast.index('class="raised-flag"'),
             self.broadcast.index('id="flagpoleHandle"'),
@@ -158,7 +186,8 @@ class OperatorUxStaticTests(unittest.TestCase):
         banned_demo = "Star" + " Wars"
         self.assertNotIn(banned_demo, help_html)
         self.assertIn("Choose your music", help_html)
-        self.assertIn("pirate flag remains hidden while OFF AIR", help_html)
+        self.assertIn("PumpkinPi flag stays raised", help_html)
+        self.assertIn("black-and-white emblem", help_html)
         self.assertNotIn("Practice Mode", help_html)
         self.assertNotIn("Sandbox", help_html)
         self.assertIn("DOCS &amp; PROJECT", help_html)

@@ -19,5 +19,5 @@
   <g fill="none" stroke="#e0b060" stroke-width="3">
     <path d="M175 120H230M410 120H465M615 120H670M790 120H845"/>
   </g>
-  <text x="40" y="205" fill="#9aa3b5" font-family="sans-serif" font-size="14">Uploads and program controls remain OFF AIR until the operator explicitly raises the Black Flag.</text>
+  <text x="40" y="205" fill="#9aa3b5" font-family="sans-serif" font-size="14">Uploads and program controls remain OFF AIR until the operator moves the brass handle out of its OFF AIR detent.</text>
 </svg>

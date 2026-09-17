@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>piFM Pirate Radio</title>
-  <link rel="stylesheet" href="/css/app.css?v=27" />
+  <link rel="stylesheet" href="/css/app.css?v=28" />
 </head>
 <body>
   <section id="setupWizard" class="setup-shell" hidden aria-label="First-run setup">
@@ -163,20 +163,23 @@
           <div class="flagpole-track">
             <img
               class="flagpole-art"
-              src="/images/broadcast-control/flagpole.png?v=1"
+              src="/images/broadcast-control/broadcast-flagpole.png?v=5"
               alt=""
               aria-hidden="true"
             />
-            <div id="raisedFlag" class="raised-flag" hidden aria-hidden="true">
+            <div id="raisedFlag" class="raised-flag" aria-hidden="false">
               <img
-                class="raised-flag-rope"
-                src="/images/broadcast-control/flag-ropes.png?v=1"
+                id="raisedFlagOffAir"
+                class="raised-flag-image raised-flag-offair"
+                src="/images/broadcast-control/broadcast-flag-off.png?v=5"
                 alt=""
               />
               <img
-                class="raised-flag-image"
-                src="/images/broadcast-control/pirate-flag.png?v=1"
+                id="raisedFlagOnAir"
+                class="raised-flag-image raised-flag-onair"
+                src="/images/broadcast-control/broadcast-flag-on.png?v=5"
                 alt=""
+                hidden
               />
             </div>
             <div id="flagpoleTrack" class="flagpole-travel">
@@ -207,17 +210,17 @@
                 <span class="flag-grip" aria-hidden="true">
                   <img
                     class="flag-grip-default"
-                    src="/images/broadcast-control/slider-handle.png?v=1"
+                    src="/images/broadcast-control/broadcast-tuner-handle.png?v=5"
                     alt=""
                   />
                   <img
                     class="flag-grip-active"
-                    src="/images/broadcast-control/slider-handle-active.png?v=1"
+                    src="/images/broadcast-control/broadcast-tuner-handle-active.png?v=5"
                     alt=""
                   />
                   <img
                     class="flag-grip-pressed"
-                    src="/images/broadcast-control/slider-handle-pressed.png?v=1"
+                    src="/images/broadcast-control/broadcast-tuner-handle-pressed.png?v=5"
                     alt=""
                   />
                 </span>
@@ -391,7 +394,7 @@
       </div>
       <div class="panel help">
         <h3>Start broadcasting</h3>
-        <p>The pirate flag remains hidden while OFF AIR and during preview. Drag the brass handle upward from its OFF AIR detent; after release and confirmation, the raised flag shows that broadcast startup has begun.</p>
+        <p>The PumpkinPi flag stays raised at the top of the pole. While OFF AIR (and while previewing a frequency) it shows the black-and-white emblem. When authoritative state confirms ON AIR, the emblem lights orange — same size and position. Drag the brass handle upward from its OFF AIR detent; after release and confirmation, broadcast startup begins.</p>
         <h3>Pause vs Stop Broadcast</h3>
         <p><strong>Pause</strong> holds silence on the carrier while staying on air.</p>
         <p><strong>OFF AIR detent / Stop Broadcast</strong> immediately ends FM transmission. Stop Broadcast remains available while starting, after a fault, or when state is unknown.</p>
@@ -422,6 +425,6 @@
   <div id="faultLine" class="fault-banner" hidden></div>
   <script src="/js/connection.js?v=18"></script>
   <script src="/js/flagpole.js?v=21"></script>
-  <script src="/js/app.js?v=27"></script>
+  <script src="/js/app.js?v=28"></script>
 </body>
 </html>

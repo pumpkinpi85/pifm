@@ -1,0 +1,38 @@
+{
+  "assets": {
+    "pole": "http://127.0.0.1:8765/images/broadcast-control/flagpole-clean.png?v=4",
+    "off": "http://127.0.0.1:8765/images/broadcast-control/pirate-flag-offair-display.png?v=4",
+    "on": "http://127.0.0.1:8765/images/broadcast-control/pirate-flag-onair-display.png?v=4",
+    "handle": "http://127.0.0.1:8765/images/broadcast-control/slider-handle.png?v=1",
+    "ropes": "/images/broadcast-control/flag-ropes.png?v=1"
+  },
+  "pole": {
+    "top": "0px",
+    "left": "-1.9px",
+    "w": "46px",
+    "h": "641px"
+  },
+  "flag": {
+    "top": "13.6px",
+    "left": "13.4px",
+    "w": "162.688px",
+    "h": "108.391px",
+    "z": "5"
+  },
+  "travel": {
+    "top": "128px",
+    "bottom": "20px",
+    "h": 493
+  },
+  "handle": {
+    "z": "13",
+    "bottom": "0px",
+    "h": 43,
+    "w": 34
+  },
+  "track": {
+    "w": 166,
+    "h": 641
+  },
+  "offDetentPx": 45
+}

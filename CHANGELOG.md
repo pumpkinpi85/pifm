@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — Canonical Broadcast Control artwork & sanitation
+
+- Freeze approved Broadcast Control assets as canonical production names:
+  `broadcast-flagpole.png`, `broadcast-flag-off.png`, `broadcast-flag-on.png`,
+  and `broadcast-tuner-handle{,-active,-pressed}.png`.
+- Remove superseded flagpole/flag/handle experiments, ropes overlay, and
+  temporary visual-fit evidence dumps.
+- Update operator docs for permanently raised PumpkinPi flag (black/white =
+  OFF AIR; orange = authoritative ON AIR) with a separate brass handle and
+  small OFF AIR detent.
+
 ## 0.6.2 — Public release documentation & sanitation
 
 - Reorganize public manuals around README, INSTALL, HARDWARE, USER-MANUAL,

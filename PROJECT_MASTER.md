@@ -22,7 +22,7 @@ explicit on-air / off-air control.
 - Prefer simple, inspectable systems over frameworks.
 - Real FM capability with **strong safety defaults** (OFF AIR).
 - The A+ class machine is a feature, not a limitation to outgrow casually.
-- Operator UX is a physical radio deck metaphor (pirate flag, brass handle,
+- Operator UX is a physical radio deck metaphor (PumpkinPi flag, brass handle,
   and music-program transport).
 - Engineering diagnostics stay out of the everyday operator path.
 
@@ -138,10 +138,12 @@ evidence must not be presented as validation of a newer SHA.
 - Broadcast uses one vertical brass handle: the bottom is a small OFF AIR
   detent, `87.1 MHz` begins at 10% travel, and `108.2 MHz` is at the top
 - Pointer movement is preview-only; release makes one canonical backend command
-- The pirate flag is hidden while OFF AIR and during preview, then appears only
-  after the confirmed start boundary. OFF AIR renders the handle at the bottom
-  while an actionable marker shows the Station frequency; selecting that marker
-  enters the same confirmed start path as the handle.
+- The PumpkinPi flag remains permanently raised at the top of a clean static
+  pole. Black/white means OFF AIR (and preview); orange means authoritative
+  ON AIR confirmation — same geometry, no layout shift. The brass handle is a
+  separate movable control. OFF AIR renders the handle at the bottom while an
+  actionable marker shows the Station frequency; selecting that marker enters
+  the same confirmed start path as the handle.
   ON AIR and recovered intent render only from authoritative status.
 - FAULT, possible transmission, or disconnection never displays a definitive
   handle position; the masthead STOP remains independent

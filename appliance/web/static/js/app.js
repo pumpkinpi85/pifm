@@ -289,8 +289,31 @@
     if (visible) flagpoleScalePositionStyle(rail, position);
   }
 
+  function syncRaisedFlagArtwork(snapshot) {
+    var flag = $("raisedFlag");
+    var offImg = $("raisedFlagOffAir");
+    var onImg = $("raisedFlagOnAir");
+    if (!flag) return;
+    // Flag stays permanently raised at the top while the deck has live state.
+    flag.hidden = false;
+    flag.setAttribute("aria-hidden", "false");
+    var ui = String((snapshot && snapshot.broadcast_ui) || "");
+    // Orange only when authoritative state is ON AIR — not preview, STARTING,
+    // STOPPING, FAULT, or STATE UNKNOWN.
+    var live = ui === "ON AIR";
+    if (offImg) offImg.hidden = live;
+    if (onImg) onImg.hidden = !live;
+  }
+
   function setRaisedFlagVisible(visible) {
-    $("raisedFlag").hidden = !visible;
+    var flag = $("raisedFlag");
+    if (!flag) return;
+    if (!visible) {
+      flag.hidden = true;
+      flag.setAttribute("aria-hidden", "true");
+      return;
+    }
+    syncRaisedFlagArtwork(state);
   }
 
   function ensureFlagpoleTicks(band) {
@@ -465,7 +488,7 @@
     var starting = broadcastUi === "STARTING BROADCAST…" ||
       broadcastUi === "STARTING";
     var stopping = broadcastUi === "STOPPING BROADCAST…";
-    setRaisedFlagVisible(onAir || starting || stopping);
+    syncRaisedFlagArtwork(snapshot);
     var canStartFromPreset = !onAir && !starting && !stopping &&
       uiSynchronized && !blocked && !flagpoleTxCommandPending() &&
       (!snapshot.broadcast || snapshot.broadcast.ready !== false);
@@ -1573,7 +1596,8 @@
       renderFlagpoleStatus(state);
       return;
     }
-    setRaisedFlagVisible(true);
+    // Keep B/W flag through STARTING; orange only after authoritative ON AIR.
+    syncRaisedFlagArtwork(state);
     commandPending = "txon";
     txCommandPendingRevision = Number(state.snapshot_revision);
     $("flagpoleHandle").disabled = true;
