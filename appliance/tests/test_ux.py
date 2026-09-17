@@ -94,8 +94,8 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("@media (max-width: 700px)", self.css)
         self.assertIn("touch-action: none", self.css)
         self.assertIn("flagpoleActiveRailStyle", self.js)
-        self.assertIn("OFF_DETENT_TRIGGER", self.js)
         self.assertIn("TUNER_MIN_POSITION", self.js)
+        self.assertIn("connectionCoordinator.acceptLiveSnapshot(result.status)", self.js)
 
     def test_flagpole_uses_supplied_physical_artwork_and_reference_layout(self):
         assets = STATIC / "images" / "broadcast-control"
@@ -111,9 +111,13 @@ class OperatorUxStaticTests(unittest.TestCase):
             self.assertIn("/images/broadcast-control/{}".format(name), self.broadcast)
         self.assertNotIn("pirate-flag-waving.png", self.broadcast)
         self.assertIn("grid-template-columns: minmax(0, 1fr) 184px", self.css)
-        self.assertIn("height: 58px", self.css)
+        self.assertIn("height: 48px", self.css)
         self.assertIn('class="raised-flag"', self.broadcast)
         self.assertIn('class="flagpole-travel"', self.broadcast)
+        self.assertIn('id="flagpolePreset"', self.broadcast)
+        self.assertIn('aria-label="Start broadcasting at the selected frequency"', self.broadcast)
+        self.assertNotIn('class="flagpole-detent"', self.broadcast)
+        self.assertNotIn("rgba(205,100,80,0.78)", self.css)
         self.assertLess(
             self.broadcast.index('class="raised-flag"'),
             self.broadcast.index('id="flagpoleHandle"'),

@@ -14,7 +14,8 @@
 - The masthead **STOP BROADCAST** remains available during STARTING, ON AIR,
   FAULT, or unknown state.
 - Station remains the precision frequency editor. Its configured frequency is
-  shown by the passive `SET` marker while the OFF AIR handle stays at the bottom.
+  shown by a selectable frequency marker while the OFF AIR handle stays at the
+  bottom. Selecting that marker uses the same confirmed start flow as the handle.
 - Pointer/touch dragging previews locally and sends no command until release.
   Keyboard focus supports arrows, Home (OFF), End (maximum), Enter/Space
   (commit), and Escape (cancel).

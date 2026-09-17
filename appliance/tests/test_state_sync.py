@@ -329,6 +329,30 @@ class SseEndpointTests(unittest.TestCase):
         self.assertFalse(self.ctrl.tx.is_running())
         conn.close()
 
+    def test_config_update_returns_authoritative_frequency_snapshot(self):
+        baseline = self.ctrl.status()["snapshot_revision"]
+        authority_id = self.ctrl.status()["authority_id"]
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        body = json.dumps({"frequency_mhz": 95.7}).encode("utf-8")
+        conn.request(
+            "POST",
+            "/api/config",
+            body=body,
+            headers={
+                "Content-Type": "application/json",
+                "X-PiFM-Authority-ID": authority_id,
+            },
+        )
+        response = conn.getresponse()
+        payload = json.loads(response.read().decode("utf-8"))
+        self.assertEqual(response.status, 200)
+        self.assertEqual(payload["config"]["frequency_mhz"], 95.7)
+        self.assertEqual(payload["status"]["frequency_mhz"], 95.7)
+        self.assertGreater(payload["status"]["snapshot_revision"], baseline)
+        self.assertEqual(payload["status"]["broadcast_ui"], "OFF")
+        self.assertFalse(payload["status"]["tx_running"])
+        conn.close()
+
     def test_cross_origin_mutation_is_rejected(self):
         conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
         body = json.dumps({"rds_ps": "TEST"}).encode("utf-8")

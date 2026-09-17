@@ -243,7 +243,11 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/rfquiet/restore":
                 st = self.controller.rf_quiet_restore()
             elif path == "/api/config":
-                st = {"config": self.controller.update_config(data)}
+                config = self.controller.update_config(data)
+                st = {
+                    "config": config,
+                    "status": self.controller.status(),
+                }
             elif path == "/api/setup":
                 allowed = {
                     "frequency_mhz",

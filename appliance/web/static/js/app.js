@@ -230,7 +230,7 @@
   }
 
   function flagpoleHandleHeight() {
-    return $("flagpoleHandle").getBoundingClientRect().height || 58;
+    return $("flagpoleHandle").getBoundingClientRect().height || 48;
   }
 
   function flagpolePositionStyle(element, position) {
@@ -261,9 +261,6 @@
     flagpoleBandKey = key;
     var box = $("flagpoleTicks");
     box.innerHTML = "";
-    flagpoleScalePositionStyle(
-      $("flagpoleDetent"), window.PifmFlagpole.OFF_DETENT_TRIGGER
-    );
     for (var units = band.min_units; units <= band.max_units; units += 1) {
       var endpoint = units === band.min_units || units === band.max_units;
       if (!endpoint && units % 10 !== 0) continue;
@@ -328,6 +325,7 @@
     handle.disabled = true;
     handle._previewPosition = null;
     $("flagpolePreset").hidden = true;
+    $("flagpolePreset").disabled = true;
     flagpoleActiveRailStyle(0, false);
     $("flagpoleUnknown").hidden = false;
     $("flagpoleUnknown").textContent = "LIVE POSITION UNAVAILABLE";
@@ -370,6 +368,7 @@
       $("flagpoleHandle").hidden = true;
       $("flagpoleHandle").disabled = true;
       $("flagpolePreset").hidden = true;
+      $("flagpolePreset").disabled = true;
       flagpoleActiveRailStyle(0, false);
       $("flagpoleUnknown").hidden = false;
       $("flagpoleUnknown").textContent = "FREQUENCY NEEDS CORRECTION";
@@ -381,8 +380,7 @@
     $("freqBig").textContent = frequency.toFixed(1);
     preset.hidden = false;
     flagpoleScalePositionStyle(preset, presetPosition);
-    preset.querySelector("span").textContent =
-      "SET " + frequency.toFixed(1);
+    preset.querySelector("span").textContent = frequency.toFixed(1);
     $("flagpoleReadout").textContent =
       "SET " + frequency.toFixed(1) + " FM";
 
@@ -397,6 +395,7 @@
       handle.hidden = true;
       handle.disabled = true;
       preset.hidden = true;
+      preset.disabled = true;
       flagpoleActiveRailStyle(0, false);
       unknownBox.hidden = false;
       unknownBox.textContent = snapshot.state === "FAULT"
@@ -419,19 +418,25 @@
     var starting = broadcastUi === "STARTING BROADCAST…" ||
       broadcastUi === "STARTING";
     var stopping = broadcastUi === "STOPPING BROADCAST…";
+    var canStartFromPreset = !onAir && !starting && !stopping &&
+      uiSynchronized && !blocked && !flagpoleTxCommandPending() &&
+      (!snapshot.broadcast || snapshot.broadcast.ready !== false);
+    preset.disabled = !canStartFromPreset;
+    preset.setAttribute(
+      "aria-label",
+      canStartFromPreset
+        ? "Start broadcasting at " + frequency.toFixed(1) + " FM"
+        : "Selected frequency " + frequency.toFixed(1) + " FM"
+    );
     var position = onAir || starting ? presetPosition : 0;
     flagpolePositionStyle(handle, position);
     flagpoleActiveRailStyle(position, onAir || starting);
     if (onAir) {
       handle.className = "flagpole-handle on-air";
-      preset.querySelector("span").textContent =
-        frequency.toFixed(1) + " · ON AIR";
       $("flagpoleFeedback").textContent =
         frequency.toFixed(1) + " FM · ON AIR";
     } else if (starting) {
       handle.className = "flagpole-handle pending";
-      preset.querySelector("span").textContent =
-        frequency.toFixed(1) + " · STARTING";
       $("flagpoleFeedback").textContent =
         frequency.toFixed(1) + " FM · STARTING";
     } else if (stopping) {
@@ -1497,7 +1502,7 @@
 
   function flagpolePositionFromPointer(event, applyGrabOffset) {
     var rect = $("flagpoleTrack").getBoundingClientRect();
-    var handleHeight = $("flagpoleHandle").getBoundingClientRect().height || 58;
+    var handleHeight = $("flagpoleHandle").getBoundingClientRect().height || 48;
     return window.PifmFlagpole.pointerPosition(
       event.clientY - (applyGrabOffset ? flagpoleGrabOffsetY : 0),
       rect.top,
@@ -1625,6 +1630,18 @@
         flagpoleGesture.begin(nextPosition, band);
       }
     });
+
+    $("flagpolePreset").addEventListener("click", function () {
+      var preset = $("flagpolePreset");
+      if (!uiSynchronized || !state || preset.disabled) return;
+      var position = window.PifmFlagpole.frequencyToPosition(
+        state.frequency_mhz, state.frequency_band
+      );
+      flagpoleGestureEpoch = uiAuthorityEpoch;
+      commitFlagpoleTarget(window.PifmFlagpole.targetForPosition(
+        position, state.frequency_band
+      ));
+    });
   }
 
   function bindStop(el) {
@@ -1702,7 +1719,10 @@
       rds_rt: $("cfgRt").value
     };
     if (includeAdvanced) body.rds_pi = $("cfgPi").value;
-    post("/api/config", body).then(function () {
+    post("/api/config", body).then(function (result) {
+      if (result && result.status) {
+        connectionCoordinator.acceptLiveSnapshot(result.status);
+      }
       toast("Station saved. Broadcast was not started.");
       return refresh();
     }).catch(function (e) { toast(e.message); });

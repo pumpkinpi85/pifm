@@ -516,6 +516,21 @@ button:disabled {
     0 0 6px rgba(255,192,55,0.88),
     0 0 15px rgba(255,177,35,0.48);
 }
+.flagpole-ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.flagpole-ticks::before {
+  content: "";
+  position: absolute;
+  top: 24px;
+  bottom: 50px;
+  left: 51px;
+  width: 1px;
+  background: rgba(224,176,96,0.8);
+  box-shadow: 0 0 4px rgba(224,176,96,0.2);
+}
 .flagpole-tick {
   position: absolute;
   z-index: 10;
@@ -547,48 +562,57 @@ button:disabled {
   background: #101520;
   font: 0.54rem var(--mono);
 }
-.flagpole-detent {
-  position: absolute;
-  z-index: 12;
-  left: 0;
-  right: 3px;
-  border-top: 1px dashed rgba(205,100,80,0.78);
-  filter: drop-shadow(0 0 3px rgba(196,75,75,0.25));
-  pointer-events: none;
-}
-.flagpole-detent span {
-  position: absolute;
-  left: 0;
-  top: 0.25rem;
-  color: #e18f82;
-  font: 0.54rem var(--mono);
-  letter-spacing: 0.08em;
-}
 .flagpole-preset {
   position: absolute;
-  z-index: 11;
+  z-index: 14;
   left: 47px;
+  width: 112px;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transform: translateY(50%);
+}
+.flagpole-preset::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: calc(50% - 1px);
   width: 19px;
   height: 2px;
   background: var(--amber);
   box-shadow: 0 0 9px rgba(224,176,96,0.72);
-  pointer-events: none;
 }
 .flagpole-preset span {
   position: absolute;
   left: 24px;
-  top: -0.62rem;
+  top: calc(50% - 0.42rem);
   color: var(--amber);
   white-space: nowrap;
-  font: 700 0.62rem var(--mono);
+  font: 700 0.7rem var(--mono);
   text-shadow: 0 0 8px rgba(224,176,96,0.38);
+}
+.flagpole-preset:not(:disabled):hover span,
+.flagpole-preset:not(:disabled):focus-visible span {
+  color: #ffe59c;
+  text-shadow: 0 0 10px rgba(255,200,81,0.72);
+}
+.flagpole-preset:focus-visible {
+  outline: 1px solid var(--amber);
+  outline-offset: 1px;
+}
+.flagpole-preset:disabled {
+  opacity: 1;
+  cursor: default;
 }
 .flagpole-handle {
   position: absolute;
   z-index: 13;
-  left: -3px;
-  width: 48px;
-  height: 58px;
+  left: 1px;
+  width: 38px;
+  height: 48px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -1145,7 +1169,7 @@ body.state-unavailable .view select {
     width: 166px;
     height: 641px;
   }
-  .flagpole-handle { min-height: 58px; }
+  .flagpole-handle { min-height: 48px; }
   .health-grid { grid-template-columns: 1fr; }
   .transport button { flex: 1 1 calc(50% - 0.45rem); }
   .transport .stop-music { flex: 1 1 100%; }

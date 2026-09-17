@@ -26,6 +26,9 @@
 - Adds the Broadcast brass-handle tuner: a 3% OFF decision detent, a 6%
   lowest-frequency snap, full-range tuning above it, and a permanently raised
   decorative pirate flag with authoritative preview/commit reconstruction.
+- Refines the tuner with a smaller handle and reference-style scale, makes the
+  selected frequency a confirmed start action, and immediately reconciles
+  Station saves into the authoritative Broadcast display.
 
 ## 0.5.0 — Hardware-first setup and Music workspace
 

@@ -43,7 +43,8 @@ Checklist:
 7. Configure frequency/RDS
 8. Play / Pause / Next with TX still OFF (program preview / mock as applicable)
 9. Confirm the pirate flag remains raised, the OFF AIR handle is at the bottom
-   detent, and the passive `SET` marker matches Station.
+   detent, and the selectable frequency marker matches Station. In mock mode,
+   confirm selecting it enters the normal confirmed start flow.
 10. If using mock: release the brass handle at minimum, maximum, and a
     representative frequency; confirm authoritative Station/handle synchronization.
 11. If using mock: return the handle to the bottom detent and confirm one STOP
