@@ -289,13 +289,18 @@
     if (rail) rail.hidden = true;
   }
 
-  function syncTunerAppearance(snapshot) {
+  function syncTunerAppearance(snapshot, options) {
     var panel = document.querySelector(".flagpole-panel");
     if (!panel) return;
     var ui = String((snapshot && snapshot.broadcast_ui) || "");
     var live = ui === "ON AIR";
+    var previewOff = !!(options && options.previewOff);
+    // Orange OFF pocket when OFF is the active selection — not during
+    // frequency preview or while ON AIR (flag still stays B/W until live).
+    var offLit = previewOff || (!live && ui === "OFF");
     panel.classList.toggle("tuner-live", live);
     panel.classList.toggle("tuner-idle", !live);
+    panel.classList.toggle("tuner-off-lit", offLit);
   }
 
   function syncRaisedFlagArtwork(snapshot) {
@@ -367,6 +372,7 @@
     flagpolePositionStyle(handle, target.position);
     if (target.desired_broadcast === "off") {
       flagpoleActiveRailStyle(0, false);
+      syncTunerAppearance(state, { previewOff: true });
       $("flagpoleReadout").textContent = "OFF AIR";
       $("flagpoleFeedback").textContent =
         "OFF AIR DETENT · RELEASE TO STOP BROADCAST";
@@ -374,6 +380,7 @@
       handle.setAttribute("aria-valuetext", "Preview OFF AIR");
       return;
     }
+    syncTunerAppearance(state, { previewOff: false });
     var frequency = Number(target.frequency_mhz).toFixed(1);
     flagpoleActiveRailStyle(target.position, true);
     $("freqBig").textContent = frequency;

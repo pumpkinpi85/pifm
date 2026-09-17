@@ -29,10 +29,10 @@ class FlagpoleMappingTests(unittest.TestCase):
             """
             const assert = require("assert");
             const band = {min_units: 871, max_units: 1082, scale: 10};
-            assert.strictEqual(flagpole.OFF_DETENT_TRIGGER, 0.10);
-            assert.strictEqual(flagpole.TUNER_MIN_POSITION, 0.10);
-            assert.strictEqual(flagpole.positionToFrequency(0.099999, band), null);
-            assert.strictEqual(flagpole.positionToFrequency(0.10, band), 87.1);
+            assert.strictEqual(flagpole.OFF_DETENT_TRIGGER, 0.18);
+            assert.strictEqual(flagpole.TUNER_MIN_POSITION, 0.18);
+            assert.strictEqual(flagpole.positionToFrequency(0.179999, band), null);
+            assert.strictEqual(flagpole.positionToFrequency(0.18, band), 87.1);
             assert.strictEqual(flagpole.positionToFrequency(1, band), 108.2);
             for (let units = band.min_units; units <= band.max_units; units += 1) {
               const frequency = units / band.scale;
@@ -96,13 +96,13 @@ class FlagpoleMappingTests(unittest.TestCase):
             """
             const assert = require("assert");
             const band = {min_units: 871, max_units: 1082, scale: 10};
-            assert.deepStrictEqual(flagpole.targetForPosition(0.099999, band), {
+            assert.deepStrictEqual(flagpole.targetForPosition(0.179999, band), {
               position: 0,
               desired_broadcast: "off",
               frequency_mhz: null
             });
-            assert.deepStrictEqual(flagpole.targetForPosition(0.10, band), {
-              position: 0.10,
+            assert.deepStrictEqual(flagpole.targetForPosition(0.18, band), {
+              position: 0.18,
               desired_broadcast: "on",
               frequency_mhz: 87.1
             });
@@ -208,21 +208,21 @@ class FlagpoleMappingTests(unittest.TestCase):
             let step = flagpole.targetForPointerPosition(0.5, band, false);
             assert.strictEqual(step.target.desired_broadcast, "on");
             // Lowest FM positions must stay on while the handle center is there.
-            step = flagpole.targetForPointerPosition(0.10, band, false);
+            step = flagpole.targetForPointerPosition(0.18, band, false);
             assert.strictEqual(step.target.desired_broadcast, "on");
             assert.strictEqual(step.target.frequency_mhz, 87.1);
             assert.strictEqual(step.latchedOff, false);
-            step = flagpole.targetForPointerPosition(0.14, band, false);
+            step = flagpole.targetForPointerPosition(0.22, band, false);
             assert.strictEqual(step.target.desired_broadcast, "on");
             // Crossing below the tuner floor snaps to OFF.
-            step = flagpole.targetForPointerPosition(0.09, band, false);
+            step = flagpole.targetForPointerPosition(0.12, band, false);
             assert.strictEqual(step.target.desired_broadcast, "off");
             assert.strictEqual(step.target.position, 0);
             assert.strictEqual(step.latchedOff, true);
-            step = flagpole.targetForPointerPosition(0.09, band, true);
+            step = flagpole.targetForPointerPosition(0.12, band, true);
             assert.strictEqual(step.target.desired_broadcast, "off");
             assert.strictEqual(step.latchedOff, true);
-            step = flagpole.targetForPointerPosition(0.10, band, true);
+            step = flagpole.targetForPointerPosition(0.18, band, true);
             assert.strictEqual(step.latchedOff, false);
             assert.strictEqual(step.target.desired_broadcast, "on");
             assert.strictEqual(step.target.frequency_mhz, 87.1);
@@ -262,7 +262,7 @@ class FlagpoleMappingTests(unittest.TestCase):
               onCommit: value => commits.push(value)
             });
             gesture3.begin(0, band);
-            const up = gesture3.release(0.10, band);
+            const up = gesture3.release(0.18, band);
             assert.strictEqual(up.desired_broadcast, "on");
             assert.strictEqual(up.frequency_mhz, 87.1);
             """
