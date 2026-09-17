@@ -441,7 +441,25 @@ button:disabled {
   filter:
     drop-shadow(0 4px 3px rgba(0,0,0,0.78))
     drop-shadow(0 0 4px rgba(224,176,96,0.18));
-  clip-path: inset(0 10% 0 0);
+  clip-path: polygon(
+    11% 0,
+    57% 0,
+    57% 10%,
+    55% 14%,
+    52% 84%,
+    60% 86%,
+    62% 89%,
+    80% 94%,
+    88% 99%,
+    0 99%,
+    2% 96%,
+    16% 92%,
+    19% 87%,
+    21% 84%,
+    21% 14%,
+    17% 13%,
+    11% 10%
+  );
 }
 .raised-flag {
   position: absolute;

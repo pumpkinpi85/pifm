@@ -29,10 +29,9 @@ class FlagpoleMappingTests(unittest.TestCase):
             """
             const assert = require("assert");
             const band = {min_units: 871, max_units: 1082, scale: 10};
-            assert.strictEqual(flagpole.OFF_DETENT_TRIGGER, 0.05);
+            assert.strictEqual(flagpole.OFF_DETENT_TRIGGER, 0.10);
             assert.strictEqual(flagpole.TUNER_MIN_POSITION, 0.10);
-            assert.strictEqual(flagpole.positionToFrequency(0.049999, band), null);
-            assert.strictEqual(flagpole.positionToFrequency(0.05, band), 87.1);
+            assert.strictEqual(flagpole.positionToFrequency(0.099999, band), null);
             assert.strictEqual(flagpole.positionToFrequency(0.10, band), 87.1);
             assert.strictEqual(flagpole.positionToFrequency(1, band), 108.2);
             for (let units = band.min_units; units <= band.max_units; units += 1) {
@@ -84,28 +83,23 @@ class FlagpoleMappingTests(unittest.TestCase):
             gesture.cancel("disconnect");
             assert.strictEqual(cancelled, 1);
             assert.strictEqual(gesture.release(0.9, band), null);
-            gesture.begin(0.04, band);
-            gesture.release(0.04, band);
+            gesture.begin(0.09, band);
+            gesture.release(0.09, band);
             assert.strictEqual(commits.length, 1);
             assert.strictEqual(commits[0].desired_broadcast, "off");
             assert.strictEqual(commits[0].frequency_mhz, null);
             """
         )
 
-    def test_detent_gap_snaps_to_off_or_lowest_frequency(self):
+    def test_full_detent_snaps_to_off_or_lowest_frequency(self):
         self.run_node(
             """
             const assert = require("assert");
             const band = {min_units: 871, max_units: 1082, scale: 10};
-            assert.deepStrictEqual(flagpole.targetForPosition(0.04, band), {
+            assert.deepStrictEqual(flagpole.targetForPosition(0.099999, band), {
               position: 0,
               desired_broadcast: "off",
               frequency_mhz: null
-            });
-            assert.deepStrictEqual(flagpole.targetForPosition(0.06, band), {
-              position: 0.10,
-              desired_broadcast: "on",
-              frequency_mhz: 87.1
             });
             assert.deepStrictEqual(flagpole.targetForPosition(0.10, band), {
               position: 0.10,

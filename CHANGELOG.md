@@ -23,9 +23,10 @@
 - Hardens disk-full uploads, failed WAV preparation, atomic configuration
   writes, and unwritable Ship's Log behavior without corrupting operator data.
 - Preserves recovery intent in backup, deployment, and rollback tooling.
-- Adds the Broadcast brass-handle tuner: a 5% OFF decision detent, a 10%
-  lowest-frequency snap, full-range tuning above it, and an authoritative flag
-  that is hidden while OFF AIR/previewing and appears after confirmed start.
+- Adds the Broadcast brass-handle tuner: a full 10% OFF decision detent, a
+  lowest-frequency snap at its upper boundary, full-range tuning above it, and
+  an authoritative flag that is hidden while OFF AIR/previewing and appears
+  after confirmed start.
 - Refines the tuner with a smaller handle and reference-style scale, makes the
   selected frequency a confirmed start action, and immediately reconciles
   Station saves into the authoritative Broadcast display.

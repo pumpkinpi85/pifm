@@ -122,7 +122,7 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn('class="flagpole-off-label"', self.broadcast)
         self.assertNotIn('class="flagpole-detent"', self.broadcast)
         self.assertNotIn("rgba(205,100,80,0.78)", self.css)
-        self.assertIn("clip-path: inset(0 10% 0 0)", self.css)
+        self.assertIn("clip-path: polygon(", self.css)
         self.assertLess(
             self.broadcast.index('class="raised-flag"'),
             self.broadcast.index('id="flagpoleHandle"'),
