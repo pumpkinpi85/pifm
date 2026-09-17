@@ -88,9 +88,8 @@ git clone https://github.com/pumpkinpi85/pifm.git
 cd pifm
 ```
 
-Until the public repository is published, use whatever source archive or Git
-URL the project maintainers provide. You only need the product tree — not any
-private developer machine, personal music library, or reference-station backup.
+You only need the product tree — not any private developer machine, personal
+music library, or reference-station backup.
 
 ## 6. Install the appliance
 

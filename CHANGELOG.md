@@ -19,6 +19,9 @@
 - Document honest operator guidance for SD/library storage sizing, FFmpeg
   prepare-when-needed behaviour, and auto-detect limits (only A+ maps to
   SUPPORTED; recognition does not invent support for newer boards).
+- Pin public `pi_fm_rds` installs to upstream ChristopheJacquet/PiFmRds
+  `777f8e52648b88156483d067e24e0b8682abe8c1` via `third_party/pifmrds.pin`
+  (not vendored; not `pumpkinpi85/PiFmRds`).
 
 ## 0.6.1 — A+ stress-audit remediation
 

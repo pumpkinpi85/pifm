@@ -183,11 +183,13 @@ pin a specific ChristopheJacquet/PiFmRds commit via `third_party/pifmrds.pin`
 ## 16. REPOSITORY GOVERNANCE
 
 **Canonical GitHub owner:** [pumpkinpi85](https://github.com/pumpkinpi85)
-(intended repo: `pumpkinpi85/pifm`). Not any other organization or Industries account.
+(canonical public repo: [`pumpkinpi85/pifm`](https://github.com/pumpkinpi85/pifm)).
+Not any other organization or Industries account.
 
-Intended eventual GitHub posture: protected `main`, PR-required, maintainer
-merges, maintainer releases/tags under that account. P0 creates a **local
-candidate only** — no public push until separately authorized.
+Public GitHub posture: default branch **`main`**, maintainer releases/tags under
+that account. Public `main` is a **sanitized publication history** of the
+validated product tree. Private/lab chronology is not required to appear in
+the public commit graph.
 
 ## 17. TESTING STRATEGY
 
@@ -204,12 +206,13 @@ candidate only** — no public push until separately authorized.
 
 ## 19. CURRENT PROJECT STATUS
 
-**P1H candidate:** public-release documentation and sanitation on top of the
-A+-validated **0.6.1** appliance behaviour. Canonical installs use `/opt/pifm`.
+**Public release 0.6.2** on [`github.com/pumpkinpi85/pifm`](https://github.com/pumpkinpi85/pifm):
+sanitized publication of the A+-validated appliance line plus public docs,
+demo seed, and pinned upstream PiFmRds. Canonical installs use `/opt/pifm`.
 Atomic operator broadcast intent, network-independent service startup, local
-program progression, safety-gated restoration, and exact-tip RF validation for
-`0.6.1` are complete. Previous install roots may remain as local rollback
-artifacts until their retirement gates pass. No public GitHub push has occurred.
+program progression, and safety-gated restoration are part of the product.
+Previous local install roots may remain as local rollback artifacts until
+their retirement gates pass.
 
 ## 20. KNOWN LIMITATIONS
 
@@ -221,12 +224,11 @@ artifacts until their retirement gates pass. No public GitHub push has occurred.
   were physically validated; later product SHAs require fresh exact-tip evidence
 - LAN API authentication remains future security-hardening work
 - Previous local install roots may still exist until retirement gates pass
-- Git history may still contain pre-sanitation tokens until a founder-authorized
-  history rewrite / squash publication event
+- Public Git history is a sanitized publication line; it does not claim to
+  mirror every private lab commit
 
 ## 21. NEXT APPROVED PHASE
 
-**Founder validation of the P1H public-release candidate**, then a separately
-authorized publication decision (including whether history rewriting is
-required). Do not push to GitHub or delete local rollback trees until those
-gates pass.
+Operate and harden from the public canonical repository. Further RF work,
+board promotions to SUPPORTED, and major version bumps remain separately
+authorized founder gates.
