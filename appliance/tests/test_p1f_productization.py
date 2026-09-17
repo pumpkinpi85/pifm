@@ -157,7 +157,39 @@ class HardwareDetectionTests(unittest.TestCase):
             self.assertFalse(result["ready"])
             self.assertFalse(result["onboard_audio_disabled"])
             self.assertFalse(result["headless"])
+            headless = next(
+                check for check in result["checks"] if check["id"] == "headless"
+            )
+            self.assertIn("multi-user.target", headless["action"])
 
+    def test_pulseaudio_on_multi_user_explains_real_blocker(self):
+        with tempfile.TemporaryDirectory() as td:
+            system_root = Path(td)
+            (system_root / "boot").mkdir(parents=True)
+            (system_root / "boot" / "config.txt").write_text(
+                "dtparam=audio=off\n"
+            )
+            (system_root / "proc").mkdir()
+            (system_root / "proc" / "modules").write_text("")
+            (system_root / "proc" / "99").mkdir(parents=True)
+            (system_root / "proc" / "99" / "comm").write_text("pulseaudio\n")
+            target = system_root / "etc" / "systemd" / "system" / "default.target"
+            target.parent.mkdir(parents=True)
+            target.symlink_to("/lib/systemd/system/multi-user.target")
+            profile = resolve_hardware_profile(
+                ROOT, "raspberry-pi-a-plus", include_detection=False
+            )["hardware_profile_doc"]
+            result = check_host_prerequisites(
+                profile, system_root=system_root, use_cache=False
+            )
+            self.assertFalse(result["ready"])
+            self.assertEqual(result["desktop_processes"], ["pulseaudio"])
+            headless = next(
+                check for check in result["checks"] if check["id"] == "headless"
+            )
+            self.assertIn("pulseaudio", headless["action"])
+            self.assertIn("configure-hardware.sh --apply", headless["action"])
+            self.assertIn("already set", headless["action"])
 
 class HardwareProfilePersistenceTests(unittest.TestCase):
     def test_manual_mode_persists_across_reload(self):

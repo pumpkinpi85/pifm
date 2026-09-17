@@ -89,7 +89,8 @@ def check_host_prerequisites(
         for name in processes
         if name in ("xorg", "wayland", "pulseaudio", "pipewire", "lightdm")
     )
-    headless = default_target == "multi-user.target" and not desktop_processes
+    boot_is_multi_user = default_target == "multi-user.target"
+    headless = boot_is_multi_user and not desktop_processes
 
     checks = []
     if requirements.get("onboard_audio") == "disabled":
@@ -104,12 +105,27 @@ def check_host_prerequisites(
             }
         )
     if requirements.get("boot_target") == "multi-user.target":
+        if not boot_is_multi_user:
+            headless_action = (
+                "Set the default boot target to multi-user.target "
+                "(headless). Run: sudo ./scripts/configure-hardware.sh --apply"
+            )
+        elif desktop_processes:
+            headless_action = (
+                "Headless boot is already set, but a desktop audio session is "
+                "still running ({procs}). Stop it so PiFmRds keeps exclusive "
+                "PWM access. Run: sudo ./scripts/configure-hardware.sh --apply"
+            ).format(procs=", ".join(desktop_processes))
+        else:
+            headless_action = (
+                "Use the headless boot target to avoid PWM clock contention."
+            )
         checks.append(
             {
                 "id": "headless",
                 "ok": headless,
                 "label": "Headless boot enabled",
-                "action": "Use the headless boot target to avoid PWM clock contention.",
+                "action": headless_action,
             }
         )
     ready = all(bool(check.get("ok")) for check in checks)
