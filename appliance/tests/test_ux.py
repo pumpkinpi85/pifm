@@ -180,7 +180,14 @@ class OperatorUxStaticTests(unittest.TestCase):
     def test_music_workspace_and_multi_upload_controls(self):
         for label in ("Library", "Playlists", "Queue"):
             self.assertIn('data-music-tab="{}"'.format(label.lower()), self.html)
-        self.assertIn('id="fileUpload" multiple', self.html)
+        self.assertIn('id="fileUpload" data-media-picker multiple', self.html)
+        self.assertIn(
+            'accept=".mp3,.wav,.flac,.m4a,.aac,.ogg"',
+            self.html,
+        )
+        self.assertNotIn("audio/*", self.html)
+        self.assertIn("/api/media/capabilities", self.js)
+        self.assertIn("accepted_extensions", self.js)
         self.assertIn("data-upload-zone", self.html)
         self.assertIn("xhr.upload.onprogress", self.js)
         self.assertIn("/api/library/", self.js)

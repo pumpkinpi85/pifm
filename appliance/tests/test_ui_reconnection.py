@@ -276,6 +276,59 @@ const coordinator = api.createCoordinator({
 """
         )
 
+    def test_open_browser_accepts_authoritative_fault_to_off_snapshot(self):
+        self.run_node(
+            """
+const assert = require("assert");
+const api = require("./appliance/web/static/js/connection.js");
+function snapshot(revision, state, broadcastState, broadcastUi, txRunning) {
+  return {
+    authority_id: "boot-a", snapshot_revision: revision,
+    state: state, broadcast_ui: broadcastUi,
+    broadcast_state: broadcastState,
+    broadcast_recovery: {armed: false, valid: true},
+    tx: {running: txRunning}, tx_backend: "mock", tx_running: txRunning,
+    fault_reason: state === "FAULT" ? "Synthetic controlled browser fault" : null,
+    program_state: "stopped", program_ui: "READY", program_pending: null,
+    current_track: null, next_track: null, now_playing: null, up_next: null,
+    first_up: null, active_playlist: "demo", selected_playlist_name: "Demo",
+    queue_index: -1, queue_length: 0, queue: [], shuffle: false, repeat: true,
+    broadcast: {ready: true, blockers: [], items: []}, frequency_mhz: 99.9,
+    frequency_band: {min_mhz: 87.1, max_mhz: 108.2, step_mhz: 0.1,
+      scale: 10, min_units: 871, max_units: 1082},
+    rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
+    network: {}, health: {}, hardware_status: "SUPPORTED",
+    hardware_environment: {checks: []}, hardware_profile_doc: {},
+    software_version: "test", git_sha: "abc", build_label: "test"
+  };
+}
+let browserState = null;
+const coordinator = api.createCoordinator({
+  fetchSnapshot: () => Promise.resolve(
+    snapshot(1, "FAULT", "unknown",
+      "STATE UNKNOWN / POSSIBLE TRANSMISSION", false)
+  ),
+  onUnavailable: () => { browserState = null; },
+  onSnapshot: (state) => { browserState = state; },
+  onSynchronized: () => {}
+});
+(async () => {
+  assert.strictEqual(await coordinator.reconcile(), true);
+  assert.strictEqual(browserState.broadcast_state, "unknown");
+  assert.strictEqual(
+    coordinator.acceptLiveSnapshot(
+      snapshot(2, "SAFE_OFF", "off", "OFF", false)
+    ),
+    true
+  );
+  assert.strictEqual(browserState.broadcast_state, "off");
+  assert.strictEqual(browserState.broadcast_ui, "OFF");
+  assert.strictEqual(browserState.tx_running, false);
+  assert.strictEqual(coordinator.isSynchronized(), true);
+})().catch((error) => { console.error(error); process.exit(1); });
+"""
+        )
+
     def test_mutations_are_guarded_until_synchronized(self):
         source = APP_JS.read_text()
         self.assertIn('method !== "GET" && !uiSynchronized', source)

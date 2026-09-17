@@ -3,15 +3,29 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import math
 import os
 import shutil
 import subprocess
 import tempfile
+import threading
 import time
 import wave
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set
+
+from .tx_process import (
+    DuplicateTransmitterError,
+    OwnedTxProcess,
+    StartCancelled,
+    TransmitterProcessScanError,
+    count_transmitters,
+    ensure_no_transmitters,
+    fake_tx_command,
+    list_transmitter_processes,
+)
 
 
 class TxBackend(ABC):
@@ -51,8 +65,6 @@ class MockTxBackend(TxBackend):
         self.prefetch_fail = False
 
     def prefetch_audio(self, audio_path: str, should_cancel=None) -> Dict[str, Any]:
-        from .tx_process import StartCancelled
-
         if self.prefetch_fail:
             raise RuntimeError("simulated prefetch failure")
         t0 = time.time()
@@ -272,7 +284,249 @@ def is_cached_wav_path(path: Optional[str], work_dir: Path) -> bool:
         return False
 
 
-def prepare_seekable_wav(audio_path: str, work_dir: Path) -> Dict[str, Any]:
+class ConversionResourceError(RuntimeError):
+    """Conversion cannot fit inside the configured cache/disk envelope."""
+
+
+class OwnedFfmpegProcess:
+    """Own exactly one FFmpeg child and cancel only that child."""
+
+    def __init__(self, term_wait_s: float = 0.75, kill_wait_s: float = 0.75) -> None:
+        self._lock = threading.Lock()
+        self._process = None  # type: Optional[subprocess.Popen]
+        self._term_wait_s = max(0.05, float(term_wait_s))
+        self._kill_wait_s = max(0.05, float(kill_wait_s))
+
+    @property
+    def pid(self) -> Optional[int]:
+        with self._lock:
+            process = self._process
+            return process.pid if process and process.poll() is None else None
+
+    def run(
+        self,
+        command: List[str],
+        should_cancel: Optional[Callable[[], bool]] = None,
+        timeout_s: float = 600.0,
+        capture_output: bool = False,
+    ) -> Optional[bytes]:
+        with self._lock:
+            if self._process is not None and self._process.poll() is None:
+                raise RuntimeError("another audio conversion is already running")
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE if capture_output else subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            self._process = process
+        deadline = time.monotonic() + max(0.1, float(timeout_s))
+        try:
+            while process.poll() is None:
+                if callable(should_cancel) and should_cancel():
+                    self.cancel()
+                    raise StartCancelled("audio conversion cancelled")
+                if time.monotonic() >= deadline:
+                    self.cancel()
+                    raise RuntimeError("audio conversion timed out")
+                time.sleep(0.05)
+            stdout, _stderr = process.communicate()
+            if process.returncode:
+                raise RuntimeError(
+                    "ffmpeg exited {}".format(process.returncode)
+                )
+            return stdout if capture_output else None
+        finally:
+            if process.poll() is None:
+                self.cancel()
+            try:
+                process.wait(timeout=self._kill_wait_s)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+            with self._lock:
+                if self._process is process:
+                    self._process = None
+
+    def cancel(self) -> Dict[str, Any]:
+        with self._lock:
+            process = self._process
+        if process is None:
+            return {"pid": None, "signals": [], "reaped": True}
+        signals = []  # type: List[str]
+        pid = process.pid
+        if process.poll() is None:
+            process.terminate()
+            signals.append("TERM")
+            try:
+                process.wait(timeout=self._term_wait_s)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                signals.append("KILL")
+                try:
+                    process.wait(timeout=self._kill_wait_s)
+                except subprocess.TimeoutExpired:
+                    pass
+        reaped = process.poll() is not None
+        with self._lock:
+            if self._process is process and reaped:
+                self._process = None
+        return {"pid": pid, "signals": signals, "reaped": reaped}
+
+
+def probe_audio_resources(
+    audio_path: str,
+    process_owner: Optional[OwnedFfmpegProcess] = None,
+    should_cancel: Optional[Callable[[], bool]] = None,
+) -> Dict[str, Any]:
+    """Read decoded media dimensions needed for bounded PCM output."""
+    ffprobe = shutil.which("ffprobe")
+    if not ffprobe:
+        raise RuntimeError("ffprobe is required to inspect this track.")
+    command = [
+        ffprobe,
+        "-v",
+        "error",
+        "-select_streams",
+        "a:0",
+        "-show_entries",
+        "stream=sample_rate,channels,duration:format=duration",
+        "-of",
+        "json",
+        audio_path,
+    ]
+    if process_owner is not None:
+        output = process_owner.run(
+            command,
+            should_cancel=should_cancel,
+            timeout_s=30,
+            capture_output=True,
+        )
+    else:
+        result = subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+            check=False,
+        )
+        if result.returncode:
+            raise RuntimeError("ffprobe could not inspect audio resources")
+        output = result.stdout
+    try:
+        payload = json.loads((output or b"").decode("utf-8"))
+        stream = (payload.get("streams") or [])[0]
+        duration_raw = stream.get("duration") or (
+            payload.get("format") or {}
+        ).get("duration")
+        duration_s = float(duration_raw)
+        sample_rate = int(stream.get("sample_rate"))
+        channels = int(stream.get("channels"))
+    except (IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        raise RuntimeError("audio duration, sample rate, or channels is unavailable")
+    if (
+        not math.isfinite(duration_s)
+        or duration_s <= 0
+        or sample_rate <= 0
+        or channels <= 0
+    ):
+        raise RuntimeError("audio resource information is invalid")
+    projected_bytes = int(math.ceil(duration_s * 44100 * 2 * 2)) + 4096
+    return {
+        "duration_s": duration_s,
+        "sample_rate": sample_rate,
+        "channels": channels,
+        "output_sample_rate": 44100,
+        "output_channels": 2,
+        "output_sample_width": 2,
+        "projected_pcm_bytes": projected_bytes,
+    }
+
+
+def _resolved_paths(paths: Optional[Iterable[str]]) -> Set[Path]:
+    resolved = set()  # type: Set[Path]
+    for raw in paths or ():
+        if not raw:
+            continue
+        try:
+            resolved.add(Path(raw).resolve())
+        except OSError:
+            continue
+    return resolved
+
+
+def enforce_wav_cache_budget(
+    cache_root: Path,
+    projected_bytes: int,
+    cache_budget_bytes: int,
+    min_free_bytes: int,
+    protected_paths: Optional[Iterable[str]] = None,
+) -> Dict[str, Any]:
+    """Evict oldest disposable WAVs until one projected output fits."""
+    cache_root = Path(cache_root)
+    cache_root.mkdir(parents=True, exist_ok=True)
+    projected = max(0, int(projected_bytes))
+    budget = max(0, int(cache_budget_bytes))
+    minimum_free = max(0, int(min_free_bytes))
+    if projected > budget:
+        raise ConversionResourceError(
+            "Track needs about {:.1f} MiB of WAV cache; the configured cache "
+            "budget is {:.1f} MiB.".format(
+                projected / (1024.0 * 1024.0),
+                budget / (1024.0 * 1024.0),
+            )
+        )
+    protected = _resolved_paths(protected_paths)
+    entries = []
+    cache_bytes = 0
+    for path in sorted(cache_root.glob("*.wav")):
+        try:
+            stat = path.stat()
+            cache_bytes += stat.st_size
+            if path.resolve() not in protected:
+                entries.append((stat.st_atime, path.name, path, stat.st_size))
+        except OSError:
+            continue
+    free_bytes = shutil.disk_usage(str(cache_root)).free
+    required = max(
+        0,
+        cache_bytes + projected - budget,
+        projected + minimum_free - free_bytes,
+    )
+    evicted = []  # type: List[Dict[str, Any]]
+    released = 0
+    for _atime, _name, path, size in sorted(entries):
+        if released >= required:
+            break
+        try:
+            path.unlink()
+            released += size
+            evicted.append({"path": str(path), "size_bytes": size})
+        except OSError:
+            continue
+    if released < required:
+        raise ConversionResourceError(
+            "Not enough disposable WAV cache or free disk space to prepare "
+            "this track safely."
+        )
+    return {
+        "projected_pcm_bytes": projected,
+        "cache_budget_bytes": budget,
+        "cache_bytes_before": cache_bytes,
+        "disk_free_bytes_before": free_bytes,
+        "min_free_bytes": minimum_free,
+        "evicted": evicted,
+    }
+
+
+def prepare_seekable_wav(
+    audio_path: str,
+    work_dir: Path,
+    cache_budget_bytes: int = 1024 * 1024 * 1024,
+    min_free_bytes: int = 256 * 1024 * 1024,
+    process_owner: Optional[OwnedFfmpegProcess] = None,
+    should_cancel: Optional[Callable[[], bool]] = None,
+    protected_paths: Optional[Iterable[str]] = None,
+) -> Dict[str, Any]:
     """Convert any supported audio to a seekable WAV file.
 
     pi_fm_rds tries to sf_seek() on EOF to loop; stdin pipes cannot rewind and
@@ -318,6 +572,10 @@ def prepare_seekable_wav(audio_path: str, work_dir: Path) -> Dict[str, Any]:
     if cached_path.is_file():
         info = inspect_wav(str(cached_path))
         if info.get("ok"):
+            try:
+                os.utime(str(cached_path), None)
+            except OSError:
+                pass
             result["wav_path"] = str(cached_path)
             result["wav"] = info
             result["converted"] = False
@@ -333,6 +591,24 @@ def prepare_seekable_wav(audio_path: str, work_dir: Path) -> Dict[str, Any]:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
         raise RuntimeError("ffmpeg is required to prepare this track for FM.")
+
+    owner = process_owner or OwnedFfmpegProcess()
+    resources = probe_audio_resources(
+        audio_path,
+        process_owner=owner,
+        should_cancel=should_cancel,
+    )
+    budget = enforce_wav_cache_budget(
+        cache_root,
+        int(resources["projected_pcm_bytes"]),
+        cache_budget_bytes,
+        min_free_bytes,
+        protected_paths=protected_paths,
+    )
+    result["resource_prediction"] = resources
+    result["cache_envelope"] = budget
+    if callable(should_cancel) and should_cancel():
+        raise StartCancelled("audio conversion cancelled before FFmpeg")
 
     fd, out = tempfile.mkstemp(prefix="pifm-", suffix=".wav", dir=str(work_dir))
     os.close(fd)
@@ -356,8 +632,16 @@ def prepare_seekable_wav(audio_path: str, work_dir: Path) -> Dict[str, Any]:
     ]
     result["ffmpeg_cmd"] = cmd
     try:
-        subprocess.check_call(cmd, timeout=600)
+        owner.run(cmd, should_cancel=should_cancel, timeout_s=600)
         result["ffmpeg_ok"] = True
+    except StartCancelled:
+        result["ffmpeg_ok"] = False
+        result["error"] = "cancelled"
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
+        raise
     except Exception as exc:  # noqa: BLE001
         result["ffmpeg_ok"] = False
         result["error"] = str(exc)
@@ -467,17 +751,6 @@ def build_pi_fm_command(
     ]
 
 
-from .tx_process import (
-    DuplicateTransmitterError,
-    OwnedTxProcess,
-    TransmitterProcessScanError,
-    count_transmitters,
-    ensure_no_transmitters,
-    fake_tx_command,
-    list_transmitter_processes,
-)
-
-
 def kill_all_transmitters() -> Dict[str, Any]:
     """Idempotent emergency clear of every TX-like worker."""
     # Prefer non-sudo first (fake backend / unit tests). Escalate only if needed.
@@ -513,8 +786,6 @@ class FakeProcessTxBackend(TxBackend):
         self.prefetch_fail = False
 
     def prefetch_audio(self, audio_path: str, should_cancel=None) -> Dict[str, Any]:
-        from .tx_process import StartCancelled
-
         if self.prefetch_fail:
             raise RuntimeError("simulated prefetch failure")
         t0 = time.time()
@@ -609,6 +880,8 @@ class PiFmRdsBackend(TxBackend):
         work_dir: Optional[Path] = None,
         silence_wav: Optional[Path] = None,
         ppm: float = 0.0,
+        wav_cache_max_bytes: int = 1024 * 1024 * 1024,
+        wav_cache_min_free_bytes: int = 256 * 1024 * 1024,
     ) -> None:
         self.binary_path = binary_path
         self.ppm = float(ppm)
@@ -621,18 +894,36 @@ class PiFmRdsBackend(TxBackend):
         self._stderr_path = None  # type: Optional[Path]
         self._started_at = None  # type: Optional[float]
         self._prefetch = None  # type: Optional[Dict[str, Any]]
+        self._conversion = OwnedFfmpegProcess()
+        self.wav_cache_max_bytes = max(0, int(wav_cache_max_bytes))
+        self.wav_cache_min_free_bytes = max(0, int(wav_cache_min_free_bytes))
+
+    def _protected_wav_paths(self) -> List[str]:
+        paths = []  # type: List[str]
+        active = self._meta.get("wav_path")
+        if self.is_running() and active:
+            paths.append(str(active))
+        if self._prefetch and self._prefetch.get("wav_path"):
+            paths.append(str(self._prefetch["wav_path"]))
+        return paths
 
     def prefetch_audio(self, audio_path: str, should_cancel=None) -> Dict[str, Any]:
         """MP3→WAV conversion outside the controller lock (Pi A+ friendly)."""
-        from .tx_process import StartCancelled
-
         if not os.path.isfile(audio_path):
             raise FileNotFoundError(
                 "Music file not found: {}".format(os.path.basename(audio_path))
             )
         if callable(should_cancel) and should_cancel():
             raise StartCancelled("prefetch cancelled before convert")
-        prep = prepare_seekable_wav(audio_path, self.work_dir)
+        prep = prepare_seekable_wav(
+            audio_path,
+            self.work_dir,
+            cache_budget_bytes=self.wav_cache_max_bytes,
+            min_free_bytes=self.wav_cache_min_free_bytes,
+            process_owner=self._conversion,
+            should_cancel=should_cancel,
+            protected_paths=self._protected_wav_paths(),
+        )
         if callable(should_cancel) and should_cancel():
             # Convert finished but start was cancelled — drop non-cached temp only.
             if prep.get("converted") and prep.get("wav_path") and not prep.get("cached"):
@@ -645,6 +936,7 @@ class PiFmRdsBackend(TxBackend):
         return prep
 
     def clear_prefetch(self) -> None:
+        self._conversion.cancel()
         prep = self._prefetch
         self._prefetch = None
         if not prep:
@@ -666,13 +958,19 @@ class PiFmRdsBackend(TxBackend):
 
         Does not touch the active prefetch slot used for the current start.
         """
-        from .tx_process import StartCancelled
-
         if not audio_path or not os.path.isfile(audio_path):
             return {"ok": False, "error": "missing"}
         if callable(should_cancel) and should_cancel():
             raise StartCancelled("warm cache cancelled")
-        prep = prepare_seekable_wav(audio_path, self.work_dir)
+        prep = prepare_seekable_wav(
+            audio_path,
+            self.work_dir,
+            cache_budget_bytes=self.wav_cache_max_bytes,
+            min_free_bytes=self.wav_cache_min_free_bytes,
+            process_owner=self._conversion,
+            should_cancel=should_cancel,
+            protected_paths=self._protected_wav_paths(),
+        )
         return {
             "ok": True,
             "cache_hit": bool(prep.get("cache_hit")),
@@ -709,7 +1007,14 @@ class PiFmRdsBackend(TxBackend):
             )
 
         if prep is None:
-            prep = prepare_seekable_wav(audio_path, self.work_dir)
+            prep = prepare_seekable_wav(
+                audio_path,
+                self.work_dir,
+                cache_budget_bytes=self.wav_cache_max_bytes,
+                min_free_bytes=self.wav_cache_min_free_bytes,
+                process_owner=self._conversion,
+                protected_paths=self._protected_wav_paths(),
+            )
         wav_path = str(prep["wav_path"])
         # Only track ephemeral temps for cleanup; durable cache must survive stop().
         if prep.get("converted") and not prep.get("cached"):
@@ -854,6 +1159,8 @@ def build_backend(
     work_dir: Optional[Path] = None,
     silence_wav: Optional[Path] = None,
     pi_fm_rds_ppm: float = 0.0,
+    wav_cache_max_bytes: int = 1024 * 1024 * 1024,
+    wav_cache_min_free_bytes: int = 256 * 1024 * 1024,
 ) -> TxBackend:
     if name == "pi_fm_rds":
         return PiFmRdsBackend(
@@ -862,6 +1169,8 @@ def build_backend(
             work_dir=work_dir,
             silence_wav=silence_wav,
             ppm=pi_fm_rds_ppm,
+            wav_cache_max_bytes=wav_cache_max_bytes,
+            wav_cache_min_free_bytes=wav_cache_min_free_bytes,
         )
     if name == "fake":
         return FakeProcessTxBackend(work_dir=(work_dir or Path("/tmp")) / "fake-tx")

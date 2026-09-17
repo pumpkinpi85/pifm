@@ -37,10 +37,13 @@ DEFAULTS = {
     "setup_completed": True,
     "gpio_enabled": False,
     "local_monitor": False,
+    "wav_cache_max_mb": 1024,
+    "wav_cache_min_free_mb": 256,
+    "cache_warming_enabled": False,
     "rf_quiet_mode": "simulate",
     "rf_quiet_seconds": 60,
     "product_name": "piFM Pirate Radio",
-    "software_version": "0.6.0",
+    "software_version": "0.6.1",
 }
 
 FREQ_MIN = 87.1
@@ -178,6 +181,21 @@ class Config:
         if not isinstance(setup_completed, bool):
             raise ConfigError("setup_completed must be true or false")
         data["setup_completed"] = setup_completed
+        for key in ("wav_cache_max_mb", "wav_cache_min_free_mb"):
+            value = data.get(key)
+            if isinstance(value, bool):
+                raise ConfigError("{} must be a non-negative integer".format(key))
+            try:
+                value = int(value)
+            except (TypeError, ValueError):
+                raise ConfigError("{} must be a non-negative integer".format(key))
+            if value < 0:
+                raise ConfigError("{} must be a non-negative integer".format(key))
+            data[key] = value
+        cache_warming = data.get("cache_warming_enabled", False)
+        if not isinstance(cache_warming, bool):
+            raise ConfigError("cache_warming_enabled must be true or false")
+        data["cache_warming_enabled"] = cache_warming
         # Resolve relative transmitter paths against install root.
         tx_path = str(data.get("pi_fm_rds_path") or "")
         if tx_path and not os.path.isabs(tx_path):

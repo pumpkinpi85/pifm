@@ -130,6 +130,8 @@ class OwnershipTests(unittest.TestCase):
         b = OwnedTxProcess(use_sudo_kill=False)
         # spawn() cleans existing before start
         b.spawn(fake_tx_command())
+        if a.proc is not None:
+            a.proc.wait(timeout=2)
         self.assertEqual(count_transmitters(), 1)
         self.assertNotEqual(b.worker_pid, pid1)
         b.terminate()
@@ -370,11 +372,15 @@ class FakeBackendControllerTests(unittest.TestCase):
     def test_stale_pid_and_missing_pid_stop(self):
         self.ctrl.go_on_air()
         # Stale: pretend tracking lost while process still up — stop must sweep.
+        lost_process = None
         if hasattr(self.ctrl.tx, "_owned"):
+            lost_process = self.ctrl.tx._owned.proc
             self.ctrl.tx._owned.proc = None
             self.ctrl.tx._owned.worker_pid = 999999
             self.ctrl.tx._owned.launcher_pid = 999998
         self.ctrl.tx_off()
+        if lost_process is not None:
+            lost_process.wait(timeout=2)
         self.assertEqual(count_transmitters(), 0)
         # Missing PID: stop with nothing running.
         st = self.ctrl.tx_off()

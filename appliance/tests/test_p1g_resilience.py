@@ -649,8 +649,17 @@ class StorageFailureTests(unittest.TestCase):
             source = root / "source.wav"
             source.write_bytes(b"not-a-valid-wav")
             work = root / "work"
-            with patch(
-                "appliance.tx.subprocess.check_call",
+            resources = {
+                "duration_s": 1.0,
+                "sample_rate": 44100,
+                "channels": 2,
+                "output_sample_rate": 44100,
+                "output_channels": 2,
+                "output_sample_width": 2,
+                "projected_pcm_bytes": 180000,
+            }
+            with patch("appliance.tx.probe_audio_resources", return_value=resources), patch(
+                "appliance.tx.OwnedFfmpegProcess.run",
                 side_effect=OSError(errno.ENOSPC, "disk full"),
             ):
                 with self.assertRaisesRegex(RuntimeError, "ffmpeg failed"):

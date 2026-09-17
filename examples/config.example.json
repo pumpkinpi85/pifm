@@ -22,8 +22,11 @@
   "setup_completed": false,
   "gpio_enabled": false,
   "local_monitor": false,
+  "wav_cache_max_mb": 1024,
+  "wav_cache_min_free_mb": 256,
+  "cache_warming_enabled": false,
   "rf_quiet_mode": "simulate",
   "rf_quiet_seconds": 60,
   "product_name": "piFM Pirate Radio",
-  "software_version": "0.6.0"
+  "software_version": "0.6.1"
 }

@@ -17,6 +17,7 @@
   var reconnectTimer = null;
   var lastSseMessageAt = 0;
   var lastLogFingerprint = "";
+  var mediaCapabilitiesLoaded = false;
   var setupStep = 0;
   var libraryTrackCount = 0;
   var draggedTrackId = null;
@@ -103,6 +104,36 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body || {})
+    });
+  }
+
+  function formatMediaList(labels) {
+    if (labels.length < 2) return labels[0] || "";
+    if (labels.length === 2) return labels[0] + " or " + labels[1];
+    return labels.slice(0, -1).join(", ") + ", or " + labels[labels.length - 1];
+  }
+
+  function loadMediaCapabilities() {
+    if (mediaCapabilitiesLoaded) return;
+    api("/api/media/capabilities").then(function (capabilities) {
+      var extensions = Array.isArray(capabilities.accepted_extensions)
+        ? capabilities.accepted_extensions.filter(function (extension) {
+          return /^\.[a-z0-9]+$/.test(String(extension));
+        })
+        : [];
+      if (!extensions.length) return;
+      mediaCapabilitiesLoaded = true;
+      document.querySelectorAll("[data-media-picker]").forEach(function (picker) {
+        picker.setAttribute("accept", extensions.join(","));
+      });
+      var display = formatMediaList(extensions.map(function (extension) {
+        return extension.slice(1).toUpperCase();
+      }));
+      document.querySelectorAll("[data-media-formats]").forEach(function (node) {
+        node.textContent = display;
+      });
+    }).catch(function () {
+      // The truthful static fallback remains in place if capabilities are unavailable.
     });
   }
 
@@ -204,6 +235,7 @@
     selectedPl = null;
     playlistsCache = null;
     libraryLoadedOnce = false;
+    mediaCapabilitiesLoaded = false;
     libraryTrackCount = 0;
     window._plTracks = [];
   }
@@ -226,6 +258,7 @@
       loadPlaylists();
       loadLibrary();
     }
+    if (!wasSynchronized) loadMediaCapabilities();
     if (!wasSynchronized && state) renderFlagpoleStatus(state);
   }
 
@@ -555,7 +588,7 @@
     var raw = (bc && bc.blockers) || [];
     return raw.map(function (b) {
       if (typeof b === "string") {
-        return { id: "", message: b, cta: "music", cta_label: "Choose music" };
+        return { id: "", message: b, cta: "music", cta_label: "Choose tracks" };
       }
       return {
         id: b.id || "",
@@ -585,7 +618,7 @@
         esc(first.cta_label || "Fix this") + "</button>"
       : "";
     box.innerHTML =
-      '<div class="blocker-title">CAN\'T GO ON AIR</div>' +
+      '<div class="blocker-title">CAN\'T START BROADCASTING</div>' +
       "<p>" + esc(first.message) + "</p>" + cta;
   }
 
@@ -1002,7 +1035,7 @@
       "Build: " + (s.build_label || s.git_sha || "—"),
       "Hardware: " + (s.hardware_profile || "—"),
       "PiFmRds timing: " + (s.pi_fm_rds_ppm != null ? s.pi_fm_rds_ppm + " ppm" : "—"),
-      "Transmitter: " + (s.dev_harness ? "test harness (mock)" : "FM transmitter"),
+      "Transmitter: " + (s.dev_harness ? "test harness (no FM)" : "FM transmitter"),
       "GPIO: " + (s.gpio_enabled ? "enabled" : "disabled"),
       "Product: " + (s.product_name || "piFM Pirate Radio")
     ].join("\n");
@@ -1156,7 +1189,7 @@
       var tracks = data.tracks || [];
       libraryTrackCount = tracks.length;
       if (!tracks.length) {
-        box.innerHTML = '<div class="empty">No music yet. Drop files into Add Music above.</div>';
+        box.innerHTML = '<div class="empty">No tracks yet. Drop files into Add Music above.</div>';
         return;
       }
       box.innerHTML = tracks.slice(0, 100).map(function (t) {
@@ -1210,11 +1243,11 @@
     var deleteButton = ev.target.closest("[data-delete-track]");
     if (deleteButton) {
       var trackId = deleteButton.getAttribute("data-delete-track");
-      var label = deleteButton.getAttribute("data-track-label") || "this music";
+      var label = deleteButton.getAttribute("data-track-label") || "this track";
       if (!confirm("Delete \"" + label + "\"?\n\nIt will also be removed from playlists. This cannot be undone.")) return;
       api("/api/library/" + encodeURIComponent(trackId), { method: "DELETE" })
         .then(function (result) {
-          toast("Music deleted" + ((result.removed_from_playlists || []).length
+          toast("Track deleted" + ((result.removed_from_playlists || []).length
             ? " and removed from playlists." : "."));
           libraryLoadedOnce = false;
           playlistsCache = null;
@@ -1289,7 +1322,7 @@
         return showEmpty || n > 0 || active;
       });
       if (!playlists.length) {
-        box.innerHTML = '<div class="empty">No playlists with music yet. Create one or show empty playlists.</div>';
+        box.innerHTML = '<div class="empty">No playlists with tracks yet. Create one or show empty playlists.</div>';
         return;
       }
       box.innerHTML = playlists.map(function (p) {
@@ -1440,7 +1473,7 @@
       post("/api/tx/off", {}).then(function () {
         commandPending = null;
         txCommandPendingRevision = null;
-        toast("Black Flag lowered. Broadcast is OFF.");
+        toast("Pirate flag lowered. Broadcast is OFF AIR.");
         return refresh();
       }).catch(function (error) {
         commandPending = null;
@@ -1470,7 +1503,7 @@
     if (onAir) {
       msg =
         "Retune the live station to " + frequency + " FM?\n\n" +
-        "This safely stops and restarts the transmitter. The current song " +
+        "This safely stops and restarts the transmitter. The current track " +
         "will restart from the beginning.";
     } else {
       msg =
@@ -1764,7 +1797,7 @@
       if (setupStep === 3) {
         api("/api/library").then(function (data) {
           if (!(data.tracks || []).length) {
-            toast("Add at least one music file before continuing.");
+            toast("Add at least one track before continuing.");
             return;
           }
           showSetupStep(4);
@@ -1997,7 +2030,7 @@
     var t = ev.target;
     if (t.getAttribute("data-use")) {
       post("/api/config", { active_playlist: t.getAttribute("data-use") }).then(function () {
-        toast("Playlist selected. Press Go On Air when you want to broadcast.");
+        toast("Playlist selected. Choose Start Broadcasting when ready.");
         refresh(); loadPlaylists();
       }).catch(function (e) { toast(e.message); });
     } else if (t.getAttribute("data-edit")) {

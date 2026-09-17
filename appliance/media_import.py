@@ -14,7 +14,7 @@ import uuid
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, Optional
 
-from .library import AUDIO_EXT, Library
+from .library import AUDIO_EXT, AUDIO_FORMATS, Library
 
 
 DEFAULT_MAX_UPLOAD_BYTES = 128 * 1024 * 1024
@@ -32,7 +32,7 @@ def safe_media_filename(filename: str) -> str:
     name = re.sub(r"\s+", " ", name)
     name = name.lstrip(".")
     if not name or name in (".", ".."):
-        raise MediaImportError("Choose a music file with a valid filename.")
+        raise MediaImportError("Choose a track with a valid filename.")
     if len(name) > 180:
         stem = Path(name).stem[:150].rstrip()
         name = stem + Path(name).suffix[:16]
@@ -51,7 +51,10 @@ def media_capabilities() -> Dict[str, Any]:
         "ffmpeg_available": bool(ffmpeg),
         "ffprobe_available": bool(ffprobe),
         "import_ready": bool(ffmpeg and ffprobe),
-        "formats": ["mp3", "wav", "flac", "m4a", "aac", "ogg"],
+        "formats": list(AUDIO_FORMATS),
+        "accepted_extensions": [
+            "." + media_format for media_format in AUDIO_FORMATS
+        ],
         "max_upload_bytes": DEFAULT_MAX_UPLOAD_BYTES,
     }
 
@@ -177,13 +180,17 @@ def import_media_stream(
         duplicate = _find_duplicate(library.library_dir, partial)
         if duplicate is not None:
             partial.unlink()
-            indexed = library.reindex()
             relative_path = str(duplicate.relative_to(library.library_dir))
             track = library.get_track_by_path(relative_path)
+            if track is None:
+                track = library.index_path(
+                    duplicate,
+                    duration=probe.get("duration"),
+                )
             return {
                 "ok": True,
                 "filename": duplicate.name,
-                "indexed": indexed,
+                "indexed": library.track_count(),
                 "duplicate": True,
                 "renamed": False,
                 "media": probe,
@@ -191,12 +198,21 @@ def import_media_stream(
             }
         destination = _available_destination(library.library_dir, safe_name)
         os.replace(str(partial), str(destination))
-        indexed = library.reindex()
-        track = library.get_track_by_path(destination.name)
+        try:
+            track = library.index_path(
+                destination,
+                duration=probe.get("duration"),
+            )
+        except Exception:
+            try:
+                destination.unlink()
+            except OSError:
+                pass
+            raise
         return {
             "ok": True,
             "filename": destination.name,
-            "indexed": indexed,
+            "indexed": library.track_count(),
             "duplicate": False,
             "renamed": destination.name != safe_name,
             "media": probe,
@@ -208,7 +224,7 @@ def import_media_stream(
                 "Storage is full. Existing music was not changed."
             )
         raise MediaImportError(
-            "This music file could not be saved. Existing music was not changed."
+            "This track could not be saved. Existing tracks were not changed."
         )
     finally:
         if partial.exists():

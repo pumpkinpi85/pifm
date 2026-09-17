@@ -19,14 +19,16 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from appliance.build_info import resolve_build_identity
 from appliance.config import Config
 from appliance.controller import Controller
 from appliance.events import EventLog
+from appliance.hardware_profile import resolve_hardware_profile
 from appliance.library import Library
 from appliance.state import State
 from appliance.tx import build_backend, prepare_seekable_wav, wav_cache_dir
 from appliance.tx_process import ensure_no_transmitters
-from appliance.webapp import serve
+from appliance.webapp import Handler, serve
 
 
 def _make_ctrl(root: Path, backend: str = "mock") -> Controller:
@@ -164,6 +166,7 @@ class SseEndpointTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
         self.ctrl = _make_ctrl(self.root, backend="mock")
+        Handler.SSE_STATUS_INTERVAL_SECONDS = 0.2
         self.httpd = serve("127.0.0.1", 0, self.ctrl, self.ctrl.library, self.ctrl.events)
         self.port = self.httpd.server_address[1]
 
@@ -174,6 +177,7 @@ class SseEndpointTests(unittest.TestCase):
             pass
         self.httpd.shutdown()
         self.httpd.server_close()
+        Handler.SSE_STATUS_INTERVAL_SECONDS = 15.0
         self.tmp.cleanup()
 
     def test_sse_sends_initial_status(self):
@@ -186,6 +190,41 @@ class SseEndpointTests(unittest.TestCase):
         self.assertIn("data:", chunk)
         self.assertIn("status", chunk)
         conn.close()
+
+    def test_sse_heartbeat_reconciles_fault_to_off_without_event_or_refresh(self):
+        self.ctrl.sm.enter_fault("Synthetic controlled browser fault")
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request("GET", "/api/events/stream")
+        response = conn.getresponse()
+
+        first = None
+        while first is None:
+            line = response.readline().decode("utf-8")
+            if line.startswith("data: "):
+                first = json.loads(line[len("data: ") :])
+
+        # Simulate authoritative process reconciliation after the last event.
+        # The open SSE stream must still receive the corrected snapshot.
+        self.ctrl.sm.reset_to_safe()
+        second = None
+        while second is None:
+            line = response.readline().decode("utf-8")
+            if line.startswith("data: "):
+                second = json.loads(line[len("data: ") :])
+        conn.close()
+
+        self.assertEqual(first["status"]["broadcast_state"], "fault")
+        self.assertTrue(
+            first["status"]["broadcast_ui"].startswith("STATE UNKNOWN")
+        )
+        self.assertTrue(second.get("heartbeat"))
+        self.assertEqual(second["status"]["broadcast_state"], "off")
+        self.assertEqual(second["status"]["broadcast_ui"], "OFF")
+        self.assertFalse(second["status"]["tx_running"])
+        self.assertGreater(
+            second["status"]["snapshot_revision"],
+            first["status"]["snapshot_revision"],
+        )
 
     def test_http_status_is_complete_revisioned_snapshot(self):
         conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
@@ -242,6 +281,40 @@ class SseEndpointTests(unittest.TestCase):
             second["snapshot_revision"], first["snapshot_revision"]
         )
         self.assertEqual(first["authority_id"], second["authority_id"])
+
+    def test_media_capabilities_match_the_picker_contract(self):
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request("GET", "/api/media/capabilities")
+        response = conn.getresponse()
+        payload = json.loads(response.read().decode("utf-8"))
+        conn.close()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            payload["accepted_extensions"],
+            [".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg"],
+        )
+
+    def test_media_upload_is_rejected_before_processing_while_on_air(self):
+        self.ctrl.go_on_air(wait=True)
+        count_before = self.ctrl.library.track_count()
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request(
+            "POST",
+            "/api/upload",
+            body=b"not-read-or-probed",
+            headers={
+                "Content-Type": "application/octet-stream",
+                "X-Filename-Encoded": "Deferred.mp3",
+                "X-PiFM-Authority-ID": self.ctrl.status()["authority_id"],
+            },
+        )
+        response = conn.getresponse()
+        payload = json.loads(response.read().decode("utf-8"))
+        conn.close()
+        self.ctrl.tx_off()
+        self.assertEqual(response.status, 400)
+        self.assertIn("Stop Broadcast", payload["error"])
+        self.assertEqual(self.ctrl.library.track_count(), count_before)
 
     def test_tx_on_can_commit_frequency_once_through_controller(self):
         conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
@@ -500,6 +573,33 @@ class MultiTabStatusTests(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=2) as pool:
             a, b = pool.map(lambda _: self.ctrl.status()["broadcast_ui"], range(2))
         self.assertEqual(a, b)
+
+    def test_status_caches_static_identity_but_reconciles_tx_every_time(self):
+        with patch(
+            "appliance.controller.resolve_build_identity",
+            wraps=resolve_build_identity,
+        ) as build, patch(
+            "appliance.controller.resolve_hardware_profile",
+            wraps=resolve_hardware_profile,
+        ) as hardware, patch(
+            "appliance.controller.list_transmitter_processes",
+            side_effect=[
+                [],
+                [{"pid": 987654, "cmdline": "pifm-fake-tx-hold"}],
+            ],
+        ) as process_scan:
+            first = self.ctrl.status()
+            second = self.ctrl.status()
+
+        self.assertEqual(build.call_count, 1)
+        self.assertEqual(hardware.call_count, 1)
+        self.assertEqual(process_scan.call_count, 2)
+        self.assertEqual(first["system_tx_count"], 0)
+        self.assertEqual(second["system_tx_count"], 1)
+        self.assertEqual(
+            second["broadcast_ui"],
+            "STATE UNKNOWN / POSSIBLE TRANSMISSION",
+        )
 
 
 if __name__ == "__main__":

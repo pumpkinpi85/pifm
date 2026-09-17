@@ -7,6 +7,7 @@ import threading
 import time
 import uuid
 from collections import Counter
+from copy import deepcopy
 from typing import Any, Dict, List, Optional
 
 from .build_info import resolve_build_identity
@@ -52,6 +53,14 @@ class Controller:
             work_dir=config.root / "data" / "logs" / "wav",
             silence_wav=config.root / "data" / "audio" / "silence_30s.wav",
             pi_fm_rds_ppm=float(config.get("pi_fm_rds_ppm", 0.0)),
+            wav_cache_max_bytes=int(config.get("wav_cache_max_mb", 1024))
+            * 1024
+            * 1024,
+            wav_cache_min_free_bytes=int(
+                config.get("wav_cache_min_free_mb", 256)
+            )
+            * 1024
+            * 1024,
         )  # type: TxBackend
         self.network = NetworkManager(
             events=events,
@@ -63,6 +72,7 @@ class Controller:
         self._broadcast_command_lock = threading.RLock()
         self._tx_lifecycle_lock = threading.Lock()
         self._status_revision = 0
+        self._static_identity_cache = None  # type: Optional[Dict[str, Any]]
         self._authority_id = "{}:{}".format(
             current_boot_id(),
             uuid.uuid4().hex,
@@ -102,6 +112,74 @@ class Controller:
                 raise StateError(
                     "Controller authority changed. Refresh authoritative state."
                 )
+
+    def resource_operation_policy(self, operation: str) -> Dict[str, str]:
+        """Classify appliance work while preserving RF timing priority."""
+        heavy = {
+            "media_upload",
+            "media_delete",
+            "library_reindex",
+            "media_probe",
+            "media_hash",
+            "media_index",
+        }
+        if operation not in heavy:
+            return {"classification": "SAFE_WHILE_ON_AIR", "message": ""}
+        with self._lock:
+            active = bool(
+                self.sm.state in (State.ON_AIR, State.FAULT)
+                or self._air_start_pending
+                or self._air_stop_pending
+                or self.tx.is_running()
+            )
+        try:
+            active = active or count_transmitters() > 0
+        except TransmitterProcessScanError:
+            active = True
+        if active:
+            return {
+                "classification": "REJECT_WHILE_ON_AIR",
+                "message": (
+                    "Stop Broadcast before changing the music library. "
+                    "Transmission timing has priority."
+                ),
+            }
+        return {"classification": "SAFE_WHILE_OFF_AIR", "message": ""}
+
+    def require_resource_operation(self, operation: str) -> None:
+        policy = self.resource_operation_policy(operation)
+        if policy["classification"] == "REJECT_WHILE_ON_AIR":
+            raise StateError(policy["message"])
+
+    def _static_identity_unlocked(
+        self, cfg: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Cache only build/board identity; never live TX or readiness state."""
+        key = (
+            str(cfg.get("software_version") or ""),
+            str(cfg.get("hardware_profile") or ""),
+            str(cfg.get("hardware_profile_mode") or ""),
+        )
+        cached = self._static_identity_cache
+        if cached is not None and cached.get("key") == key:
+            return deepcopy(cached["value"])
+        build = resolve_build_identity(
+            self.config.root,
+            software_version=str(cfg.get("software_version") or ""),
+            hardware_profile=str(cfg.get("hardware_profile") or ""),
+        )
+        hardware = resolve_hardware_profile(
+            self.config.root,
+            profile_id=(
+                str(cfg.get("hardware_profile") or "")
+                if cfg.get("hardware_profile_mode") == "manual"
+                else None
+            ),
+            include_detection=True,
+        )
+        value = {"build": build, "hardware": hardware}
+        self._static_identity_cache = {"key": key, "value": value}
+        return deepcopy(value)
 
     def broadcast_checklist(
         self, include_setup: bool = True
@@ -161,7 +239,7 @@ class Controller:
                     else "No playlist selected",
                     "operator_hint": "Choose a playlist with music first.",
                     "cta": "music",
-                    "cta_label": "Choose music",
+                    "cta_label": "Choose tracks",
                 }
             )
             freq = float(cfg["frequency_mhz"])
@@ -189,7 +267,7 @@ class Controller:
                     else "Active playlist has no playable files",
                     "operator_hint": "Add tracks to your playlist before going on air.",
                     "cta": "music",
-                    "cta_label": "Choose music",
+                    "cta_label": "Choose tracks",
                 }
             )
             items.append(
@@ -212,9 +290,9 @@ class Controller:
                 items.append(
                     {
                         "id": "transmitter",
-                        "label": "Transmitter harness",
+                        "label": "Test harness (no FM)",
                         "ok": True,
-                        "detail": "Internal non-RF harness (tests/dev only)",
+                        "detail": "Test harness (no FM; development only)",
                         "severity": False,
                         "operator_hint": "",
                         "cta": "",
@@ -222,15 +300,7 @@ class Controller:
                     }
                 )
             else:
-                hw = resolve_hardware_profile(
-                    self.config.root,
-                    profile_id=(
-                        str(cfg.get("hardware_profile") or "")
-                        if cfg.get("hardware_profile_mode") == "manual"
-                        else None
-                    ),
-                    include_detection=True,
-                )
+                hw = self._static_identity_unlocked(cfg)["hardware"]
                 profile = hw.get("hardware_profile_doc") or {}
                 hardware_status = str(
                     hw.get("hardware_status") or "UNKNOWN"
@@ -416,20 +486,9 @@ class Controller:
                 now_playing = cur
                 up_next = nxt
             emergency_stop = True
-            build = resolve_build_identity(
-                self.config.root,
-                software_version=str(cfg.get("software_version") or ""),
-                hardware_profile=str(cfg.get("hardware_profile") or ""),
-            )
-            hw = resolve_hardware_profile(
-                self.config.root,
-                profile_id=(
-                    str(cfg.get("hardware_profile") or "")
-                    if cfg.get("hardware_profile_mode") == "manual"
-                    else None
-                ),
-                include_detection=True,
-            )
+            identity = self._static_identity_unlocked(cfg)
+            build = identity["build"]
+            hw = identity["hardware"]
             hardware_environment = check_host_prerequisites(
                 hw.get("hardware_profile_doc")
             )
@@ -678,12 +737,20 @@ class Controller:
         with self._lock:
             before_freq = before.get("frequency_mhz")
             data = self.config.update(changes)
+            if {
+                "software_version",
+                "hardware_profile",
+                "hardware_profile_mode",
+            }.intersection(changes):
+                self._static_identity_cache = None
             # Backend construction captures executable path and timing correction.
             # Rebuild for any such setting change; never auto-start TX.
             backend_keys = {
                 "tx_backend",
                 "pi_fm_rds_path",
                 "pi_fm_rds_ppm",
+                "wav_cache_max_mb",
+                "wav_cache_min_free_mb",
             }
             backend_changed = bool(backend_keys.intersection(changes))
             if backend_changed:
@@ -697,6 +764,16 @@ class Controller:
                     pi_fm_rds_ppm=float(
                         self.config.get("pi_fm_rds_ppm", 0.0)
                     ),
+                    wav_cache_max_bytes=int(
+                        self.config.get("wav_cache_max_mb", 1024)
+                    )
+                    * 1024
+                    * 1024,
+                    wav_cache_min_free_bytes=int(
+                        self.config.get("wav_cache_min_free_mb", 256)
+                    )
+                    * 1024
+                    * 1024,
                 )
             if "pi_fm_rds_ppm" in changes:
                 self.events.emit(
@@ -742,7 +819,7 @@ class Controller:
                     raise StateError("Broadcast is stopping. Wait until OFF AIR.")
                 if self.sm.state == State.FAULT:
                     raise StateError(
-                        "Clear the broadcast fault before raising the Black Flag."
+                        "Clear the broadcast fault before starting a Broadcast."
                     )
                 current = normalize_frequency_mhz(
                     self.config.get("frequency_mhz")
@@ -1164,6 +1241,14 @@ class Controller:
 
     def _schedule_warm_up_next_unlocked(self) -> None:
         """Best-effort: cache the Up Next track WAV when the Pi is idle enough."""
+        if not bool(self.config.get("cache_warming_enabled", False)):
+            return
+        if (
+            self.sm.state == State.ON_AIR
+            or self._air_start_pending
+            or self._air_stop_pending
+        ):
+            return
         nxt = self._next_track_peek()
         if not nxt:
             return
@@ -1282,7 +1367,7 @@ class Controller:
                 else:
                     self.events.emit(
                         "TX_START_IDEMPOTENT",
-                        "Go On Air ignored — already ON_AIR",
+                        "Start Broadcasting ignored — already ON_AIR",
                         pid=self.tx.status().get("worker_pid") or self.tx.status().get("pid"),
                     )
                 return self.status()
@@ -1406,7 +1491,7 @@ class Controller:
                     self._air_start_pending = False
                     self.events.emit(
                         "TX_START_TIMEOUT",
-                        "Go On Air timed out during audio prepare",
+                        "Start Broadcasting timed out during audio prepare",
                         timeout_s=self._tx_start_timeout_s,
                     )
             if cancelled or timed_out:
@@ -1430,14 +1515,16 @@ class Controller:
                 if timed_out:
                     self._stop_tx_unlocked("start timeout")
                     kill_all_transmitters()
-                    self.sm.enter_fault("Go On Air timed out during audio prepare")
+                    self.sm.enter_fault(
+                        "Start Broadcasting timed out during audio prepare"
+                    )
                     self.events.emit("FAULT", "TX start timeout")
                     raise StateError(
                         "Could not go on air — startup timed out. Press STOP BROADCAST, then try again."
                     )
                 self.events.emit(
                     "TX_START_CANCELLED",
-                    "Go On Air aborted — STOP BROADCAST during audio prepare",
+                    "Start Broadcasting aborted — STOP BROADCAST during audio prepare",
                 )
                 return self.status()
 

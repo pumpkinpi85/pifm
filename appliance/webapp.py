@@ -98,6 +98,7 @@ class Handler(BaseHTTPRequestHandler):
     library = None  # type: Optional[Library]
     events = None  # type: Optional[EventLog]
     gpio = None
+    SSE_STATUS_INTERVAL_SECONDS = 15.0
 
     def log_message(self, fmt: str, *args: Any) -> None:
         # quieter
@@ -265,6 +266,7 @@ class Handler(BaseHTTPRequestHandler):
                     )
                 st = {"config": self.controller.update_setup(data)}
             elif path == "/api/library/reindex":
+                self.controller.require_resource_operation("library_reindex")
                 n = self.library.reindex()
                 self.events.emit("library_import", "reindex {}".format(n))
                 st = {"indexed": n}
@@ -277,7 +279,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not tid:
                     raise ValueError("track_id required")
                 if not self.library.get_track(tid):
-                    raise ValueError("music file not found")
+                    raise ValueError("track not found")
                 tracks = list(pl.get("tracks") or [])
                 if tid not in tracks:
                     tracks.append(tid)
@@ -387,8 +389,7 @@ class Handler(BaseHTTPRequestHandler):
                     code, body, ct = _json_bytes(st)
                     return self._send(code, body, ct)
             if path.startswith("/api/library/"):
-                if self.controller.status().get("tx_running"):
-                    raise ValueError("Stop Broadcast before deleting music.")
+                self.controller.require_resource_operation("media_delete")
                 track_id = path.strip("/").split("/")[2]
                 st = self.library.delete_track(track_id)
                 self.controller.reload_active_playlist()
@@ -406,7 +407,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(code, body, ct)
 
     def _sse_stream(self) -> None:
-        """Push status snapshots on EventLog changes; keepalive every ~15s."""
+        """Push authoritative status on events and on a bounded heartbeat."""
         assert self.controller and self.events
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
@@ -426,7 +427,10 @@ class Handler(BaseHTTPRequestHandler):
             st["health"] = _system_health()
             _write({"type": "status", "status": st, "seq": last_seq})
             while True:
-                new_seq = self.events.wait(after_seq=last_seq, timeout=15.0)
+                new_seq = self.events.wait(
+                    after_seq=last_seq,
+                    timeout=self.SSE_STATUS_INTERVAL_SECONDS,
+                )
                 if new_seq > last_seq:
                     last_seq = new_seq
                     st = self.controller.status()
@@ -440,13 +444,23 @@ class Handler(BaseHTTPRequestHandler):
                         }
                     )
                 else:
-                    _write({"type": "ping", "ts": time.time(), "seq": last_seq})
+                    st = self.controller.status()
+                    st["health"] = _system_health()
+                    _write(
+                        {
+                            "type": "status",
+                            "status": st,
+                            "seq": last_seq,
+                            "heartbeat": True,
+                        }
+                    )
         except (BrokenPipeError, ConnectionResetError, OSError):
             self.close_connection = True
             return
 
     def _upload(self) -> Dict[str, Any]:
         assert self.controller and self.library and self.events
+        self.controller.require_resource_operation("media_upload")
         encoded_filename = self.headers.get("X-Filename-Encoded")
         filename = (
             unquote(encoded_filename)

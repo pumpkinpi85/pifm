@@ -12,7 +12,8 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-AUDIO_EXT = {".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac"}
+AUDIO_FORMATS = ("mp3", "wav", "flac", "m4a", "aac", "ogg")
+AUDIO_EXT = frozenset("." + item for item in AUDIO_FORMATS)
 
 
 def _parse_name(stem: str) -> Tuple[str, str]:
@@ -64,6 +65,12 @@ class Library:
     def reindex(self) -> int:
         count = 0
         with closing(self._conn()) as conn, conn:
+            durations = {
+                str(row["path"]): row["duration"]
+                for row in conn.execute(
+                    "SELECT path, duration FROM tracks"
+                ).fetchall()
+            }
             conn.execute("DELETE FROM tracks")
             for path in sorted(self.library_dir.rglob("*")):
                 if not path.is_file():
@@ -89,11 +96,63 @@ class Library:
                         path.suffix.lower().lstrip("."),
                         st.st_size,
                         st.st_mtime,
-                        None,
+                        durations.get(rel),
                     ),
                 )
                 count += 1
         return count
+
+    def index_path(
+        self,
+        path: Path,
+        duration: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Incrementally insert or refresh one media path."""
+        absolute = Path(path).resolve()
+        library_root = self.library_dir.resolve()
+        if os.path.commonpath([str(absolute), str(library_root)]) != str(
+            library_root
+        ):
+            raise ValueError("path escapes library")
+        if not absolute.is_file() or absolute.suffix.lower() not in AUDIO_EXT:
+            raise FileNotFoundError("supported track not found")
+        rel = str(absolute.relative_to(library_root))
+        artist, title = _parse_name(absolute.stem)
+        track_id = uuid.uuid5(uuid.NAMESPACE_URL, rel).hex
+        stat = absolute.stat()
+        with closing(self._conn()) as conn, conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO tracks
+                (id, path, filename, artist, title, format, size, mtime, duration)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    track_id,
+                    rel,
+                    absolute.name,
+                    artist,
+                    title,
+                    absolute.suffix.lower().lstrip("."),
+                    stat.st_size,
+                    stat.st_mtime,
+                    duration,
+                ),
+            )
+        track = self.get_track(track_id)
+        if track is None:
+            raise RuntimeError("track index write did not persist")
+        return track
+
+    def remove_track_index(self, track_id: str) -> None:
+        """Remove one track row without scanning unrelated media."""
+        with closing(self._conn()) as conn, conn:
+            conn.execute("DELETE FROM tracks WHERE id = ?", (str(track_id),))
+
+    def track_count(self) -> int:
+        with closing(self._conn()) as conn, conn:
+            row = conn.execute("SELECT COUNT(*) AS count FROM tracks").fetchone()
+        return int(row["count"] if row else 0)
 
     def search(self, q: str = "", limit: int = 200) -> List[Dict[str, Any]]:
         q = (q or "").strip()
@@ -242,15 +301,17 @@ class Library:
         """Delete one media file and remove all playlist references."""
         track = self.get_track(str(track_id))
         if not track:
-            raise FileNotFoundError("music file not found")
+            raise FileNotFoundError("track not found")
         path = self.absolute_path(str(track["path"]))
         if not path.is_file():
-            raise FileNotFoundError("music file not found")
+            raise FileNotFoundError("track not found")
         referenced_by = []
         playlists = []
+        original_playlists = []
         for summary in self.list_playlists():
             playlist = self.load_playlist(str(summary["id"]))
             if track_id in (playlist.get("tracks") or []):
+                original_playlists.append(dict(playlist))
                 referenced_by.append(str(summary["id"]))
                 playlist["tracks"] = [
                     item for item in playlist.get("tracks") or [] if item != track_id
@@ -261,12 +322,16 @@ class Library:
         try:
             for playlist in playlists:
                 self.save_playlist(str(playlist["id"]), playlist)
-            indexed = self.reindex()
+            self.remove_track_index(track_id)
+            indexed = self.track_count()
             staged.unlink()
         except Exception:
             if staged.exists():
                 os.replace(str(staged), str(path))
-            self.reindex()
+            for playlist in original_playlists:
+                self.save_playlist(str(playlist["id"]), playlist)
+            if path.is_file():
+                self.index_path(path, duration=track.get("duration"))
             raise
         return {
             "ok": True,
