@@ -1,0 +1,9 @@
+# Canonical public dependency pin for PiFmRds (not vendored).
+# Sourced by scripts/install-pi-fm-rds.sh and scripts/install.sh.
+# Keep README.md, docs/INSTALL.md, docs/HARDWARE.md, and third_party/NOTICE.md
+# in sync with these values (enforced by appliance/tests/test_pifmrds_pin.py).
+PIFMRDS_UPSTREAM_OWNER=ChristopheJacquet
+PIFMRDS_UPSTREAM_REPO=PiFmRds
+PIFMRDS_UPSTREAM_URL=https://github.com/ChristopheJacquet/PiFmRds.git
+PIFMRDS_UPSTREAM_SHA=777f8e52648b88156483d067e24e0b8682abe8c1
+PIFMRDS_BINARY_PATH=/usr/local/bin/pi_fm_rds

@@ -1,0 +1,85 @@
+# piFM .gitignore — product checkout stays clean of operator/private data
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.pyo
+
+# Runtime / operator data (never commit a live station)
+data/library/**
+data/playlists/**
+data/logs/**
+data/audio/**
+data/recovery/
+data/backups/
+data/library.sqlite3
+data/*.sqlite3
+data/*.sqlite3-*
+!data/library/.gitkeep
+!data/playlists/.gitkeep
+!data/logs/.gitkeep
+
+# Live station configuration (template lives in examples/ and config/default.json)
+config/appliance.json
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.p12
+*.pfx
+credentials.json
+secrets.json
+
+# Deploy stamp (generated on station; not a source artifact)
+build_meta.json
+
+# Media / caches accidentally dropped in the tree
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.m4a
+*.aac
+*.wma
+!appliance/tests/**
+# Intentionally distributable product demo (application content, not operator data)
+!examples/demo/
+!examples/demo/**
+
+# Logs and temporary outputs
+*.log
+*.tmp
+*.temp
+*.swp
+*~
+/tmp/
+
+# Editor / OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.code-workspace
+.cursor/
+
+# Local private evidence directories (never publish filled copies)
+docs/evidence/*.local.md
+docs/evidence/*-filled.md
+**/private-evidence-*/
+backups/
+*.tgz
+*.tar.gz
+!docs/**/*.svg
+
+# Local non-RF harness scratch
+/tmp-pifm-*/
+/tmp/pifm-*/

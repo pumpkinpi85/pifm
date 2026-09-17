@@ -1,0 +1,39 @@
+{
+  "id": "raspberry-pi-a-plus",
+  "display_name": "Raspberry Pi Model A+ (Rev 1.1)",
+  "status": "SUPPORTED",
+  "evidence": "physically_proven_reference_station",
+  "soc_family": "BCM2835",
+  "architecture": "armv6",
+  "model_match": [
+    "Raspberry Pi Model A Plus Rev 1.1"
+  ],
+  "revision_match": [
+    "900021"
+  ],
+  "rf_gpio_bcm": 4,
+  "rf_header_pin": 7,
+  "ground_header_pins": [6, 9, 14, 20, 25, 30, 34, 39],
+  "optional_led_bcm": 18,
+  "optional_switch_bcm": 5,
+  "pi_fm_rds_compat": "supported",
+  "rebuild_pi_fm_rds_required": true,
+  "default_network_iface": "eth0",
+  "optional_gpio_controls": {
+    "led_bcm": 18,
+    "switch_bcm": 5
+  },
+  "system_prerequisites": {
+    "boot_target": "multi-user.target",
+    "onboard_audio": "disabled",
+    "reason": "PiFmRds requires exclusive PWM/DMA clock ownership for correct timing."
+  },
+  "physical_validation": {
+    "software_version": "0.4.3",
+    "timing_source_duration_s": 276.28,
+    "timing_observed_duration_s": 275.6,
+    "pi_fm_rds_ppm": 0.0,
+    "environment": "headless with onboard audio disabled"
+  },
+  "notes": "Reference and minimum hardware target for piFM. GPIO FM via GPCLK0 on BCM4. Correct timing is physically proven with a headless boot and onboard audio disabled."
+}

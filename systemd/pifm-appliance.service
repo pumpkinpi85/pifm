@@ -1,0 +1,26 @@
+[Unit]
+Description=piFM Pirate Radio appliance
+After=local-fs.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/opt/pifm
+Environment=PIFM_ROOT=/opt/pifm
+ExecStart=/usr/bin/python3 -m appliance
+# Always restart, including clean exit 0 — a prior control-path bug could kill
+# the process group and leave the Deck dead under on-failure-only policy.
+# Starting this service may restore only a previously persisted operator ON
+# intent, after the application repeats all readiness/single-TX checks.
+Restart=always
+RestartSec=3
+
+# Absolute STOP on service stop.
+TimeoutStopSec=30
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target
