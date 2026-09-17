@@ -50,7 +50,7 @@ function snapshot(track, revision) {
     frequency_band: {min_mhz: 87.1, max_mhz: 108.2, step_mhz: 0.1,
       scale: 10, min_units: 871, max_units: 1082},
     rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
-    network: {ip: "127.0.0.1"}, health: {}, hardware_status: "SUPPORTED",
+    network: {ip: "127.0.0.1"}, health: {}, hardware_status: "SUPPORTED", detected_hardware: {}, hardware_profile_mode: "auto",
     hardware_environment: {checks: []}, hardware_profile_doc: {},
     software_version: "test", git_sha: "abc", build_label: "test"
   };
@@ -122,7 +122,7 @@ setImmediate(() => {
     frequency_band: {min_mhz: 87.1, max_mhz: 108.2, step_mhz: 0.1,
       scale: 10, min_units: 871, max_units: 1082},
     rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
-    network: {}, health: {}, hardware_status: "SUPPORTED",
+    network: {}, health: {}, hardware_status: "SUPPORTED", detected_hardware: {}, hardware_profile_mode: "auto",
     hardware_environment: {checks: []}, hardware_profile_doc: {},
     software_version: "test", git_sha: "abc", build_label: "test"
   });
@@ -159,7 +159,7 @@ function snapshot(track, revision) {
     frequency_band: {min_mhz: 87.1, max_mhz: 108.2, step_mhz: 0.1,
       scale: 10, min_units: 871, max_units: 1082},
     rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
-    network: {}, health: {}, hardware_status: "SUPPORTED",
+    network: {}, health: {}, hardware_status: "SUPPORTED", detected_hardware: {}, hardware_profile_mode: "auto",
     hardware_environment: {checks: []}, hardware_profile_doc: {},
     software_version: "test", git_sha: "abc", build_label: "test"
   };
@@ -215,7 +215,7 @@ function snapshot(track, revision) {
     frequency_band: {min_mhz: 87.1, max_mhz: 108.2, step_mhz: 0.1,
       scale: 10, min_units: 871, max_units: 1082},
     rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
-    network: {}, health: {}, hardware_status: "SUPPORTED",
+    network: {}, health: {}, hardware_status: "SUPPORTED", detected_hardware: {}, hardware_profile_mode: "auto",
     hardware_environment: {checks: []}, hardware_profile_doc: {},
     software_version: "test", git_sha: "abc", build_label: "test"
   };
@@ -297,7 +297,7 @@ function snapshot(revision, state, broadcastState, broadcastUi, txRunning) {
     frequency_band: {min_mhz: 87.1, max_mhz: 108.2, step_mhz: 0.1,
       scale: 10, min_units: 871, max_units: 1082},
     rds_ps: "PIFM", rds_rt: "Test", rds_pi: "1234",
-    network: {}, health: {}, hardware_status: "SUPPORTED",
+    network: {}, health: {}, hardware_status: "SUPPORTED", detected_hardware: {}, hardware_profile_mode: "auto",
     hardware_environment: {checks: []}, hardware_profile_doc: {},
     software_version: "test", git_sha: "abc", build_label: "test"
   };

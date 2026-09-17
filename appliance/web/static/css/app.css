@@ -1136,6 +1136,22 @@ button:disabled {
   font-weight: 600;
 }
 .help p { margin: 0 0 0.35rem; color: var(--muted); }
+.help-links {
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.2rem;
+  color: var(--text);
+}
+.help-links li { margin-bottom: 0.45rem; }
+.help-links a {
+  color: var(--amber);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.help a {
+  color: var(--amber);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
 
 .toast {
   position: fixed;

@@ -321,11 +321,12 @@
         <div class="label">HARDWARE</div>
         <div id="hardwareSummary" class="bigstat">Detecting…</div>
         <p id="hardwareOutput" class="meta"></p>
+        <p id="hardwareProfileSummary" class="meta"></p>
         <div id="hardwareChecks" class="check-list"></div>
       </div>
       <details class="panel advanced">
         <summary>Advanced — change hardware profile</summary>
-        <p class="explain">Automatic detection is recommended. A manual choice does not make unverified hardware supported.</p>
+        <p class="explain">Automatic detection is recommended. A manual choice does not rewrite detected hardware and does not make unverified hardware supported.</p>
         <label for="hardwareMode">Hardware selection</label>
         <select id="hardwareMode">
           <option value="auto">Detect automatically</option>
@@ -335,6 +336,7 @@
         <select id="hardwareProfile">
           <option value="raspberry-pi-a-plus">Raspberry Pi Model A+ (Rev 1.1)</option>
         </select>
+        <p id="hardwareProfileHint" class="meta">In automatic mode, piFM selects the profile that matches the detected board.</p>
         <button type="button" id="btnSaveHardware" class="secondary">Save hardware choice</button>
       </details>
       <div class="panel">
@@ -399,6 +401,19 @@
         <p>Quiet network is an interference troubleshooting tool. It does not stop the FM broadcast.</p>
         <h3>Needs Attention / Possible Transmission</h3>
         <p>If the console shows <strong>Needs Attention</strong>, <strong>State Unknown</strong>, or <strong>Possible Transmission</strong>, press <strong>Stop Broadcast</strong>, then use System → Fault Recovery if needed.</p>
+      </div>
+      <div class="panel help">
+        <div class="label">DOCS &amp; PROJECT</div>
+        <p class="explain">Deck Help covers daily broadcasting. Full install, hardware, and troubleshooting docs live in the public project:</p>
+        <ul class="help-links">
+          <li><a href="https://github.com/pumpkinpi85/pifm" target="_blank" rel="noopener noreferrer">piFM on GitHub</a> — project home</li>
+          <li><a href="https://github.com/pumpkinpi85/pifm/tree/main/docs" target="_blank" rel="noopener noreferrer">Documentation index</a></li>
+          <li><a href="https://github.com/pumpkinpi85/pifm/blob/main/docs/USER-MANUAL.md" target="_blank" rel="noopener noreferrer">User manual</a> — Broadcast Deck daily use</li>
+          <li><a href="https://github.com/pumpkinpi85/pifm/blob/main/docs/HARDWARE.md" target="_blank" rel="noopener noreferrer">Hardware guide</a> — board, GPIO, prerequisites</li>
+          <li><a href="https://github.com/pumpkinpi85/pifm/blob/main/docs/TROUBLESHOOTING.md" target="_blank" rel="noopener noreferrer">Troubleshooting</a></li>
+          <li><a href="https://github.com/pumpkinpi85/pifm/blob/main/docs/INSTALL.md" target="_blank" rel="noopener noreferrer">Install guide</a></li>
+        </ul>
+        <p class="meta">GPIO FM can radiate. Filtering, antenna design, and legal authorization are your responsibility — see <a href="https://github.com/pumpkinpi85/pifm/blob/main/docs/rf-and-law.md" target="_blank" rel="noopener noreferrer">RF and law</a>.</p>
       </div>
     </section>
   </div>

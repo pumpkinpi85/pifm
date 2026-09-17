@@ -26,6 +26,7 @@
   var flagpoleGestureEpoch = null;
   var flagpoleBandKey = "";
   var flagpoleGrabOffsetY = 0;
+  var hardwareFormDirty = false;
 
   var ENGINEERING_KINDS = {
     TX_PID: 1,
@@ -186,7 +187,9 @@
       "Live fault and transmitter state unavailable.";
     $("hardwareSummary").textContent = "Live state unavailable";
     $("hardwareOutput").textContent = "";
+    if ($("hardwareProfileSummary")) $("hardwareProfileSummary").textContent = "";
     $("hardwareChecks").innerHTML = "";
+    hardwareFormDirty = false;
     $("devHarnessBanner").hidden = true;
     document.body.classList.remove("has-dev-harness");
     $("btnStopBroadcastHeader").hidden = true;
@@ -623,27 +626,77 @@
   }
 
   function hardwareLabel(s) {
-    var doc = (s && s.hardware_profile_doc) || {};
+    var detected = (s && s.detected_hardware) || {};
+    if (detected.display_name) return detected.display_name;
     var hints = (s && s.board_hints) || {};
-    return doc.display_name || hints.model || "Hardware not detected";
+    return hints.model || "Hardware not detected";
+  }
+
+  function hardwareSupportStatus(s) {
+    var detected = (s && s.detected_hardware) || {};
+    if (detected.status) return String(detected.status).toUpperCase();
+    return "UNKNOWN";
   }
 
   function hardwareOutput(s) {
+    var detected = (s && s.detected_hardware) || {};
+    if (detected.rf_gpio_bcm != null && detected.rf_header_pin != null) {
+      return "FM output: GPIO " + detected.rf_gpio_bcm +
+        " / physical pin " + detected.rf_header_pin;
+    }
+    return "";
+  }
+
+  function profileDisplayName(s) {
     var doc = (s && s.hardware_profile_doc) || {};
-    if (doc.rf_gpio_bcm == null || doc.rf_header_pin == null) return "";
-    return "FM output: GPIO " + doc.rf_gpio_bcm +
-      " / physical pin " + doc.rf_header_pin;
+    if (doc.display_name) return doc.display_name;
+    return (s && s.hardware_profile) || "—";
+  }
+
+  function syncHardwareProfileOptions(s) {
+    var select = $("hardwareProfile");
+    if (!select) return;
+    var profiles = s.available_hardware_profiles || [];
+    if (!profiles.length) return;
+    var current = select.value;
+    var html = profiles.map(function (profile) {
+      return '<option value="' + esc(profile.id) + '">' +
+        esc(profile.display_name || profile.id) + "</option>";
+    }).join("");
+    if (select.innerHTML !== html) select.innerHTML = html;
+    if (current) select.value = current;
+  }
+
+  function applyHardwareFormMode(mode) {
+    var profile = $("hardwareProfile");
+    var hint = $("hardwareProfileHint");
+    var isManual = mode === "manual";
+    if (profile) profile.disabled = !isManual;
+    if (hint) {
+      hint.textContent = isManual
+        ? "Manual profile is an operating choice. It does not change detected hardware identity."
+        : "In automatic mode, piFM selects the profile that matches the detected board.";
+    }
   }
 
   function renderHardware(s) {
-    var doc = s.hardware_profile_doc || {};
-    var status = String(s.hardware_status || doc.status || "UNKNOWN").toUpperCase();
+    var detected = s.detected_hardware || {};
+    var status = hardwareSupportStatus(s);
     var environment = s.hardware_environment || {};
     var checks = environment.checks || [];
+    var mode = String(s.hardware_profile_mode || (
+      s.hardware_profile_source === "manual" ? "manual" : "auto"
+    )).toLowerCase();
+    if (mode !== "manual") mode = "auto";
     if ($("hardwareSummary")) {
       $("hardwareSummary").textContent = hardwareLabel(s) + " · " + status;
     }
     if ($("hardwareOutput")) $("hardwareOutput").textContent = hardwareOutput(s);
+    if ($("hardwareProfileSummary")) {
+      $("hardwareProfileSummary").textContent =
+        "Hardware profile: " + profileDisplayName(s) +
+        (mode === "manual" ? " (Manual)" : " (Automatic)");
+    }
     if ($("hardwareChecks")) {
       $("hardwareChecks").innerHTML = checks.length ? checks.map(function (check) {
         return '<div class="check-row"><span class="' +
@@ -653,13 +706,16 @@
           esc(check.action || "") + "</div>") + "</div>";
       }).join("") : '<div class="meta">No profile-specific checks available.</div>';
     }
-    if ($("hardwareMode")) {
-      $("hardwareMode").value = s.hardware_profile_source === "manual"
-        ? "manual" : "auto";
+    syncHardwareProfileOptions(s);
+    if (!hardwareFormDirty) {
+      if ($("hardwareMode")) $("hardwareMode").value = mode;
+      if ($("hardwareProfile") && s.hardware_profile) {
+        $("hardwareProfile").value = s.hardware_profile;
+      } else if ($("hardwareProfile") && s.suggested_hardware_profile) {
+        $("hardwareProfile").value = s.suggested_hardware_profile;
+      }
     }
-    if ($("hardwareProfile") && s.hardware_profile) {
-      $("hardwareProfile").value = s.hardware_profile;
-    }
+    applyHardwareFormMode($("hardwareMode") ? $("hardwareMode").value : mode);
   }
 
   function renderRecovery(s) {
@@ -703,10 +759,7 @@
     wizard.hidden = !s.setup_required;
     if (!s.setup_required) return;
     $("setupHardwareName").textContent = hardwareLabel(s) + " detected";
-    var doc = s.hardware_profile_doc || {};
-    var hwStatus = String(
-      s.hardware_status || doc.status || "UNKNOWN"
-    ).toUpperCase();
+    var hwStatus = hardwareSupportStatus(s);
     $("setupHardwareStatus").textContent =
       hwStatus === "SUPPORTED" ? "Supported for piFM" : hwStatus;
     $("setupHardwareStatus").className =
@@ -1033,7 +1086,8 @@
     box.textContent = [
       "Version: " + (s.software_version || "—"),
       "Build: " + (s.build_label || s.git_sha || "—"),
-      "Hardware: " + (s.hardware_profile || "—"),
+      "Detected: " + ((s.detected_hardware && s.detected_hardware.display_name) || "—"),
+      "Hardware profile: " + (s.hardware_profile || "—") + ((s.hardware_profile_mode === "manual") ? " (Manual)" : " (Automatic)"),
       "PiFmRds timing: " + (s.pi_fm_rds_ppm != null ? s.pi_fm_rds_ppm + " ppm" : "—"),
       "Transmitter: " + (s.dev_harness ? "test harness (no FM)" : "FM transmitter"),
       "GPIO: " + (s.gpio_enabled ? "enabled" : "disabled"),
@@ -1840,11 +1894,20 @@
       hardware_profile_mode: mode,
       hardware_profile: $("hardwareProfile").value
     }).then(function () {
+      hardwareFormDirty = false;
       toast(mode === "auto"
         ? "Automatic hardware detection enabled."
         : "Hardware profile saved.");
       return refresh();
     }).catch(function (e) { toast(e.message); });
+  });
+
+  ["hardwareMode", "hardwareProfile"].forEach(function (id) {
+    if (!$(id)) return;
+    $(id).addEventListener("change", function () {
+      hardwareFormDirty = true;
+      if (id === "hardwareMode") applyHardwareFormMode($("hardwareMode").value);
+    });
   });
 
   $("btnSaveMusicFlags").addEventListener("click", function () {
