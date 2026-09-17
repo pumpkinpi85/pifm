@@ -996,6 +996,11 @@ button:disabled {
 }
 .upload-zone strong { color: var(--text); font-family: var(--font); font-size: 1.15rem; }
 .primary-upload { border-color: var(--warm); color: var(--amber); margin-top: 0.35rem; }
+.upload-tip {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  text-align: center;
+}
 .upload-progress { margin-top: 0.65rem; }
 .upload-row { margin: 0.45rem 0; }
 .upload-row progress { width: 100%; accent-color: var(--amber); }

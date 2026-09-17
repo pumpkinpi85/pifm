@@ -45,8 +45,35 @@ The supported path is:
    cache entry
 5. give that seekable WAV to `pi_fm_rds`
 
-A suitable seekable PCM16 WAV at 44.1 or 48 kHz, mono or stereo, can bypass
-conversion. Before any other source is converted, piFM reads decoded duration,
+### Avoid transcoding
+
+Want to avoid transcoding?
+piFM accepts MP3, WAV, FLAC, M4A, AAC and OGG and prepares audio for
+broadcasting when necessary. On lower-powered Raspberry Pis (especially the
+Model A+), you can avoid that processing by supplying transmitter-ready WAV
+files.
+
+**Recommended native format** (canonical conversion target and best choice):
+
+| Setting | Recommended |
+| Container | WAV |
+| Codec | PCM signed 16-bit little-endian (PCM S16LE) |
+| Sample rate | 44.1 kHz (44,100 Hz) |
+| Channels | Stereo (2) |
+| Bit depth | 16-bit |
+| Compression | None / uncompressed PCM |
+| Bitrate | 1,411.2 kbps (follows from 44100×16×2; not selected independently) |
+
+**Also accepted without conversion** (implementation today — still fine, but not
+the recommended target):
+- Seekable WAV, PCM 16-bit (`sample_width` 2)
+- Sample rate **44.1 kHz or 48 kHz**
+- Channels **mono or stereo**
+
+Files that fail this native check are converted with FFmpeg to the recommended
+44.1 kHz stereo PCM S16LE form when preparation runs.
+
+Before any other source is converted, piFM reads decoded duration,
 sample rate, and channel count, projects the PCM output size, checks free disk,
 and enforces the configured WAV-cache budget. Old disposable cache entries are
 evicted deterministically. Source media, playlists, configuration, the library

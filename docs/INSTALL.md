@@ -41,7 +41,9 @@ sudo apt install -y git python3 ffmpeg libsndfile1-dev build-essential rsync
 
 `ffmpeg` is required for media validation and, when needed, conversion to a
 seekable WAV that `pi_fm_rds` can play. Suitable seekable PCM WAVs may skip
-conversion. `libsndfile1-dev` and a C toolchain are required to build PiFmRds.
+conversion — see [Avoid transcoding](music.md#avoid-transcoding) in
+`docs/music.md`. `libsndfile1-dev` and a C toolchain are required to build
+PiFmRds.
 
 ## 4. Build and install `pi_fm_rds`
 
