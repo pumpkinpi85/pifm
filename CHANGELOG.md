@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.2 — Public release documentation & sanitation
+
+- Reorganize public manuals around README, INSTALL, HARDWARE, USER-MANUAL,
+  TROUBLESHOOTING, and ARCHITECTURE while preserving the validated media
+  contract in `docs/music.md`.
+- Harden `.gitignore` and installer excludes so live operator configuration,
+  media, playlists, SQLite, recovery markers, and secrets are not install or
+  commit candidates.
+- Sanitize founder-only path/alias examples from docs and script comments;
+  keep publication sanitization tests as a release gate.
+- Confirm the product ships **no** demo audio asset; operators upload their own
+  music. No appliance behaviour change versus the A+-validated 0.6.1 line.
+
 ## 0.6.1 — A+ stress-audit remediation
 
 - Reassert authoritative status on the SSE heartbeat so an open browser

@@ -1,25 +1,47 @@
 # piFM documentation
 
+Public manuals (start here):
+
 | Doc | Topic |
 |-----|--------|
-| [supported-pis.md](supported-pis.md) | Board support matrix and evidence labels |
-| [minimum-hardware.md](minimum-hardware.md) | A+ floor and performance expectations |
-| [installation.md](installation.md) | Packages, PiFmRds, piFM, systemd |
-| [configuration.md](configuration.md) | Config keys and safe defaults |
-| [operation.md](operation.md) | Broadcast Deck daily use |
-| [library-and-music.md](library-and-music.md) | Uploads, playlists, WAV cache |
-| [troubleshooting.md](troubleshooting.md) | Common failures |
-| [architecture.md](architecture.md) | Software structure |
+| [INSTALL.md](INSTALL.md) | Blank-card install, update, backup, rollback |
+| [HARDWARE.md](HARDWARE.md) | Board matrix, GPIO pin 7 / BCM 4, A+ prerequisites |
+| [USER-MANUAL.md](USER-MANUAL.md) | Broadcast Deck daily operation |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common failures |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Engineering overview |
+| [music.md](music.md) | Media formats, transcoding, ON AIR resource policy |
+| [configuration.md](configuration.md) | Advanced `appliance.json` keys |
 | [rf-and-law.md](rf-and-law.md) | Responsible RF use |
-| [clean-room-validation.md](clean-room-validation.md) | Fresh-Pi validation procedure |
-| [canonical-convergence.md](canonical-convergence.md) | Desk prep to replace personal/reference deploys |
-| [evidence/clean-room-phase-a.template.md](evidence/clean-room-phase-a.template.md) | Phase A evidence form (copy; do not commit filled private data) |
-| [persistent-data.md](persistent-data.md) | Application vs operator data contract |
-| [standalone-appliance.md](standalone-appliance.md) | Browser/network independence and power recovery |
-| [deployment.md](deployment.md) | Backup / exact-SHA deploy / rollback tools |
-| [cutover-reference-station.md](cutover-reference-station.md) | One-time `/home/…` → `/opt/pifm` procedure (do not run until authorized) |
-| [legacy-retirement.md](legacy-retirement.md) | Gates before retiring private/legacy trees |
-| [diagrams/README.md](diagrams/README.md) | Original diagram specifications |
-| [hardware/](hardware/) | GPIO / RF / optional controls |
+| [persistent-data.md](persistent-data.md) | Application vs operator data |
+| [diagrams/README.md](diagrams/README.md) | Diagram index |
 
-Start from [PROJECT_MASTER.md](../PROJECT_MASTER.md) for project authority.
+Project governance:
+
+| Doc | Topic |
+|-----|--------|
+| [../README.md](../README.md) | Front door |
+| [../PROJECT_MASTER.md](../PROJECT_MASTER.md) | Durable project authority |
+| [../CONTRIBUTING.md](../CONTRIBUTING.md) | Contribution rules / A+ floor |
+| [../SECURITY.md](../SECURITY.md) | Security reporting |
+| [../CHANGELOG.md](../CHANGELOG.md) | Release history |
+
+Compatibility stubs (old filenames → canonical manuals):
+
+| Legacy path | Points to |
+|-------------|-----------|
+| [installation.md](installation.md) | INSTALL.md |
+| [supported-pis.md](supported-pis.md) | HARDWARE.md |
+| [minimum-hardware.md](minimum-hardware.md) | HARDWARE.md |
+| [hardware-and-first-run.md](hardware-and-first-run.md) | HARDWARE.md |
+| [operation.md](operation.md) | USER-MANUAL.md |
+| [library-and-music.md](library-and-music.md) | music.md |
+| [standalone-appliance.md](standalone-appliance.md) | USER-MANUAL.md + ARCHITECTURE.md |
+| [deployment.md](deployment.md) | INSTALL.md |
+| [clean-room-validation.md](clean-room-validation.md) | Contributor validation notes |
+| [canonical-convergence.md](canonical-convergence.md) | Historical planning notes (sanitized) |
+| [cutover-reference-station.md](cutover-reference-station.md) | Generic migration notes |
+| [legacy-retirement.md](legacy-retirement.md) | Maintainer retirement gates |
+
+Note: on case-insensitive filesystems, `architecture.md` / `ARCHITECTURE.md` and
+`troubleshooting.md` / `TROUBLESHOOTING.md` are the same paths. The canonical
+public manuals use the uppercase names above.

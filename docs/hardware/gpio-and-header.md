@@ -1,15 +1,12 @@
 # GPIO and header
 
-Standard Raspberry Pi **40-pin** header numbering.
+See the canonical hardware manual: **[../HARDWARE.md](../HARDWARE.md)**.
 
-For PiFmRds / piFM reference assumptions:
+Quick reference for PiFmRds / piFM:
 
 | Function | BCM | Header pin |
 |----------|-----|------------|
-| FM RF clock out | **4** | **P1-07** |
-| Optional status LED | 18 | P1-12 |
-| Optional shutdown switch | 5 | P1-29 |
+| FM RF clock out | **4** | **7** |
+| Optional status LED | 18 | 12 |
+| Optional shutdown switch | 5 | 29 |
 | Ground | GND | multiple |
-
-Confirm with a multimeter/continuity before trusting enclosure wiring.
-See `docs/diagrams/README.md` for the planned original header diagram.

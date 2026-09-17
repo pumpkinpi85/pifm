@@ -16,6 +16,9 @@ extension does not imply support for every codec that container could hold.
 Damaged, encrypted, DRM-protected, empty, unsupported, incomplete, or
 undecodable files fail without entering the library.
 
+The public product does **not** ship demo music. Operators upload files they
+are allowed to use. Do not commit personal libraries into Git.
+
 Filenames are reduced to a safe basename. An identical same-name file is
 reported as already present; different content receives a numbered filename.
 Imports are atomic, temporary files are removed after failure, and normal

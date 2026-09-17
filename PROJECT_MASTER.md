@@ -3,7 +3,7 @@
 **Durable project authority.** A new contributor or Cursor session should be able
 to understand piFM from this file without the private reference-station history.
 
-Version of this document: **0.6.1 P1G (A+ stress-audit remediation)**
+Version of this document: **0.6.2 P1H (public-release documentation & sanitation)**
 
 ---
 
@@ -30,11 +30,11 @@ explicit on-air / off-air control.
 
 **Raspberry Pi Model A+ Rev 1.1** — reference and minimum target.
 
-The personal A+ station that matured the software is a **REFERENCE
-IMPLEMENTATION**, not the deployment environment of this repository.
+Any physical A+ used during development is a **REFERENCE IMPLEMENTATION**, not
+the deployment environment of this repository.
 
-Public code must **never** depend on that station’s paths, IP address, library,
-enclosure, network, or commissioning history.
+Public code must **never** depend on a private station’s paths, IP address,
+library, enclosure, network, or private evidence history.
 
 ## 4. MINIMUM-HARDWARE POLICY
 
@@ -70,11 +70,11 @@ unnecessary polling, excessive logging, repeated transcoding, excessive SD write
 
 ## 7. AUDIO / TRANSCODING ARCHITECTURE
 
-- Upload/index MP3 (and other ffmpeg-readable) music
-- Convert to seekable 44.1 kHz stereo PCM WAV for `pi_fm_rds`
-- Durable cache keyed by source identity (path + mtime + size)
-- Heavy convert runs outside the controller lock; status/STOP stay responsive
-- Opportunistic Up Next warm-cache when idle enough
+- Upload/index MP3/WAV/FLAC/M4A/AAC/OGG (FFprobe/FFmpeg authoritative)
+- Convert to seekable 44.1 kHz stereo PCM WAV for `pi_fm_rds` when required
+- Durable cache keyed by source identity (path + mtime + size), with bounds
+- Heavy convert runs as an owned child process; status/STOP stay responsive
+- Speculative warm-cache defaults off and never runs ON AIR
 
 ## 8. BROADCAST STATE MODEL
 
@@ -198,18 +198,16 @@ candidate only** — no public push until separately authorized.
 
 - Pre-1.0 public candidates: `0.x`
 - `1.0.0` only after clean-room Phase A, docs, license, and publication checklist
-- Do not pretend public history includes private commissioning chronology
+- Do not pretend public history includes private lab chronology
 
 ## 19. CURRENT PROJECT STATUS
 
-**P1G candidate:** canonical P1G runs on the physical A+ from `/opt/pifm`.
-P1G implements atomic operator broadcast intent, network-independent service
-startup, local program progression, and safety-gated restoration. Founder
-physical network-loss and power-restoration scenarios passed on the historical
-pre-flagpole product-validation SHA. The current flagpole change remains a new
-candidate until exact-tip non-RF, A+ OFF AIR, and founder RF validation finish.
-Legacy personal trees remain read-only rollback artifacts. No public GitHub
-push has occurred.
+**P1H candidate:** public-release documentation and sanitation on top of the
+A+-validated **0.6.1** appliance behaviour. Canonical installs use `/opt/pifm`.
+Atomic operator broadcast intent, network-independent service startup, local
+program progression, safety-gated restoration, and exact-tip RF validation for
+`0.6.1` are complete. Previous install roots may remain as local rollback
+artifacts until their retirement gates pass. No public GitHub push has occurred.
 
 ## 20. KNOWN LIMITATIONS
 
@@ -220,11 +218,13 @@ push has occurred.
 - P1E audio timing and the pre-flagpole P1G network/power restoration behavior
   were physically validated; later product SHAs require fresh exact-tip evidence
 - LAN API authentication remains future security-hardening work
-- Legacy `/home/pi/pifm` and private Mac tree not deleted (retirement gated)
+- Previous local install roots may still exist until retirement gates pass
+- Git history may still contain pre-sanitation tokens until a founder-authorized
+  history rewrite / squash publication event
 
 ## 21. NEXT APPROVED PHASE
 
-**Exact-tip flagpole validation:** complete non-RF validation, deploy to the
-reference A+ while OFF AIR with preserved operator data, then stop before the
-founder-operated real-RF flag interaction. Do not publish GitHub or delete
-legacy trees until their separate gates pass.
+**Founder validation of the P1H public-release candidate**, then a separately
+authorized publication decision (including whether history rewriting is
+required). Do not push to GitHub or delete local rollback trees until those
+gates pass.

@@ -43,7 +43,7 @@ DEFAULTS = {
     "rf_quiet_mode": "simulate",
     "rf_quiet_seconds": 60,
     "product_name": "piFM Pirate Radio",
-    "software_version": "0.6.1",
+    "software_version": "0.6.2",
 }
 
 FREQ_MIN = 87.1

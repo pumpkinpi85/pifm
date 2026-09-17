@@ -21,4 +21,4 @@ sources, comply with GPL-3.0 obligations for those components.
 - FFmpeg (system package)
 - libsndfile (PiFmRds build dependency)
 
-Exact package names vary by Raspberry Pi OS release; see `docs/installation.md`.
+Exact package names vary by Raspberry Pi OS release; see `docs/INSTALL.md`.

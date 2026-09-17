@@ -1,10 +1,6 @@
 # RF output
 
-Minimum conceptual hookup:
+See **[../HARDWARE.md](../HARDWARE.md)** and **[../rf-and-law.md](../rf-and-law.md)**.
 
-1. BCM GPIO 4 (P1-07) — RF-bearing clock output when transmitting
-2. GND — return
-3. User RF path — series filter / matching / shielded load / antenna **as you design**
-
-piFM does not ship a certified filter network. Raw GPIO output should be treated
-as experimental and spectrally unclean until measured and filtered appropriately.
+Minimum conceptual hookup: BCM GPIO 4 (header pin 7) → operator-supplied
+filter/match/load/antenna, plus GND. piFM does not ship a certified RF chain.
