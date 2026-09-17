@@ -111,15 +111,12 @@ class OperatorUxStaticTests(unittest.TestCase):
             "broadcast-tuner-handle-pressed.png",
         ):
             self.assertTrue((assets / name).is_file(), name)
-        # Experimental ON AIR sequence — static orange remains for rollback.
-        extreme = assets / "flag-on-air-seamless-100"
-        self.assertTrue((extreme / "manifest.json").is_file())
-        for index in range(1, 101):
-            frame = extreme / "flag_on_{:03d}.png".format(index)
-            self.assertTrue(frame.is_file(), frame.name)
-        self.assertIn("/js/flag-on-air-animation.js", self.html)
-        self.assertIn("PifmOnAirFlagAnimation", self.js)
         self.assertIn("broadcast-flag-on.png", self.broadcast)
+        self.assertNotIn("flag-on-air-animation", self.html)
+        self.assertNotIn("PifmOnAirFlagAnimation", self.js)
+        self.assertNotIn("flag-on-air-seamless", self.html)
+        self.assertNotIn("flag-on-air-extreme", self.html)
+        self.assertNotIn("flag_on_001", self.html)
         for name in (
             "broadcast-flagpole.png",
             "broadcast-flag-off.png",
@@ -141,11 +138,16 @@ class OperatorUxStaticTests(unittest.TestCase):
             "pirate-flag-candidate.png",
             "pirate-flag-offair",
             "pirate-flag-onair",
+            "/images/broadcast-control/flag-on-air-seamless-100",
+            "/images/broadcast-control/flag-on-air-extreme-80",
+            "/js/flag-on-air-animation.js",
+            "flag_on_001.png",
             "/images/broadcast-control/slider-handle.png",
             "/images/broadcast-control/slider-handle-active.png",
             "/images/broadcast-control/slider-handle-pressed.png",
         ):
             self.assertNotIn(stale, self.broadcast)
+            self.assertNotIn(stale, self.html)
         self.assertNotIn("raised-flag-rope", self.broadcast)
         self.assertIn("grid-template-columns: minmax(0, 1fr) 184px", self.css)
         self.assertIn("height: 43px", self.css)

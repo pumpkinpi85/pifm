@@ -310,20 +310,8 @@
     // Orange only when authoritative state is ON AIR — not preview, STARTING,
     // STOPPING, FAULT, or STATE UNKNOWN.
     var live = ui === "ON AIR";
-    var anim = window.PifmOnAirFlagAnimation;
-    if (!live) {
-      if (anim && typeof anim.stop === "function") anim.stop();
-      if (offImg) offImg.hidden = false;
-      if (onImg) onImg.hidden = true;
-    } else {
-      if (offImg) offImg.hidden = true;
-      if (onImg) {
-        onImg.hidden = false;
-        if (anim && typeof anim.start === "function") {
-          anim.start(onImg);
-        }
-      }
-    }
+    if (offImg) offImg.hidden = live;
+    if (onImg) onImg.hidden = !live;
     syncTunerAppearance(snapshot);
   }
 
@@ -331,8 +319,6 @@
     var flag = $("raisedFlag");
     if (!flag) return;
     if (!visible) {
-      var anim = window.PifmOnAirFlagAnimation;
-      if (anim && typeof anim.stop === "function") anim.stop();
       flag.hidden = true;
       flag.setAttribute("aria-hidden", "true");
       return;
