@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.6.1 — A+ stress-audit remediation
+
+- Reassert authoritative status on the SSE heartbeat so an open browser
+  reconciles a fault/possible-transmission display to confirmed OFF AIR without
+  relying on a refresh or optimistic local state.
+- Derive browser media-picker capabilities from the backend's six-format
+  contract: MP3, WAV, FLAC, M4A, AAC, and OGG.
+- Predict decoded PCM size before conversion, enforce configurable cache and
+  free-disk bounds, and evict only deterministic disposable WAV-cache entries
+  while protecting transmitter-owned audio.
+- Own each FFmpeg conversion by exact child process, with bounded
+  TERM/wait/KILL cancellation, reaping, and partial-output cleanup.
+- Disable speculative cache warming by default and prevent it while ON AIR;
+  reject library upload, deletion, and full reindex while transmission may be
+  active.
+- Replace normal import/delete full-library rebuilds with incremental SQLite
+  updates while preserving deliberate full reindex for repair.
+- Cache static build/board identity while retaining fresh TX/process
+  reconciliation in every authoritative status snapshot.
+- Normalize operator-facing Broadcast, Stop Broadcast, OFF AIR, brass handle,
+  pirate flag, track, playlist, queue, music program, and test-harness wording.
+
 ## 0.6.0 — Standalone appliance resilience
 
 - Persists deliberate operator ON intent in an atomic, fsync-backed marker;

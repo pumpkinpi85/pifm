@@ -38,7 +38,7 @@ OFF AIR on a live antenna unless Phase B is authorized.
 | 7 | Upload ordinary MP3s; create/select playlist | | |
 | 8 | Configure frequency / RDS (lawful local values) | | |
 | 9 | Play / Pause / Next with TX OFF | | |
-| 10 | Mock (or inhibited) Raise/Lower Black Flag lifecycle | | |
+| 10 | Test harness (no FM): Start Broadcasting / Stop Broadcast lifecycle | | |
 | 11 | Absolute STOP during STARTING | | |
 | 12 | OFF intent + reboot → OFF AIR; zero TX | | |
 

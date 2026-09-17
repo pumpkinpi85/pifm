@@ -8,8 +8,9 @@ FM generation (`pi_fm_rds`) and a simple Broadcast Deck console.
 ## Product principles
 
 - **Real transmitter, explicit operator intent.** Production targets
-  `pi_fm_rds`. Fresh installs boot **OFF AIR**. Raising the Black Flag arms
-  safe power-restoration recovery; absolute STOP disarms it.
+  `pi_fm_rds`. Fresh installs boot **OFF AIR**. Confirming **Start
+  Broadcasting** raises the pirate flag and arms safe power-restoration
+  recovery; **Stop Broadcast** disarms it.
 - **The Pi runs the station.** The browser is a remote control. Broadcasting
   does not require LAN, Internet, DNS, NTP, or an open browser.
 - **Reference hardware:** Raspberry Pi Model A+ Rev 1.1 (minimum / performance floor).
@@ -53,8 +54,9 @@ that repository.
 
 ## Status
 
-P1G product candidate **0.6.0** adds atomic operator broadcast intent,
-standalone playlist progression, and safety-gated service/power recovery.
+P1G product candidate **0.6.1** adds atomic operator broadcast intent,
+standalone playlist progression, safety-gated service/power recovery, and
+A+-bounded media preparation.
 Physical power-restoration RF validation remains founder-gated.
 The reference station runs the canonical product from `/opt/pifm`.
 Legacy personal trees remain read-only pending final retirement.

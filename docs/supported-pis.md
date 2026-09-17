@@ -22,7 +22,7 @@ Required evidence (documented in-repo or release notes):
 
 1. Fresh install of this repository on that board
 2. Compatible `pi_fm_rds` binary built on-device
-3. Non-RF lifecycle: boot OFF AIR, Deck, library, Play/Pause, Raise/Lower on mock **or** `pi_fm_rds` with transmission inhibited/shielded as appropriate
+3. Test harness (no FM) lifecycle: boot OFF AIR, Deck, library, Play/Pause, Start Broadcasting / Stop Broadcast on the test backend **or** `pi_fm_rds` with transmission inhibited/shielded as appropriate
 4. Absolute STOP verified
 5. Optional explicitly authorized RF check — never implied by software-only tests
 

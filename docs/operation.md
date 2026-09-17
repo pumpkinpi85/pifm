@@ -38,7 +38,8 @@ engineering detail.
 Starting from the brass handle persists ON intent before transmitter startup. A service or
 power restoration may restore that intent only after the normal hardware,
 media, readiness, and single-transmitter checks. To prevent automatic
-restoration, lower the flag or use STOP BROADCAST before shutdown; OFF intent
+restoration, return the brass handle to OFF AIR or use STOP BROADCAST before
+shutdown; OFF intent
 survives the next boot.
 
 The browser is only a remote control. Network or browser loss does not change

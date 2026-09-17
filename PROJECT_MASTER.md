@@ -3,7 +3,7 @@
 **Durable project authority.** A new contributor or Cursor session should be able
 to understand piFM from this file without the private reference-station history.
 
-Version of this document: **0.6.0 P1G (standalone appliance resilience)**
+Version of this document: **0.6.1 P1G (A+ stress-audit remediation)**
 
 ---
 
@@ -22,7 +22,8 @@ explicit on-air / off-air control.
 - Prefer simple, inspectable systems over frameworks.
 - Real FM capability with **strong safety defaults** (OFF AIR).
 - The A+ class machine is a feature, not a limitation to outgrow casually.
-- Operator UX is a physical radio deck metaphor (Black Flag / transport).
+- Operator UX is a physical radio deck metaphor (pirate flag, brass handle,
+  and music-program transport).
 - Engineering diagnostics stay out of the everyday operator path.
 
 ## 3. REFERENCE HARDWARE

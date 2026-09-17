@@ -17,6 +17,9 @@ See `examples/config.example.json`.
 | `network_iface` | e.g. `eth0` or `wlan0` |
 | `gpio_enabled` | Optional panel LED/switch (default false) |
 | `tx_pin` | Documented RF GPIO BCM (default 4) |
+| `wav_cache_max_mb` | Disposable seekable-WAV cache budget (default 1024 MiB) |
+| `wav_cache_min_free_mb` | Free storage retained before conversion (default 256 MiB) |
+| `cache_warming_enabled` | Optional OFF-AIR-only speculative preparation; default `false` |
 
 Transient ON_AIR state and transmitter PIDs are **never** persisted here.
 Operator ON intent is stored separately under `data/recovery/`; a service
