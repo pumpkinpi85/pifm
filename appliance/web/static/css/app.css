@@ -524,8 +524,8 @@ button:disabled {
 .flagpole-ticks::before {
   content: "";
   position: absolute;
-  top: 24px;
-  bottom: 50px;
+  top: 22px;
+  bottom: 48px;
   left: 51px;
   width: 1px;
   background: rgba(224,176,96,0.8);
@@ -610,9 +610,9 @@ button:disabled {
 .flagpole-handle {
   position: absolute;
   z-index: 13;
-  left: 1px;
-  width: 38px;
-  height: 48px;
+  left: 4px;
+  width: 34px;
+  height: 43px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -1169,7 +1169,7 @@ body.state-unavailable .view select {
     width: 166px;
     height: 641px;
   }
-  .flagpole-handle { min-height: 48px; }
+  .flagpole-handle { min-height: 43px; }
   .health-grid { grid-template-columns: 1fr; }
   .transport button { flex: 1 1 calc(50% - 0.45rem); }
   .transport .stop-music { flex: 1 1 100%; }

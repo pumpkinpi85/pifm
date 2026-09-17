@@ -230,7 +230,7 @@
   }
 
   function flagpoleHandleHeight() {
-    return $("flagpoleHandle").getBoundingClientRect().height || 48;
+    return $("flagpoleHandle").getBoundingClientRect().height || 43;
   }
 
   function flagpolePositionStyle(element, position) {
@@ -1502,7 +1502,7 @@
 
   function flagpolePositionFromPointer(event, applyGrabOffset) {
     var rect = $("flagpoleTrack").getBoundingClientRect();
-    var handleHeight = $("flagpoleHandle").getBoundingClientRect().height || 48;
+    var handleHeight = $("flagpoleHandle").getBoundingClientRect().height || 43;
     return window.PifmFlagpole.pointerPosition(
       event.clientY - (applyGrabOffset ? flagpoleGrabOffsetY : 0),
       rect.top,

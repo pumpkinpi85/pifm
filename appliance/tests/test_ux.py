@@ -111,7 +111,7 @@ class OperatorUxStaticTests(unittest.TestCase):
             self.assertIn("/images/broadcast-control/{}".format(name), self.broadcast)
         self.assertNotIn("pirate-flag-waving.png", self.broadcast)
         self.assertIn("grid-template-columns: minmax(0, 1fr) 184px", self.css)
-        self.assertIn("height: 48px", self.css)
+        self.assertIn("height: 43px", self.css)
         self.assertIn('class="raised-flag"', self.broadcast)
         self.assertIn('class="flagpole-travel"', self.broadcast)
         self.assertIn('id="flagpolePreset"', self.broadcast)
