@@ -253,6 +253,10 @@
     if (visible) flagpoleScalePositionStyle(rail, position);
   }
 
+  function setRaisedFlagVisible(visible) {
+    $("raisedFlag").hidden = !visible;
+  }
+
   function ensureFlagpoleTicks(band) {
     var key = [
       band.min_units, band.max_units, band.scale
@@ -261,18 +265,22 @@
     flagpoleBandKey = key;
     var box = $("flagpoleTicks");
     box.innerHTML = "";
+    var labelClearance = Math.max(1, Math.ceil(band.scale * 0.4));
     for (var units = band.min_units; units <= band.max_units; units += 1) {
       var endpoint = units === band.min_units || units === band.max_units;
+      var labeledMajor = units % 20 === 0 &&
+        units - band.min_units >= labelClearance &&
+        band.max_units - units >= labelClearance;
       if (!endpoint && units % 10 !== 0) continue;
       var tick = document.createElement("div");
       var position = window.PifmFlagpole.frequencyToPosition(
         units / band.scale, band
       );
       tick.className = "flagpole-tick" + (
-        endpoint || units % 20 === 0 ? " major" : ""
+        endpoint || labeledMajor ? " major" : ""
       );
       flagpoleScalePositionStyle(tick, position);
-      if (endpoint || units % 20 === 0) {
+      if (endpoint || labeledMajor) {
         var label = document.createElement("span");
         label.textContent = (units / band.scale).toFixed(1);
         tick.appendChild(label);
@@ -327,6 +335,7 @@
     $("flagpolePreset").hidden = true;
     $("flagpolePreset").disabled = true;
     flagpoleActiveRailStyle(0, false);
+    setRaisedFlagVisible(false);
     $("flagpoleUnknown").hidden = false;
     $("flagpoleUnknown").textContent = "LIVE POSITION UNAVAILABLE";
     $("flagpoleReadout").textContent = "SET —";
@@ -370,6 +379,7 @@
       $("flagpolePreset").hidden = true;
       $("flagpolePreset").disabled = true;
       flagpoleActiveRailStyle(0, false);
+      setRaisedFlagVisible(false);
       $("flagpoleUnknown").hidden = false;
       $("flagpoleUnknown").textContent = "FREQUENCY NEEDS CORRECTION";
       $("flagpoleReadout").textContent = "SET INVALID";
@@ -397,6 +407,7 @@
       preset.hidden = true;
       preset.disabled = true;
       flagpoleActiveRailStyle(0, false);
+      setRaisedFlagVisible(false);
       unknownBox.hidden = false;
       unknownBox.textContent = snapshot.state === "FAULT"
         ? "FAULT · POSITION UNKNOWN"
@@ -418,6 +429,7 @@
     var starting = broadcastUi === "STARTING BROADCAST…" ||
       broadcastUi === "STARTING";
     var stopping = broadcastUi === "STOPPING BROADCAST…";
+    setRaisedFlagVisible(onAir || starting || stopping);
     var canStartFromPreset = !onAir && !starting && !stopping &&
       uiSynchronized && !blocked && !flagpoleTxCommandPending() &&
       (!snapshot.broadcast || snapshot.broadcast.ready !== false);
@@ -1474,6 +1486,7 @@
       renderFlagpoleStatus(state);
       return;
     }
+    setRaisedFlagVisible(true);
     commandPending = "txon";
     txCommandPendingRevision = Number(state.snapshot_revision);
     $("flagpoleHandle").disabled = true;

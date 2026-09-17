@@ -94,6 +94,8 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("@media (max-width: 700px)", self.css)
         self.assertIn("touch-action: none", self.css)
         self.assertIn("flagpoleActiveRailStyle", self.js)
+        self.assertIn("setRaisedFlagVisible", self.js)
+        self.assertIn("setRaisedFlagVisible(true)", self.js)
         self.assertIn("TUNER_MIN_POSITION", self.js)
         self.assertIn("connectionCoordinator.acceptLiveSnapshot(result.status)", self.js)
 
@@ -113,12 +115,14 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("grid-template-columns: minmax(0, 1fr) 184px", self.css)
         self.assertIn("height: 43px", self.css)
         self.assertIn('class="raised-flag"', self.broadcast)
+        self.assertIn('id="raisedFlag" class="raised-flag" hidden', self.broadcast)
         self.assertIn('class="flagpole-travel"', self.broadcast)
         self.assertIn('id="flagpolePreset"', self.broadcast)
         self.assertIn('aria-label="Start broadcasting at the selected frequency"', self.broadcast)
         self.assertIn('class="flagpole-off-label"', self.broadcast)
         self.assertNotIn('class="flagpole-detent"', self.broadcast)
         self.assertNotIn("rgba(205,100,80,0.78)", self.css)
+        self.assertIn("clip-path: inset(0 10% 0 0)", self.css)
         self.assertLess(
             self.broadcast.index('class="raised-flag"'),
             self.broadcast.index('id="flagpoleHandle"'),
@@ -153,7 +157,7 @@ class OperatorUxStaticTests(unittest.TestCase):
         help_html = self.html.split('id="view-help"')[1]
         self.assertNotIn("Star Wars", help_html)
         self.assertIn("Choose your music", help_html)
-        self.assertIn("pirate flag stays raised", help_html)
+        self.assertIn("pirate flag remains hidden while OFF AIR", help_html)
         self.assertNotIn("Practice Mode", help_html)
         self.assertNotIn("Sandbox", help_html)
 

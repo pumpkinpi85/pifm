@@ -4,8 +4,9 @@
 
 - **Music transport** (Play / Pause / Prev / Next) changes the program.
   Pause while on air holds silence on the carrier; it does not end RF.
-- The pirate flag remains raised as identity artwork. The brass handle sits at
-  the bottom **OFF AIR** detent when transmission is stopped.
+- The pirate flag is hidden while **OFF AIR** and during preview. It appears
+  after release and confirmation when broadcast startup begins. The brass
+  handle sits at the bottom detent when transmission is stopped.
 - A small upward hop enters the tuner at `87.1 MHz`; the remaining handle
   travel covers the complete range through `108.2 MHz` in `0.1 MHz` steps.
 - Release below 5% travel selects OFF AIR. Release from 5% through 10% snaps to

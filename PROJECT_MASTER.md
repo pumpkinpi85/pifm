@@ -137,9 +137,10 @@ evidence must not be presented as validation of a newer SHA.
 - Broadcast uses one vertical brass handle: the bottom is a small OFF AIR
   detent, `87.1 MHz` begins at 10% travel, and `108.2 MHz` is at the top
 - Pointer movement is preview-only; release makes one canonical backend command
-- The pirate flag remains raised as static identity artwork. OFF AIR renders the
-  handle at the bottom while an actionable marker shows the Station frequency;
-  selecting that marker enters the same confirmed start path as the handle.
+- The pirate flag is hidden while OFF AIR and during preview, then appears only
+  after the confirmed start boundary. OFF AIR renders the handle at the bottom
+  while an actionable marker shows the Station frequency; selecting that marker
+  enters the same confirmed start path as the handle.
   ON AIR and recovered intent render only from authoritative status.
 - FAULT, possible transmission, or disconnection never displays a definitive
   handle position; the masthead STOP remains independent

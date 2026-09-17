@@ -24,8 +24,8 @@
   writes, and unwritable Ship's Log behavior without corrupting operator data.
 - Preserves recovery intent in backup, deployment, and rollback tooling.
 - Adds the Broadcast brass-handle tuner: a 5% OFF decision detent, a 10%
-  lowest-frequency snap, full-range tuning above it, and a permanently raised
-  decorative pirate flag with authoritative preview/commit reconstruction.
+  lowest-frequency snap, full-range tuning above it, and an authoritative flag
+  that is hidden while OFF AIR/previewing and appears after confirmed start.
 - Refines the tuner with a smaller handle and reference-style scale, makes the
   selected frequency a confirmed start action, and immediately reconciles
   Station saves into the authoritative Broadcast display.

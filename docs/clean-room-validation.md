@@ -42,9 +42,10 @@ Checklist:
 6. Upload ordinary MP3s; create/select playlist
 7. Configure frequency/RDS
 8. Play / Pause / Next with TX still OFF (program preview / mock as applicable)
-9. Confirm the pirate flag remains raised, the OFF AIR handle is at the bottom
-   detent, and the selectable frequency marker matches Station. In mock mode,
-   confirm selecting it enters the normal confirmed start flow.
+9. Confirm the pirate flag is hidden while OFF AIR and previewing, the handle is
+   at the bottom detent, and the selectable frequency marker matches Station.
+   In mock mode, confirm selecting or releasing a frequency enters the normal
+   confirmed start flow and reveals the flag only after that boundary.
 10. If using mock: release the brass handle at minimum, maximum, and a
     representative frequency; confirm authoritative Station/handle synchronization.
 11. If using mock: return the handle to the bottom detent and confirm one STOP
