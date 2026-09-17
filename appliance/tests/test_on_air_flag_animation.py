@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 ANIM_JS = ROOT / "appliance/web/static/js/flag-on-air-animation.js"
-FRAMES = ROOT / "appliance/web/static/images/broadcast-control/flag-on-air-extreme-80"
+FRAMES = ROOT / "appliance/web/static/images/broadcast-control/flag-on-air-seamless-100"
 STATIC_ON = (
     ROOT / "appliance/web/static/images/broadcast-control/broadcast-flag-on.png"
 )
@@ -36,13 +36,13 @@ class OnAirFlagAnimationTests(unittest.TestCase):
     def test_static_orange_flag_preserved_for_rollback(self):
         self.assertTrue(STATIC_ON.is_file())
 
-    def test_all_eighty_frames_and_manifest_present(self):
+    def test_all_hundred_frames_and_manifest_present(self):
         manifest = json.loads((FRAMES / "manifest.json").read_text())
         self.assertEqual(manifest["fps"], 10)
         self.assertEqual(manifest["frame_duration_ms"], 100)
-        self.assertEqual(manifest["frame_count"], 80)
-        self.assertEqual(manifest["loop_duration_ms"], 8000)
-        self.assertEqual(len(manifest["order"]), 80)
+        self.assertEqual(manifest["frame_count"], 100)
+        self.assertEqual(manifest["loop_duration_ms"], 10000)
+        self.assertEqual(len(manifest["order"]), 100)
         for index, name in enumerate(manifest["order"], start=1):
             expected = "flag_on_{:03d}.png".format(index)
             self.assertEqual(name, expected)
@@ -52,16 +52,16 @@ class OnAirFlagAnimationTests(unittest.TestCase):
         self.run_node(
             """
             const assert = require("assert");
-            assert.strictEqual(anim.FRAME_COUNT, 80);
+            assert.strictEqual(anim.FRAME_COUNT, 100);
             assert.strictEqual(anim.FRAME_MS, 100);
-            assert.strictEqual(anim.LOOP_MS, 8000);
-            assert.strictEqual(anim.frameUrl(0), "/images/broadcast-control/flag-on-air-extreme-80/flag_on_001.png");
-            assert.strictEqual(anim.frameUrl(79), "/images/broadcast-control/flag-on-air-extreme-80/flag_on_080.png");
+            assert.strictEqual(anim.LOOP_MS, 10000);
+            assert.strictEqual(anim.frameUrl(0), "/images/broadcast-control/flag-on-air-seamless-100/flag_on_001.png");
+            assert.strictEqual(anim.frameUrl(99), "/images/broadcast-control/flag-on-air-seamless-100/flag_on_100.png");
             assert.ok(String(anim.STATIC_ON_SRC).indexOf("broadcast-flag-on.png") >= 0);
-            // 080 -> 001 seam has no pause: next index after 79 wraps to 0 at exactly 8s.
-            assert.strictEqual(Math.floor(7999 / anim.FRAME_MS) % anim.FRAME_COUNT, 79);
-            assert.strictEqual(Math.floor(8000 / anim.FRAME_MS) % anim.FRAME_COUNT, 0);
-            assert.strictEqual(Math.floor(8100 / anim.FRAME_MS) % anim.FRAME_COUNT, 1);
+            // 100 -> 001 seam has no pause: next index after 99 wraps to 0 at exactly 10s.
+            assert.strictEqual(Math.floor(9999 / anim.FRAME_MS) % anim.FRAME_COUNT, 99);
+            assert.strictEqual(Math.floor(10000 / anim.FRAME_MS) % anim.FRAME_COUNT, 0);
+            assert.strictEqual(Math.floor(10100 / anim.FRAME_MS) % anim.FRAME_COUNT, 1);
             """
         )
 

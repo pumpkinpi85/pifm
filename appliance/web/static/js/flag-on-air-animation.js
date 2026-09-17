@@ -11,10 +11,10 @@
 
   // Experimental ON AIR fabric animation. Static broadcast-flag-on.png remains
   // the rollback / reduced-motion / failure fallback and must not be deleted.
-  var FRAME_COUNT = 80;
+  var FRAME_COUNT = 100;
   var FRAME_MS = 100;
   var LOOP_MS = FRAME_COUNT * FRAME_MS;
-  var BASE_PATH = "/images/broadcast-control/flag-on-air-extreme-80/";
+  var BASE_PATH = "/images/broadcast-control/flag-on-air-seamless-100/";
   // Decode to ~2× dashboard flag box (162.7×108.4) so A+ memory stays viable
   // while full-resolution PNGs remain on disk for founder evaluation.
   var PLAYBACK_WIDTH = 326;
