@@ -10,8 +10,12 @@
   commit candidates.
 - Sanitize founder-only path/alias examples from docs and script comments;
   keep publication sanitization tests as a release gate.
-- Confirm the product ships **no** demo audio asset; operators upload their own
-  music. No appliance behaviour change versus the A+-validated 0.6.1 line.
+- Remove compatibility stub manuals, founder-only planning notes, and the
+  unused `pirate-flag-waving.png` asset after the public manual hierarchy landed.
+- Bundle `examples/demo/Brynja Vinter - The Sky Belongs to No King.wav` as the
+  distributable demo track (artist credit: Brynja Vinter) and seed it into
+  fresh installs without overwriting operator media.
+  No other appliance behaviour change versus the A+-validated 0.6.1 line.
 
 ## 0.6.1 — A+ stress-audit remediation
 

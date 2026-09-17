@@ -80,13 +80,28 @@ class PublicationSanitizeTests(unittest.TestCase):
             .check_output(["git", "ls-files"], cwd=str(ROOT), text=True)
             .splitlines()
         }
+        allowed_demo_prefix = "examples/demo/"
         banned_suffixes = (".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac", ".sqlite3")
         offenders = [
             path
             for path in tracked
-            if path.endswith(banned_suffixes) or path == "config/appliance.json"
+            if (
+                path.endswith(banned_suffixes)
+                and not path.startswith(allowed_demo_prefix)
+            )
+            or path == "config/appliance.json"
         ]
         self.assertEqual(offenders, [], "operator data tracked:\n" + "\n".join(offenders))
+
+    def test_bundled_demo_track_is_present(self):
+        demo = ROOT / "examples" / "demo" / "Brynja Vinter - The Sky Belongs to No King.wav"
+        self.assertTrue(demo.is_file(), "missing bundled demo track")
+        self.assertGreater(demo.stat().st_size, 1_000_000)
+        readme = ROOT / "examples" / "demo" / "README.md"
+        self.assertTrue(readme.is_file())
+        text = readme.read_text()
+        self.assertIn("The Sky Belongs to No King", text)
+        self.assertIn("Brynja Vinter", text)
 
 
 if __name__ == "__main__":

@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -369,12 +370,63 @@ def deploy_application(
             (target_root / rel).mkdir(parents=True, exist_ok=True)
 
         ensure_config_off_air(target_root / "config" / "appliance.json")
+        result["demo_seed"] = seed_demo_media(target_root)
         result["build"] = resolve_build_identity(target_root)
         result["action"] = "deployed"
         result["preserved_found"] = sorted(preserved.keys())
         return result
     finally:
         shutil.rmtree(tmp_preserve, ignore_errors=True)
+
+
+def seed_demo_media(target_root: Path) -> Dict[str, Any]:
+    """Copy bundled demo audio into the operator library when missing.
+
+    Never overwrites an existing demo file or default playlist. Application
+    content lives under examples/demo/; the operator copy is under data/library.
+    """
+    target_root = Path(target_root)
+    demo_name = "Brynja Vinter - The Sky Belongs to No King.wav"
+    rel_path = "demo/{}".format(demo_name)
+    src_candidates = [
+        target_root / "examples" / "demo" / demo_name,
+        _HERE.parent / "examples" / "demo" / demo_name,
+    ]
+    src = next((path for path in src_candidates if path.is_file()), None)
+    report = {
+        "demo_name": demo_name,
+        "source": str(src) if src else None,
+        "copied_track": False,
+        "created_playlist": False,
+    }  # type: Dict[str, Any]
+    if src is None:
+        report["skipped"] = "demo_source_missing"
+        return report
+
+    dest_dir = target_root / "data" / "library" / "demo"
+    dest = dest_dir / demo_name
+    playlist = target_root / "data" / "playlists" / "default.json"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    (target_root / "data" / "playlists").mkdir(parents=True, exist_ok=True)
+
+    if not dest.exists():
+        shutil.copy2(src, dest)
+        report["copied_track"] = True
+        report["dest"] = str(dest)
+    else:
+        report["dest"] = str(dest)
+        report["track_status"] = "already_present"
+
+    if not playlist.exists():
+        track_id = uuid.uuid5(uuid.NAMESPACE_URL, rel_path).hex
+        playlist.write_text(
+            json.dumps({"name": "default", "tracks": [track_id]}, indent=2) + "\n"
+        )
+        report["created_playlist"] = True
+        report["track_id"] = track_id
+    else:
+        report["playlist_status"] = "already_present"
+    return report
 
 
 def _snapshot_application(src_root: Path, dest: Path) -> None:

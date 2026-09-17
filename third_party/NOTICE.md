@@ -15,6 +15,17 @@ build/install `pi_fm_rds` separately and point `pi_fm_rds_path` at the binary.
 When distributing a combined system image that includes modified PiFmRds
 sources, comply with GPL-3.0 obligations for those components.
 
+## Bundled demo audio
+
+`examples/demo/Brynja Vinter - The Sky Belongs to No King.wav` is shipped as
+piFM’s intentional product demo / validation reference audio.
+
+**Artist credit:** Brynja Vinter — *The Sky Belongs to No King*.
+
+Fresh installs may copy it into the operator library without overwriting
+existing files. Redistribution with this repository is founder-authorized for
+piFM; do not substitute unrelated copyrighted catalog.
+
 ## Other runtime dependencies (typical)
 
 - Python 3 (system)

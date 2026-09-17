@@ -88,9 +88,11 @@ Fresh installs open a short browser setup:
 ## Adding music
 
 Accepted filename families: **MP3, WAV, FLAC, M4A, AAC, OGG** (up to 128 MiB).
-FFprobe/FFmpeg decide actual decodability. piFM does **not** ship demo music;
-you upload your own. Details: [docs/USER-MANUAL.md](docs/USER-MANUAL.md) and
-[docs/music.md](docs/music.md)
+FFprobe/FFmpeg decide actual decodability. Fresh installs also seed one bundled
+demo track — **The Sky Belongs to No King** by **Brynja Vinter** — into
+`data/library/demo/` (see [examples/demo/README.md](examples/demo/README.md)).
+You can keep it, replace it, or upload your own music. Details:
+[docs/USER-MANUAL.md](docs/USER-MANUAL.md) and [docs/music.md](docs/music.md)
 
 ## Offline / disconnected behaviour
 

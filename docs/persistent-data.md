@@ -25,6 +25,7 @@ destructive option is used (none is enabled by default).
 |------|--------|
 | `appliance/` | APPLICATION |
 | `scripts/`, `systemd/`, `hardware/`, `docs/`, `examples/` | APPLICATION |
+| `examples/demo/` | APPLICATION demo source; install may copy into `data/library/demo/` when missing |
 | `config/default.json` | APPLICATION template (not live config) |
 | `build_meta.json` | BUILD IDENTITY (stamped per deploy) |
 | Top-level license/readme/governance docs | APPLICATION |

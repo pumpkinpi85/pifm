@@ -89,6 +89,28 @@ class StationOpsTests(unittest.TestCase):
             )
             self.assertIn("build", man)
 
+    def test_seed_demo_media_copies_once_and_preserves_existing(self):
+        ops = self.ops
+        demo_src = ROOT / "examples" / "demo" / "Brynja Vinter - The Sky Belongs to No King.wav"
+        if not demo_src.is_file():
+            self.skipTest("bundled demo track not present")
+        with tempfile.TemporaryDirectory() as td:
+            target = Path(td) / "opt" / "pifm"
+            (target / "examples" / "demo").mkdir(parents=True)
+            shutil.copy2(demo_src, target / "examples" / "demo" / demo_src.name)
+            first = ops.seed_demo_media(target)
+            self.assertTrue(first["copied_track"])
+            self.assertTrue(first["created_playlist"])
+            dest = target / "data" / "library" / "demo" / demo_src.name
+            self.assertTrue(dest.is_file())
+            original = dest.read_bytes()
+            dest.write_bytes(b"operator-owned")
+            second = ops.seed_demo_media(target)
+            self.assertFalse(second["copied_track"])
+            self.assertFalse(second["created_playlist"])
+            self.assertEqual(dest.read_bytes(), b"operator-owned")
+            self.assertEqual(original[:4], b"RIFF")
+
     def test_stage_deploy_preserves_operator_data_and_strips_on_air(self):
         ops = self.ops
         with tempfile.TemporaryDirectory() as td:

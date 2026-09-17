@@ -52,7 +52,9 @@ build_meta.json
 *.aac
 *.wma
 !appliance/tests/**
-# Allow only intentional product fixtures under tests (none today)
+# Intentionally distributable product demo (application content, not operator data)
+!examples/demo/
+!examples/demo/**
 
 # Logs and temporary outputs
 *.log

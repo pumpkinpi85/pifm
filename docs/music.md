@@ -16,8 +16,12 @@ extension does not imply support for every codec that container could hold.
 Damaged, encrypted, DRM-protected, empty, unsupported, incomplete, or
 undecodable files fail without entering the library.
 
-The public product does **not** ship demo music. Operators upload files they
-are allowed to use. Do not commit personal libraries into Git.
+The public product ships one bundled demo recording under
+`examples/demo/Brynja Vinter - The Sky Belongs to No King.wav`
+(**Brynja Vinter** — *The Sky Belongs to No King*). Fresh installs copy it into
+`data/library/demo/` only when that destination is missing and may create a
+`default` playlist that references it. Operator libraries remain local and are
+never committed to Git.
 
 Filenames are reduced to a safe basename. An identical same-name file is
 reported as already present; different content receives a numbered filename.

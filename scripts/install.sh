@@ -51,6 +51,9 @@ mkdir -p \
   "$PREFIX/data/recovery" \
   "$PREFIX/config"
 
+# Seed bundled demo media into operator library only when missing.
+"$ROOT/scripts/seed-demo-media.sh" "$PREFIX"
+
 if [[ ! -f "$PREFIX/config/appliance.json" ]]; then
   cp "$PREFIX/examples/config.example.json" "$PREFIX/config/appliance.json"
   # Point transmitter path at the installed binary location.

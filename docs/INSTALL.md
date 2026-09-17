@@ -96,7 +96,14 @@ The installer:
 - installs and enables `pifm-appliance.service`
 - does **not** start broadcasting
 
-## 7. First-run setup
+## Demo media
+
+Fresh installs seed **The Sky Belongs to No King** by **Brynja Vinter** from
+`examples/demo/` into `data/library/demo/` when that file is not already
+present, and create a `default` playlist for it when no playlist exists yet.
+Existing operator media and playlists are never overwritten by this seed.
+
+## First-run setup
 
 1. Open `http://<pi-address>:8080/`
 2. Complete the five-step setup (hardware → station → music → deck)
@@ -121,12 +128,13 @@ Look for `broadcast_state: "off"`, `software_version`, and `git_sha` /
     default.json           # application template
     appliance.json         # LIVE operator config (preserved)
   data/
-    library/               # uploaded music (preserved)
+    library/               # uploaded music (preserved); demo/ seeded when missing
     playlists/             # playlists (preserved)
     library.sqlite3        # library index (preserved)
     recovery/              # broadcast intent markers (preserved)
     logs/                  # logs + WAV cache (disposable)
   examples/
+    demo/                  # bundled demo source (application)
   hardware/
   scripts/
   systemd/
