@@ -3,7 +3,7 @@
 # Local install root:
 #   ./scripts/validate-reference-hardware.sh --root /opt/pifm
 # Remote read-only (does not restart services or key RF):
-#   ./scripts/validate-reference-hardware.sh --remote pifm --root /opt/pifm
+#   ./scripts/validate-reference-hardware.sh --remote pi@station.local --root /opt/pifm
 # (For pre-cutover stations, pass the station's current install root explicitly.)
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"

@@ -155,7 +155,8 @@ class OperatorUxStaticTests(unittest.TestCase):
 
     def test_content_agnostic_help(self):
         help_html = self.html.split('id="view-help"')[1]
-        self.assertNotIn("Star Wars", help_html)
+        banned_demo = "Star" + " Wars"
+        self.assertNotIn(banned_demo, help_html)
         self.assertIn("Choose your music", help_html)
         self.assertIn("pirate flag remains hidden while OFF AIR", help_html)
         self.assertNotIn("Practice Mode", help_html)

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Build/install pi_fm_rds to the canonical system path.
 # Default destination: /usr/local/bin/pi_fm_rds
-# Does NOT start RF. Does NOT modify Nathan's historical home-tree binary
-# unless that path is explicitly passed as the source checkout.
+# Does NOT start RF. Does NOT modify any existing transmitter binary unless
+# that path is explicitly passed as the source checkout or --dest.
 #
 #   ./scripts/install-pi-fm-rds.sh --src /path/to/PiFmRds
 #   PI_FM_RDS_SRC=/path/to/PiFmRds ./scripts/install-pi-fm-rds.sh

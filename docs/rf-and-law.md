@@ -13,8 +13,9 @@
 
 - Upstream PiFmRds emits FM/RDS using Pi clock/PWM-class mechanisms on **GPIO 4**
   (header pin 7) — SOFTWARE-PROVEN (upstream docs/source).
-- A+ reference station operated with this software line — HARDWARE-PROVEN for
-  that private build; public clean-room RF remains a separate gate.
+- A+ class hardware operated successfully with this software line —
+  HARDWARE-PROVEN for the validated reference profile; public clean-room RF
+  remains a separate publication concern.
 - GPIO carriers are widely described as harmonic-rich — ASSUMED /
   REQUIRES MEASUREMENT for any specific spectral claim.
 - Filtering, matching, and antenna fitness — REQUIRES MEASUREMENT; not provided

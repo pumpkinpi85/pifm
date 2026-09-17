@@ -32,8 +32,15 @@ rsync -a \
   --exclude '.git' \
   --exclude '__pycache__' \
   --exclude 'data/library/*' \
+  --exclude 'data/playlists/*' \
   --exclude 'data/logs/*' \
+  --exclude 'data/recovery' \
+  --exclude 'data/backups' \
+  --exclude 'data/library.sqlite3' \
+  --exclude 'data/*.sqlite3' \
   --exclude 'config/appliance.json' \
+  --exclude '.env' \
+  --exclude '.env.*' \
   "$ROOT"/ "$PREFIX"/
 
 mkdir -p \
@@ -41,6 +48,7 @@ mkdir -p \
   "$PREFIX/data/playlists" \
   "$PREFIX/data/logs/wav/cache" \
   "$PREFIX/data/audio" \
+  "$PREFIX/data/recovery" \
   "$PREFIX/config"
 
 if [[ ! -f "$PREFIX/config/appliance.json" ]]; then
@@ -62,7 +70,7 @@ fi
 if [[ "$TX_BACKEND" == "pi_fm_rds" && ! -x "$PI_FM_RDS_BIN" ]]; then
   if [[ -z "$PI_FM_RDS_SRC" ]]; then
     echo "WARNING: $PI_FM_RDS_BIN not found."
-    echo "Build PiFmRds (see docs/installation.md), install the binary to $PI_FM_RDS_BIN,"
+    echo "Build PiFmRds (see docs/INSTALL.md), install the binary to $PI_FM_RDS_BIN,"
     echo "or set PI_FM_RDS_SRC to a checkout and re-run."
     echo "For non-RF clean-room lifecycle only: PIFM_TX_BACKEND=mock ./scripts/install.sh"
   else
@@ -100,5 +108,5 @@ systemctl restart pifm-appliance.service
 echo
 echo "Installed. Service enabled. Broadcast state should be OFF AIR."
 echo "Open: http://$(hostname -I 2>/dev/null | awk '{print $1}'):8080/"
-echo "Configure music/station before Raise the Black Flag."
+echo "Configure music/station before moving the brass handle out of OFF AIR."
 echo "Legal responsibility for RF remains with the operator — see docs/rf-and-law.md"

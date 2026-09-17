@@ -1,7 +1,7 @@
 # Clean-room Phase A evidence template
 
 Copy this file (do not commit filled copies with private host data).
-Use a spare Pi or fresh SD image — **not** the personal reference A+ station.
+Use a spare Pi or fresh SD image — **not** a production station’s live operator data.
 **No RF** unless Phase B is separately authorized.
 
 ## Identity
@@ -47,7 +47,7 @@ OFF AIR on a live antenna unless Phase B is authorized.
 - [ ] No unintended transmission observed during Phase A
 - [ ] Absolute STOP remained available
 - [ ] OFF intent/service restart left station OFF AIR
-- [ ] No private LAN IPs, personal paths, media, or commissioning bundles were copied into the candidate tree
+- [ ] No private LAN IPs, personal paths, media, or private evidence bundles were copied into the candidate tree
 
 ## Disposition
 

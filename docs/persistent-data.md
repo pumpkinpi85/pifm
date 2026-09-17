@@ -1,9 +1,9 @@
 # Persistent data contract
 
-Canonical application install root: **`/opt/pifm`** (`PIFM_ROOT`).
+Canonical application install root: **`/opt/pifm`** (`PIFM_ROOT` / `PIFM_PREFIX`).
 
 piFM separates **application** (replaced on upgrade) from **operator data**
-(preserved across upgrades). Nathan’s personal values must never be baked into
+(preserved across upgrades). Personal station values must never be baked into
 the product defaults committed to Git.
 
 ## Preserved across upgrades (operator data)
@@ -33,7 +33,7 @@ destructive option is used (none is enabled by default).
 
 | Path | Class | Notes |
 |------|--------|-------|
-| `data/logs/` | LOG / RUNTIME | Ship’s log, TX stderr, incident dirs |
+| `data/logs/` | LOG / RUNTIME | Ship’s log, TX stderr |
 | `data/logs/wav/cache/` | CACHE | Regenerable WAV cache |
 | `data/audio/` | CACHE / RUNTIME | Generated silence / helpers |
 
@@ -44,7 +44,7 @@ These may be cleared during recovery without losing the station’s music librar
 - Live `config/appliance.json`
 - Operator media and playlists
 - SQLite library DB contents
-- Logs, caches, backups, commissioning evidence
+- Logs, caches, backups, private evidence
 - Host IPs, personal paths, private keys
 
 ## Broadcast-intent invariant
