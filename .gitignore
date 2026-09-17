@@ -52,6 +52,8 @@ build_meta.json
 *.aac
 *.wma
 !appliance/tests/**
+appliance/tests/**/__pycache__/
+appliance/tests/**/*.py[cod]
 # Intentionally distributable product demo (application content, not operator data)
 !examples/demo/
 !examples/demo/**
