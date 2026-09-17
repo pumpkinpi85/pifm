@@ -515,9 +515,6 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(200, data, ctype)
 
 
-# ThreadingHTTPServer exists on 3.7+ as of 3.7 — actually ThreadingHTTPServer was added in 3.7.
-# Confirm: yes Python 3.7 has http.server.ThreadingHTTPServer.
-
 def serve(
     host: str,
     port: int,

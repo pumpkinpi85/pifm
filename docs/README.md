@@ -14,6 +14,7 @@ Public manuals (start here):
 | [rf-and-law.md](rf-and-law.md) | Responsible RF use |
 | [persistent-data.md](persistent-data.md) | Application vs operator data |
 | [diagrams/README.md](diagrams/README.md) | Diagram index |
+| [clean-room-validation.md](clean-room-validation.md) | Contributor clean-room checklist |
 
 Project governance:
 
@@ -25,23 +26,6 @@ Project governance:
 | [../SECURITY.md](../SECURITY.md) | Security reporting |
 | [../CHANGELOG.md](../CHANGELOG.md) | Release history |
 
-Compatibility stubs (old filenames → canonical manuals):
-
-| Legacy path | Points to |
-|-------------|-----------|
-| [installation.md](installation.md) | INSTALL.md |
-| [supported-pis.md](supported-pis.md) | HARDWARE.md |
-| [minimum-hardware.md](minimum-hardware.md) | HARDWARE.md |
-| [hardware-and-first-run.md](hardware-and-first-run.md) | HARDWARE.md |
-| [operation.md](operation.md) | USER-MANUAL.md |
-| [library-and-music.md](library-and-music.md) | music.md |
-| [standalone-appliance.md](standalone-appliance.md) | USER-MANUAL.md + ARCHITECTURE.md |
-| [deployment.md](deployment.md) | INSTALL.md |
-| [clean-room-validation.md](clean-room-validation.md) | Contributor validation notes |
-| [canonical-convergence.md](canonical-convergence.md) | Historical planning notes (sanitized) |
-| [cutover-reference-station.md](cutover-reference-station.md) | Generic migration notes |
-| [legacy-retirement.md](legacy-retirement.md) | Maintainer retirement gates |
-
-Note: on case-insensitive filesystems, `architecture.md` / `ARCHITECTURE.md` and
-`troubleshooting.md` / `TROUBLESHOOTING.md` are the same paths. The canonical
-public manuals use the uppercase names above.
+On case-insensitive filesystems, prefer the uppercase manual names
+(`INSTALL.md`, `HARDWARE.md`, `USER-MANUAL.md`, `TROUBLESHOOTING.md`,
+`ARCHITECTURE.md`) so Linux and macOS checkouts agree.
