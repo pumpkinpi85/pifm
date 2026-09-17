@@ -56,6 +56,7 @@ files.
 **Recommended native format** (canonical conversion target and best choice):
 
 | Setting | Recommended |
+|---------|-------------|
 | Container | WAV |
 | Codec | PCM signed 16-bit little-endian (PCM S16LE) |
 | Sample rate | 44.1 kHz (44,100 Hz) |
