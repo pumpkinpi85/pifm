@@ -229,6 +229,21 @@ if [[ "\$((TXC+FTC))" -ne 0 ]]; then
   sudo pkill -x fm_transmitter || true
   exit 1
 fi
-curl -sf http://127.0.0.1:8080/api/status | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("state")!="ON_AIR"; assert not d.get("tx_running"); print("STATUS", d.get("state"), d.get("software_version"), d.get("git_sha"))'
+STATUS_FILE=\$(mktemp)
+STATUS_READY=0
+for _attempt in \$(seq 1 20); do
+  if curl -sf http://127.0.0.1:8080/api/status > "\$STATUS_FILE"; then
+    STATUS_READY=1
+    break
+  fi
+  sleep 0.5
+done
+if [[ "\$STATUS_READY" -ne 1 ]]; then
+  echo "FAIL: status API did not become ready after service restart" >&2
+  rm -f "\$STATUS_FILE"
+  exit 1
+fi
+python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("state")!="ON_AIR"; assert not d.get("tx_running"); print("STATUS", d.get("state"), d.get("software_version"), d.get("git_sha"))' < "\$STATUS_FILE"
+rm -f "\$STATUS_FILE"
 EOF
 fi
