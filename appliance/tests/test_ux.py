@@ -81,6 +81,14 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("txCommandPendingRevision", self.js)
         self.assertIn("flagpoleScalePositionStyle", self.js)
         self.assertIn("(handleHeight / 2)", self.js)
+        # Grab-adjusted mapping only — raw below OFF_HIT_ENTER must not force OFF
+        # while the handle center is still on 87.1–88.2 FM.
+        self.assertIn(
+            "event.clientY - (applyGrabOffset ? flagpoleGrabOffsetY : 0)",
+            self.js,
+        )
+        self.assertNotIn("Prefer OFF if either mapping", self.js)
+        self.assertNotIn("Math.min(raw, adjusted", self.js)
         self.assertIn("STOP BROADCAST requested", self.js)
         self.assertIn('"X-PiFM-Authority-ID"', self.js)
         self.assertIn("FAULT · POSITION UNKNOWN", self.js)
@@ -253,6 +261,8 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("detected_hardware", self.js)
         self.assertIn("FM output: GPIO ", self.js)
         self.assertIn("does not rewrite detected hardware", self.html)
+        # Unmatched boards: never treat stub doc.display_name as a profile.
+        self.assertIn("if (profileId && doc.display_name)", self.js)
 
     def test_broadcast_recovery_status_is_explained_under_system(self):
         self.assertIn("BROADCAST RECOVERY", self.html)
@@ -340,6 +350,42 @@ class OperatorBlockerTests(unittest.TestCase):
         self.assertFalse(bc["ready"])
         msgs = " ".join(b["message"] for b in bc["blockers"])
         self.assertIn("System", msgs)
+
+    def test_hardware_checklist_detail_matches_operating_status(self):
+        """Manual mismatch: ok from EXPERIMENTAL must not show detected UNKNOWN."""
+        self.ctrl.config.update({"tx_backend": "pi_fm_rds"})
+        hw_identity = {
+            "hardware": {
+                "hardware_status": "EXPERIMENTAL",
+                "hardware_profile_doc": {
+                    "id": "raspberry-pi-a-plus",
+                    "display_name": "Raspberry Pi Model A+ (Rev 1.1)",
+                    "status": "SUPPORTED",
+                },
+                "detected_hardware": {
+                    "detected": True,
+                    "display_name": "Raspberry Pi 5 Model B Rev 1.0",
+                    "status": "UNKNOWN",
+                },
+            }
+        }
+        with patch.object(
+            self.ctrl, "_static_identity_unlocked", return_value=hw_identity
+        ), patch(
+            "appliance.controller.check_host_prerequisites",
+            return_value={"ready": True, "checks": []},
+        ), patch(
+            "appliance.controller.probe_real_tx_readiness",
+            return_value={"ready": True, "summary": "ok"},
+        ):
+            bc = self.ctrl.broadcast_checklist()
+        hardware = next(i for i in bc["items"] if i["id"] == "hardware")
+        self.assertTrue(hardware["ok"])
+        self.assertEqual(
+            hardware["detail"],
+            "Raspberry Pi 5 Model B Rev 1.0 · EXPERIMENTAL",
+        )
+        self.assertNotIn("UNKNOWN", hardware["detail"])
 
     def test_stop_available_flags_in_status(self):
         st = self.ctrl.status()

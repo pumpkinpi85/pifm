@@ -303,9 +303,6 @@ class Controller:
                     hw.get("hardware_status") or "UNKNOWN"
                 ).upper()
                 detected = hw.get("detected_hardware") or {}
-                detected_status = str(
-                    detected.get("status") or "UNKNOWN"
-                ).upper()
                 hardware_ok = hardware_status in ("SUPPORTED", "EXPERIMENTAL")
                 items.append(
                     {
@@ -316,9 +313,10 @@ class Controller:
                             detected.get("display_name")
                             or profile.get("display_name")
                             or "Unknown hardware",
-                            detected_status
-                            if detected.get("detected")
-                            else hardware_status,
+                            # Match ok/readiness: operating hardware_status, not
+                            # raw detected status (UNKNOWN under manual mismatch
+                            # while hardware_status is EXPERIMENTAL).
+                            hardware_status,
                         ),
                         "severity": True,
                         "operator_hint": (

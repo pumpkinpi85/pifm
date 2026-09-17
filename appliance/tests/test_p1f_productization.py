@@ -58,6 +58,27 @@ class HardwareDetectionTests(unittest.TestCase):
         self.assertIsNone(resolved["hardware_profile"])
         self.assertEqual(resolved["hardware_profile_doc"]["status"], "UNKNOWN")
 
+    def test_unmatched_board_stub_does_not_copy_device_tree_as_profile_name(self):
+        """Stub profile doc must not recycle detected identity as a selection."""
+        with patch(
+            "appliance.hardware_profile.detect_board_hints",
+            return_value={
+                "model": "Raspberry Pi 5 Model B Rev 1.0",
+                "revision": "d04170",
+            },
+        ):
+            resolved = resolve_hardware_profile(
+                ROOT, profile_mode="auto", include_detection=True
+            )
+        self.assertIsNone(resolved["hardware_profile"])
+        self.assertFalse(resolved["hardware_profile_found"])
+        self.assertIsNone(resolved["hardware_profile_doc"].get("display_name"))
+        self.assertEqual(
+            resolved["detected_hardware"]["display_name"],
+            "Raspberry Pi 5 Model B Rev 1.0",
+        )
+        self.assertEqual(resolved["hardware_status"], "UNKNOWN")
+
     def test_manual_profile_does_not_claim_unknown_board_supported(self):
         with patch(
             "appliance.hardware_profile.detect_board_hints",
@@ -190,6 +211,24 @@ class HardwareDetectionTests(unittest.TestCase):
             self.assertIn("pulseaudio", headless["action"])
             self.assertIn("configure-hardware.sh --apply", headless["action"])
             self.assertIn("already set", headless["action"])
+
+    def test_configure_hardware_rollback_unmasks_user_audio(self):
+        script = (ROOT / "scripts" / "configure-hardware.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("systemctl --user mask", script)
+        # Generated rollback must reverse the mask, not only boot config/target.
+        self.assertIn("systemctl --user unmask", script)
+        self.assertIn("user-audio-masked.txt", script)
+        self.assertIn("user-audio-units.txt", script)
+        rollback_start = script.index('cat > "$BACKUP_DIR/rollback.sh"')
+        rollback_block = script[
+            rollback_start : script.index("chmod 700", rollback_start)
+        ]
+        self.assertIn("unmask", rollback_block)
+        self.assertIn("config.txt", rollback_block)
+        self.assertIn("default-target.txt", rollback_block)
+
 
 class HardwareProfilePersistenceTests(unittest.TestCase):
     def test_manual_mode_persists_across_reload(self):

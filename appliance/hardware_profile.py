@@ -225,8 +225,9 @@ def resolve_hardware_profile(
             "hardware_profile_found": False,
             "hardware_profile_doc": {
                 "id": None,
-                "display_name": detected.get("display_name")
-                or "Unknown hardware",
+                # Do not copy the device-tree model here — that is detected
+                # identity, not an operating profile selection.
+                "display_name": None,
                 "status": "UNKNOWN",
                 "notes": "No matching hardware profile was detected.",
             },

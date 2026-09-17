@@ -697,9 +697,14 @@
   }
 
   function profileDisplayName(s) {
+    var profileId = (s && s.hardware_profile) || "";
     var doc = (s && s.hardware_profile_doc) || {};
-    if (doc.display_name) return doc.display_name;
-    return (s && s.hardware_profile) || "—";
+    // Only treat display_name as the operating profile when a profile is
+    // actually selected. Unmatched boards use a stub doc that must not
+    // recycle the detected device-tree model as a profile name.
+    if (profileId && doc.display_name) return doc.display_name;
+    if (profileId) return profileId;
+    return "—";
   }
 
   function syncHardwareProfileOptions(s) {
@@ -1653,22 +1658,15 @@
   function flagpolePositionFromPointer(event, applyGrabOffset) {
     var rect = $("flagpoleTrack").getBoundingClientRect();
     var handleHeight = $("flagpoleHandle").getBoundingClientRect().height || 43;
-    var raw = window.PifmFlagpole.pointerPosition(
-      event.clientY, rect.top, rect.height, handleHeight
-    );
-    var adjusted = window.PifmFlagpole.pointerPosition(
+    // Grab offset maps from the handle center. Do not OR with the raw
+    // (uncompensated) hit: grabbing the lower half at 87.1–88.2 puts raw
+    // below OFF_HIT_ENTER while the handle center is still on-frequency.
+    return window.PifmFlagpole.pointerPosition(
       event.clientY - (applyGrabOffset ? flagpoleGrabOffsetY : 0),
       rect.top,
       rect.height,
       handleHeight
     );
-    // Grabbing the bottom of the handle previously required dragging past the
-    // track before raw mapping entered OFF. Prefer OFF if either mapping says so.
-    var enter = window.PifmFlagpole.OFF_HIT_ENTER;
-    if (raw < enter || adjusted < enter) {
-      return Math.min(raw, adjusted, enter - 0.001);
-    }
-    return adjusted;
   }
 
   function initializeFlagpole() {
