@@ -4,20 +4,26 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck disable=SC1090
+source "$ROOT/third_party/pifmrds.pin"
 PREFIX="${PIFM_PREFIX:-/opt/pifm}"
 SERVICE_USER="${PIFM_USER:-pi}"
 PI_FM_RDS_SRC="${PI_FM_RDS_SRC:-}"
-PI_FM_RDS_BIN="${PI_FM_RDS_BIN:-/usr/local/bin/pi_fm_rds}"
+PI_FM_RDS_BIN="${PI_FM_RDS_BIN:-$PIFMRDS_BINARY_PATH}"
 # Production default is pi_fm_rds. Use PIFM_TX_BACKEND=mock for clean-room
 # lifecycle-only installs (no RF). Never use this script to start transmitting.
 TX_BACKEND="${PIFM_TX_BACKEND:-pi_fm_rds}"
 CONFIGURE_HARDWARE="${PIFM_CONFIGURE_HARDWARE:-0}"
+# When the TX binary is missing, clone/build the pinned upstream
+# ChristopheJacquet/PiFmRds revision unless PIFM_SKIP_PIFMRDS_BUILD=1.
+SKIP_PIFMRDS_BUILD="${PIFM_SKIP_PIFMRDS_BUILD:-0}"
 
 echo "piFM install"
 echo "  source:  $ROOT"
 echo "  prefix:  $PREFIX"
 echo "  user:    $SERVICE_USER"
 echo "  tx:      $TX_BACKEND"
+echo "  pifmrds: $PIFMRDS_UPSTREAM_URL @ $PIFMRDS_UPSTREAM_SHA"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Re-run with sudo so systemd and /opt can be configured." >&2
@@ -71,16 +77,16 @@ PY
 fi
 
 if [[ "$TX_BACKEND" == "pi_fm_rds" && ! -x "$PI_FM_RDS_BIN" ]]; then
-  if [[ -z "$PI_FM_RDS_SRC" ]]; then
-    echo "WARNING: $PI_FM_RDS_BIN not found."
-    echo "Build PiFmRds (see docs/INSTALL.md), install the binary to $PI_FM_RDS_BIN,"
-    echo "or set PI_FM_RDS_SRC to a checkout and re-run."
-    echo "For non-RF clean-room lifecycle only: PIFM_TX_BACKEND=mock ./scripts/install.sh"
+  if [[ "$SKIP_PIFMRDS_BUILD" == "1" ]]; then
+    echo "WARNING: $PI_FM_RDS_BIN not found and PIFM_SKIP_PIFMRDS_BUILD=1."
+    echo "Install the pinned upstream binary later (see docs/INSTALL.md)."
   else
-    echo "Building pi_fm_rds from $PI_FM_RDS_SRC"
-    make -C "$PI_FM_RDS_SRC/src" clean
-    make -C "$PI_FM_RDS_SRC/src"
-    install -m 755 "$PI_FM_RDS_SRC/src/pi_fm_rds" "$PI_FM_RDS_BIN"
+    echo "Building pinned upstream pi_fm_rds ($PIFMRDS_UPSTREAM_SHA) → $PI_FM_RDS_BIN"
+    if [[ -n "$PI_FM_RDS_SRC" ]]; then
+      "$ROOT/scripts/install-pi-fm-rds.sh" --src "$PI_FM_RDS_SRC" --dest "$PI_FM_RDS_BIN"
+    else
+      "$ROOT/scripts/install-pi-fm-rds.sh" --dest "$PI_FM_RDS_BIN"
+    fi
   fi
 fi
 

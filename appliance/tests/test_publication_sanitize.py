@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 # Negative-test file may contain forbidden tokens as scan needles only.
 ALLOWLIST_REL = {
     "appliance/tests/test_publication_sanitize.py",
+    "appliance/tests/test_pifmrds_pin.py",
 }
 
 FORBIDDEN = [
@@ -26,6 +27,7 @@ FORBIDDEN = [
     "--remote pifm",
     "imager.service",
     "48aeca95",
+    "github.com/pumpkinpi85/PiFmRds.git",
 ]
 
 FORBIDDEN_CONTENT = [

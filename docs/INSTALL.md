@@ -45,24 +45,41 @@ conversion. `libsndfile1-dev` and a C toolchain are required to build PiFmRds.
 
 ## 4. Build and install `pi_fm_rds`
 
-Always build on the target architecture (especially A+ / ARMv6):
+Always build on the target architecture (especially A+ / ARMv6). piFM pins a
+specific upstream [ChristopheJacquet/PiFmRds](https://github.com/ChristopheJacquet/PiFmRds)
+commit (see `third_party/pifmrds.pin`); do **not** float on `master`, do **not**
+use `pumpkinpi85/PiFmRds`, and do **not** expect PiFmRds sources inside this
+repository.
+
+Recommended (clones/checks out the pin, builds, installs):
 
 ```bash
+# from a piFM checkout; requires sudo for /usr/local
+sudo ./scripts/install-pi-fm-rds.sh
+```
+
+Manual equivalent:
+
+```bash
+PIN=777f8e52648b88156483d067e24e0b8682abe8c1
 git clone https://github.com/ChristopheJacquet/PiFmRds.git
-cd PiFmRds/src
+cd PiFmRds
+git checkout "$PIN"
+cd src
 make clean && make
 sudo install -m 755 pi_fm_rds /usr/local/bin/pi_fm_rds
 pi_fm_rds 2>&1 | head -n 5 || true
 ```
 
-Helper (still builds on-device):
+If you already have a checkout, pass it only when it is at the pinned SHA:
 
 ```bash
-# from a piFM checkout
-./scripts/install-pi-fm-rds.sh --src /path/to/PiFmRds
+sudo ./scripts/install-pi-fm-rds.sh --src /path/to/PiFmRds
 ```
 
 Canonical binary path: `/usr/local/bin/pi_fm_rds`.
+Validated upstream pin: `777f8e52648b88156483d067e24e0b8682abe8c1`
+([commit](https://github.com/ChristopheJacquet/PiFmRds/commit/777f8e52648b88156483d067e24e0b8682abe8c1)).
 
 ## 5. Obtain piFM
 
@@ -87,17 +104,25 @@ Useful variants:
 
 | Goal | Command |
 |------|---------|
-| Also build PiFmRds during install | `sudo PI_FM_RDS_SRC=/path/to/PiFmRds ./scripts/install.sh` |
+| Also build pinned PiFmRds during install | `sudo ./scripts/install.sh` (clones upstream pin when `/usr/local/bin/pi_fm_rds` is missing) |
+| Use an existing pinned checkout | `sudo PI_FM_RDS_SRC=/path/to/PiFmRds ./scripts/install.sh` |
+| Skip TX build (mock / pre-provisioned host) | `sudo PIFM_SKIP_PIFMRDS_BUILD=1 ./scripts/install.sh` |
 | Apply A+ headless/onboard-audio prerequisites | `sudo PIFM_CONFIGURE_HARDWARE=1 ./scripts/install.sh` |
 | Lifecycle-only (no live TX backend) | `sudo PIFM_TX_BACKEND=mock ./scripts/install.sh` |
 | Non-root service user | `sudo PIFM_USER=myuser ./scripts/install.sh` |
 | Alternate prefix | `sudo PIFM_PREFIX=/srv/pifm ./scripts/install.sh` |
+
+When `tx_backend` is `pi_fm_rds` and `/usr/local/bin/pi_fm_rds` is missing,
+`install.sh` runs `scripts/install-pi-fm-rds.sh`, which checks out
+`ChristopheJacquet/PiFmRds` at the SHA in `third_party/pifmrds.pin`, builds
+on-device, and installs the binary to `/usr/local/bin/pi_fm_rds`.
 
 The installer:
 
 - copies application files to the prefix
 - creates operator-data directories
 - writes `config/appliance.json` from the example **only if missing**
+- builds/installs pinned upstream `pi_fm_rds` when needed (see above)
 - installs and enables `pifm-appliance.service`
 - does **not** start broadcasting
 

@@ -30,6 +30,12 @@ Do not treat theoretical compatibility as a support claim.
 Upstream PiFmRds compatibility claims:
 https://github.com/ChristopheJacquet/PiFmRds
 
+piFM’s public install path builds the **pinned** upstream revision recorded in
+`third_party/pifmrds.pin` (currently
+`777f8e52648b88156483d067e24e0b8682abe8c1`). Rebuild `pi_fm_rds` on each
+board/architecture; do not float on upstream `master` and do not install from
+`pumpkinpi85/PiFmRds` for the product procedure.
+
 Product profile JSON for the validated board:
 `hardware/profiles/raspberry-pi-a-plus.json`
 
@@ -130,7 +136,8 @@ These are conveniences, not required for Broadcast Deck operation.
 Required evidence:
 
 1. Fresh install of this repository on that board
-2. Compatible `pi_fm_rds` built on-device
+2. Compatible `pi_fm_rds` built on-device from the pinned upstream
+   ChristopheJacquet/PiFmRds SHA in `third_party/pifmrds.pin`
 3. Non-RF lifecycle: boot OFF AIR, Deck, library, Play/Pause, Start / Stop on
    mock **or** inhibited/shielded live backend
 4. Absolute Stop Broadcast verified

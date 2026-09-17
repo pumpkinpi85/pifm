@@ -176,7 +176,9 @@ lawful use. Prefer shielded loads for lab work.
 
 This project is licensed under **GNU GPL version 3**. Users may run, study,
 share, and modify under GPL-3.0. That is not write access to the canonical repo.
-Upstream PiFmRds is also GPL-3.0 — see `third_party/NOTICE.md`.
+Upstream PiFmRds is also GPL-3.0 — see `third_party/NOTICE.md`. Public installs
+pin a specific ChristopheJacquet/PiFmRds commit via `third_party/pifmrds.pin`
+(not vendored; not the pumpkinpi85 fork).
 
 ## 16. REPOSITORY GOVERNANCE
 

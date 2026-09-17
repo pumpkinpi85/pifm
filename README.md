@@ -5,7 +5,11 @@
 piFM turns a Raspberry Pi into a small personal FM broadcast appliance. You
 manage music, station identity, and on-air / off-air control from a simple web
 console. Production RF uses [PiFmRds](https://github.com/ChristopheJacquet/PiFmRds)
-(`pi_fm_rds`) on GPIO.
+(`pi_fm_rds`) on GPIO. Public installs build the **pinned upstream revision**
+`777f8e52648b88156483d067e24e0b8682abe8c1` documented in
+[`third_party/pifmrds.pin`](third_party/pifmrds.pin) and
+[`third_party/NOTICE.md`](third_party/NOTICE.md) — not a floating `master`, not
+a fork, and not a vendored tree inside this repository.
 
 Installation and configuration **do not transmit**. The station boots
 **OFF AIR** until you deliberately move the brass Broadcast handle out of its
@@ -67,7 +71,8 @@ Full matrix and detection rules: [docs/HARDWARE.md](docs/HARDWARE.md)
 
 1. Flash **Raspberry Pi OS Lite**, enable SSH if desired, boot, and connect
    networking. Details: [docs/INSTALL.md](docs/INSTALL.md)
-2. Install packages, build `pi_fm_rds`, and install piFM to `/opt/pifm`.
+2. Install packages, build the **pinned** upstream `pi_fm_rds`, and install
+   piFM to `/opt/pifm`.
 3. Open the Broadcast Deck: `http://<pi-address>:8080/`
 4. Complete first-run setup (hardware, station name/frequency, music).
 5. On **Music**, upload tracks you are allowed to use.
