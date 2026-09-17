@@ -111,6 +111,15 @@ class OperatorUxStaticTests(unittest.TestCase):
             "broadcast-tuner-handle-pressed.png",
         ):
             self.assertTrue((assets / name).is_file(), name)
+        # Experimental ON AIR sequence — static orange remains for rollback.
+        extreme = assets / "flag-on-air-extreme-80"
+        self.assertTrue((extreme / "manifest.json").is_file())
+        for index in range(1, 81):
+            frame = extreme / "flag_on_{:03d}.png".format(index)
+            self.assertTrue(frame.is_file(), frame.name)
+        self.assertIn("/js/flag-on-air-animation.js", self.html)
+        self.assertIn("PifmOnAirFlagAnimation", self.js)
+        self.assertIn("broadcast-flag-on.png", self.broadcast)
         for name in (
             "broadcast-flagpole.png",
             "broadcast-flag-off.png",
