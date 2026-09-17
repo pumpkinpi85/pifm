@@ -198,6 +198,117 @@ class FlagpoleMappingTests(unittest.TestCase):
             """
         )
 
+    def test_off_hit_hysteresis_snaps_below_lowest_fm(self):
+        self.run_node(
+            """
+            const assert = require("assert");
+            const band = {min_units: 871, max_units: 1082, scale: 10};
+            assert.ok(flagpole.OFF_HIT_ENTER > flagpole.TUNER_MIN_POSITION);
+            assert.ok(flagpole.OFF_HIT_LEAVE >= flagpole.TUNER_MIN_POSITION);
+            let step = flagpole.targetForPointerPosition(0.5, band, false);
+            assert.strictEqual(step.target.desired_broadcast, "on");
+            step = flagpole.targetForPointerPosition(0.15, band, step.latchedOff);
+            assert.strictEqual(step.target.desired_broadcast, "off");
+            assert.strictEqual(step.target.position, 0);
+            assert.strictEqual(step.latchedOff, true);
+            step = flagpole.targetForPointerPosition(0.09, band, true);
+            assert.strictEqual(step.target.desired_broadcast, "off");
+            assert.strictEqual(step.latchedOff, true);
+            step = flagpole.targetForPointerPosition(0.10, band, true);
+            assert.strictEqual(step.latchedOff, false);
+            assert.strictEqual(step.target.desired_broadcast, "on");
+            assert.strictEqual(step.target.frequency_mhz, 87.1);
+            """
+        )
+
+    def test_gesture_drag_midband_to_off_and_lowest_fm_roundtrip(self):
+        self.run_node(
+            """
+            const assert = require("assert");
+            const band = {min_units: 871, max_units: 1082, scale: 10};
+            const commits = [];
+            const gesture = flagpole.createGesture({
+              onPreview: () => {},
+              onCancel: () => {},
+              onCommit: value => commits.push(value)
+            });
+            gesture.begin(0.55, band);
+            gesture.move(0.20, band);
+            gesture.move(0.14, band);
+            const off = gesture.release(0.05, band);
+            assert.strictEqual(off.desired_broadcast, "off");
+            assert.strictEqual(commits[0].desired_broadcast, "off");
+
+            const gesture2 = flagpole.createGesture({
+              onPreview: () => {},
+              onCancel: () => {},
+              onCommit: value => commits.push(value)
+            });
+            gesture2.begin(0, band);
+            const stay = gesture2.release(0.05, band);
+            assert.strictEqual(stay.desired_broadcast, "off");
+
+            const gesture3 = flagpole.createGesture({
+              onPreview: () => {},
+              onCancel: () => {},
+              onCommit: value => commits.push(value)
+            });
+            gesture3.begin(0, band);
+            const up = gesture3.release(0.10, band);
+            assert.strictEqual(up.desired_broadcast, "on");
+            assert.strictEqual(up.frequency_mhz, 87.1);
+            """
+        )
+
+    def test_pointer_below_visible_track_maps_to_off(self):
+        self.run_node(
+            """
+            const assert = require("assert");
+            const top = 100;
+            const trackHeight = 493;
+            const handleHeight = 43;
+            const trackBottom = top + trackHeight;
+            assert.strictEqual(
+              flagpole.pointerPosition(
+                trackBottom - handleHeight / 2, top, trackHeight, handleHeight
+              ),
+              0
+            );
+            assert.strictEqual(
+              flagpole.pointerPosition(
+                trackBottom + 80, top, trackHeight, handleHeight
+              ),
+              0
+            );
+            const band = {min_units: 871, max_units: 1082, scale: 10};
+            const resolved = flagpole.targetForPointerPosition(0, band, false);
+            assert.strictEqual(resolved.target.desired_broadcast, "off");
+            """
+        )
+
+    def test_repeated_on_to_off_releases_commit_off(self):
+        self.run_node(
+            """
+            const assert = require("assert");
+            const band = {min_units: 871, max_units: 1082, scale: 10};
+            for (let i = 0; i < 10; i += 1) {
+              const commits = [];
+              const gesture = flagpole.createGesture({
+                onPreview: () => {},
+                onCancel: () => {},
+                onCommit: value => commits.push(value)
+              });
+              gesture.begin(0.6, band);
+              gesture.move(0.25, band);
+              gesture.move(0.12, band);
+              const target = gesture.release(0.02, band);
+              assert.strictEqual(target.desired_broadcast, "off");
+              assert.strictEqual(commits.length, 1);
+              assert.strictEqual(commits[0].desired_broadcast, "off");
+            }
+            """
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

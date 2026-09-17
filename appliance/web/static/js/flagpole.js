@@ -9,8 +9,13 @@
 }(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
+  // Visual / mapping: lowest FM sits at 10% travel; OFF snaps to position 0.
   var OFF_DETENT_TRIGGER = 0.10;
   var TUNER_MIN_POSITION = 0.10;
+  // Pointer hit hysteresis (larger than the visible gap): dragging down past
+  // OFF_HIT_ENTER snaps to OFF; leaving OFF requires rising above OFF_HIT_LEAVE.
+  var OFF_HIT_ENTER = 0.165;
+  var OFF_HIT_LEAVE = 0.10;
 
   function clampPosition(position) {
     var value = Number(position);
@@ -60,6 +65,14 @@
     );
   }
 
+  function offTarget() {
+    return {
+      position: 0,
+      desired_broadcast: "off",
+      frequency_mhz: null
+    };
+  }
+
   function targetForPosition(position, band) {
     var normalized = clampPosition(position);
     var frequency = positionToFrequency(normalized, band);
@@ -70,6 +83,20 @@
       desired_broadcast: frequency === null ? "off" : "on",
       frequency_mhz: frequency
     };
+  }
+
+  function targetForPointerPosition(position, band, latchedOff) {
+    var normalized = clampPosition(position);
+    var nextLatched = !!latchedOff;
+    if (nextLatched) {
+      if (normalized >= OFF_HIT_LEAVE) nextLatched = false;
+    } else if (normalized < OFF_HIT_ENTER) {
+      nextLatched = true;
+    }
+    var target = nextLatched
+      ? offTarget()
+      : targetForPosition(normalized, band);
+    return { target: target, latchedOff: nextLatched };
   }
 
   function isCommitBlocked(snapshot) {
@@ -110,6 +137,8 @@
       throw new Error("flagpole pointer geometry is invalid");
     }
     var trackBottom = Number(trackTop) + height;
+    // Allow pointer travel below the visible track to keep mapping into OFF.
+    // Values past the bottom clamp to 0; values above the top clamp to 1.
     return clampPosition(
       (trackBottom - (handle / 2) - Number(clientY)) /
       (height - handle)
@@ -120,18 +149,28 @@
     var active = false;
     var committed = false;
     var preview = null;
+    var latchedOff = false;
+
+    function resolve(position, band) {
+      var resolved = targetForPointerPosition(position, band, latchedOff);
+      latchedOff = resolved.latchedOff;
+      return resolved.target;
+    }
 
     function begin(position, band) {
       active = true;
       committed = false;
-      preview = targetForPosition(position, band);
+      var initial = targetForPosition(position, band);
+      latchedOff = initial.desired_broadcast === "off" ||
+        clampPosition(position) < OFF_HIT_ENTER;
+      preview = resolve(position, band);
       options.onPreview(preview);
       return preview;
     }
 
     function move(position, band) {
       if (!active) return null;
-      preview = targetForPosition(position, band);
+      preview = resolve(position, band);
       options.onPreview(preview);
       return preview;
     }
@@ -141,14 +180,16 @@
       active = false;
       committed = false;
       preview = null;
+      latchedOff = false;
       if (wasActive) options.onCancel(reason || "cancelled");
     }
 
     function release(position, band) {
       if (!active || committed) return null;
-      preview = targetForPosition(position, band);
+      preview = resolve(position, band);
       active = false;
       committed = true;
+      latchedOff = false;
       options.onPreview(preview);
       options.onCommit(preview);
       return preview;
@@ -166,15 +207,18 @@
   return {
     OFF_DETENT_TRIGGER: OFF_DETENT_TRIGGER,
     TUNER_MIN_POSITION: TUNER_MIN_POSITION,
+    OFF_HIT_ENTER: OFF_HIT_ENTER,
+    OFF_HIT_LEAVE: OFF_HIT_LEAVE,
     clampPosition: clampPosition,
     createGesture: createGesture,
     frequencyToPosition: frequencyToPosition,
-      isCommitBlocked: isCommitBlocked,
-      shouldResolveTxPending: shouldResolveTxPending,
+    isCommitBlocked: isCommitBlocked,
+    shouldResolveTxPending: shouldResolveTxPending,
     pointerPosition: pointerPosition,
     positionToFrequency: positionToFrequency,
     positionToUnits: positionToUnits,
     targetForPosition: targetForPosition,
+    targetForPointerPosition: targetForPointerPosition,
     validateBand: validateBand
   };
 }));

@@ -161,8 +161,9 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn('class="panel ships-log-panel"', self.broadcast)
         self.assertLess(
             self.broadcast.index('class="panel ships-log-panel"'),
-            self.broadcast.index('class="panel flagpole-panel"'),
+            self.broadcast.index('class="panel flagpole-panel tuner-idle"'),
         )
+        self.assertIn('class="panel flagpole-panel tuner-idle"', self.broadcast)
 
     def test_program_reset_lives_on_music_page(self):
         self.assertIn('data-testid="stop-music"', self.music)

@@ -499,28 +499,39 @@ button:disabled {
   content: none;
 }
 .flagpole-active-rail {
+  /* Progress glow on the brass pole is intentionally disabled. */
+  display: none !important;
   position: absolute;
   z-index: 5;
   top: 0;
   left: 17px;
   width: 7px;
-  border-radius: 4px;
   pointer-events: none;
-  background: linear-gradient(
-    90deg,
-    #8a5d18 0%,
-    #ffd16c 38%,
-    #fff0a0 54%,
-    #b97616 100%
-  );
-  box-shadow:
-    0 0 6px rgba(255,192,55,0.88),
-    0 0 15px rgba(255,177,35,0.48);
 }
 .flagpole-ticks {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+/* Idle tuner: white/off-white to match B/W PumpkinPi flag */
+.flagpole-panel.tuner-idle {
+  --tuner-spine: rgba(236, 234, 228, 0.88);
+  --tuner-tick: rgba(242, 240, 234, 0.92);
+  --tuner-tick-major: #f4f1ea;
+  --tuner-label: #e4e0d6;
+  --tuner-selected: #fff8ee;
+  --tuner-selected-glow: rgba(255, 248, 238, 0.35);
+  --tuner-off-label: #d8d2c6;
+}
+/* Live tuner: orange→amber→yellow-orange derived from broadcast-flag-on.png */
+.flagpole-panel.tuner-live {
+  --tuner-spine: #fd9c00;
+  --tuner-tick: #fa8900;
+  --tuner-tick-major: #ffba03;
+  --tuner-label: #ffc828;
+  --tuner-selected: #ffe04a;
+  --tuner-selected-glow: rgba(255, 156, 0, 0.55);
+  --tuner-off-label: #ffb31a;
 }
 .flagpole-ticks::before {
   content: "";
@@ -528,9 +539,15 @@ button:disabled {
   top: 22px;
   bottom: 67px;
   left: 51px;
-  width: 1px;
-  background: rgba(224,176,96,0.8);
-  box-shadow: 0 0 4px rgba(224,176,96,0.2);
+  width: 2px;
+  border-radius: 1px;
+  background: linear-gradient(
+    180deg,
+    var(--tuner-tick-major) 0%,
+    var(--tuner-spine) 42%,
+    var(--tuner-tick) 100%
+  );
+  box-shadow: 0 0 5px var(--tuner-selected-glow);
 }
 .flagpole-tick {
   position: absolute;
@@ -540,7 +557,7 @@ button:disabled {
   height: 1px;
   background: linear-gradient(
     90deg,
-    rgba(224,176,96,0.9) 0 9px,
+    var(--tuner-tick) 0 9px,
     transparent 9px 100%
   );
   pointer-events: none;
@@ -549,29 +566,45 @@ button:disabled {
   height: 2px;
   background: linear-gradient(
     90deg,
-    #e2ad52 0 16px,
+    var(--tuner-tick-major) 0 16px,
     transparent 16px 100%
   );
-  box-shadow: 0 0 5px rgba(224,176,96,0.18);
+  box-shadow: 0 0 5px var(--tuner-selected-glow);
 }
 .flagpole-tick span {
   position: absolute;
   right: 0;
   top: -0.58rem;
   padding-left: 0.22rem;
-  color: #c4b28f;
+  color: var(--tuner-label);
   background: #101520;
   font: 0.54rem var(--mono);
+}
+.flagpole-panel.tuner-live .flagpole-tick.selected,
+.flagpole-panel.tuner-live .flagpole-preset::before {
+  background: linear-gradient(
+    90deg,
+    #ff6100 0%,
+    #fa8900 35%,
+    #ffba03 70%,
+    #ffe04a 100%
+  );
+  box-shadow: 0 0 10px rgba(255, 150, 20, 0.75);
+}
+.flagpole-panel.tuner-live .flagpole-tick.selected span,
+.flagpole-panel.tuner-live .flagpole-preset span {
+  color: var(--tuner-selected);
+  text-shadow: 0 0 10px rgba(255, 180, 40, 0.65);
 }
 .flagpole-off-label {
   position: absolute;
   z-index: 11;
   left: 51px;
   bottom: 17px;
-  color: #bfa56f;
+  color: var(--tuner-off-label);
   font: 700 0.54rem var(--mono);
   letter-spacing: 0.08em;
-  text-shadow: 0 0 6px rgba(224,176,96,0.22);
+  text-shadow: 0 0 6px var(--tuner-selected-glow);
   pointer-events: none;
 }
 .flagpole-preset {
@@ -594,25 +627,25 @@ button:disabled {
   top: calc(50% - 1px);
   width: 19px;
   height: 2px;
-  background: var(--amber);
-  box-shadow: 0 0 9px rgba(224,176,96,0.72);
+  background: var(--tuner-tick-major);
+  box-shadow: 0 0 9px var(--tuner-selected-glow);
 }
 .flagpole-preset span {
   position: absolute;
   left: 24px;
   top: calc(50% - 0.42rem);
-  color: var(--amber);
+  color: var(--tuner-selected);
   white-space: nowrap;
   font: 700 0.7rem var(--mono);
-  text-shadow: 0 0 8px rgba(224,176,96,0.38);
+  text-shadow: 0 0 8px var(--tuner-selected-glow);
 }
 .flagpole-preset:not(:disabled):hover span,
 .flagpole-preset:not(:disabled):focus-visible span {
-  color: #ffe59c;
-  text-shadow: 0 0 10px rgba(255,200,81,0.72);
+  color: var(--tuner-selected);
+  text-shadow: 0 0 10px var(--tuner-selected-glow);
 }
 .flagpole-preset:focus-visible {
-  outline: 1px solid var(--amber);
+  outline: 1px solid var(--tuner-tick-major);
   outline-offset: 1px;
 }
 .flagpole-preset:disabled {

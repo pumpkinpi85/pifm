@@ -283,10 +283,19 @@
       (p * handleHeight) + "px + " + (handleHeight / 2) + "px)";
   }
 
-  function flagpoleActiveRailStyle(position, visible) {
+  function flagpoleActiveRailStyle(_position, _visible) {
+    // Pole must never act as a progress glow. Keep the node hidden always.
     var rail = $("flagpoleActiveRail");
-    rail.hidden = !visible;
-    if (visible) flagpoleScalePositionStyle(rail, position);
+    if (rail) rail.hidden = true;
+  }
+
+  function syncTunerAppearance(snapshot) {
+    var panel = document.querySelector(".flagpole-panel");
+    if (!panel) return;
+    var ui = String((snapshot && snapshot.broadcast_ui) || "");
+    var live = ui === "ON AIR";
+    panel.classList.toggle("tuner-live", live);
+    panel.classList.toggle("tuner-idle", !live);
   }
 
   function syncRaisedFlagArtwork(snapshot) {
@@ -303,6 +312,7 @@
     var live = ui === "ON AIR";
     if (offImg) offImg.hidden = live;
     if (onImg) onImg.hidden = !live;
+    syncTunerAppearance(snapshot);
   }
 
   function setRaisedFlagVisible(visible) {
@@ -489,6 +499,22 @@
       broadcastUi === "STARTING";
     var stopping = broadcastUi === "STOPPING BROADCAST…";
     syncRaisedFlagArtwork(snapshot);
+    var ticks = $("flagpoleTicks");
+    if (ticks) {
+      var tickNodes = ticks.querySelectorAll(".flagpole-tick");
+      for (var ti = 0; ti < tickNodes.length; ti += 1) {
+        tickNodes[ti].classList.remove("selected");
+      }
+      if (onAir || starting) {
+        for (var tj = 0; tj < tickNodes.length; tj += 1) {
+          var label = tickNodes[tj].querySelector("span");
+          if (label && label.textContent === frequency.toFixed(1)) {
+            tickNodes[tj].classList.add("selected");
+            break;
+          }
+        }
+      }
+    }
     var canStartFromPreset = !onAir && !starting && !stopping &&
       uiSynchronized && !blocked && !flagpoleTxCommandPending() &&
       (!snapshot.broadcast || snapshot.broadcast.ready !== false);
@@ -1550,7 +1576,7 @@
       post("/api/tx/off", {}).then(function () {
         commandPending = null;
         txCommandPendingRevision = null;
-        toast("Pirate flag lowered. Broadcast is OFF AIR.");
+        toast("Broadcast stopped. Station is OFF AIR.");
         return refresh();
       }).catch(function (error) {
         commandPending = null;
@@ -1627,12 +1653,22 @@
   function flagpolePositionFromPointer(event, applyGrabOffset) {
     var rect = $("flagpoleTrack").getBoundingClientRect();
     var handleHeight = $("flagpoleHandle").getBoundingClientRect().height || 43;
-    return window.PifmFlagpole.pointerPosition(
+    var raw = window.PifmFlagpole.pointerPosition(
+      event.clientY, rect.top, rect.height, handleHeight
+    );
+    var adjusted = window.PifmFlagpole.pointerPosition(
       event.clientY - (applyGrabOffset ? flagpoleGrabOffsetY : 0),
       rect.top,
       rect.height,
       handleHeight
     );
+    // Grabbing the bottom of the handle previously required dragging past the
+    // track before raw mapping entered OFF. Prefer OFF if either mapping says so.
+    var enter = window.PifmFlagpole.OFF_HIT_ENTER;
+    if (raw < enter || adjusted < enter) {
+      return Math.min(raw, adjusted, enter - 0.001);
+    }
+    return adjusted;
   }
 
   function initializeFlagpole() {
@@ -1673,9 +1709,9 @@
       event.preventDefault();
       var position = flagpolePositionFromPointer(event, true);
       flagpoleGesture.release(position, state.frequency_band);
-      try { handle.releasePointerCapture(event.pointerId); } catch (error) {}
       flagpolePointerId = null;
       flagpoleGrabOffsetY = 0;
+      try { handle.releasePointerCapture(event.pointerId); } catch (error) {}
     });
     handle.addEventListener("pointercancel", function () {
       flagpolePointerId = null;
@@ -1683,9 +1719,16 @@
       flagpoleGesture.cancel("pointer cancelled");
     });
     handle.addEventListener("lostpointercapture", function () {
-      if (flagpoleGesture.isActive()) {
-        flagpolePointerId = null;
-        flagpoleGrabOffsetY = 0;
+      // Browsers can drop capture when the pointer leaves the element bounds.
+      // Commit the last preview instead of silently cancelling — that was the
+      // primary cause of failed OFF AIR selections.
+      if (!flagpoleGesture.isActive()) return;
+      var position = handle._previewPosition;
+      flagpolePointerId = null;
+      flagpoleGrabOffsetY = 0;
+      if (position != null && state && state.frequency_band) {
+        flagpoleGesture.release(position, state.frequency_band);
+      } else {
         flagpoleGesture.cancel("pointer capture lost");
       }
     });
