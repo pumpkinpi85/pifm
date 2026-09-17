@@ -283,14 +283,47 @@
       (p * handleHeight) + "px + " + (handleHeight / 2) + "px)";
   }
 
-  function flagpoleActiveRailStyle(position, visible) {
+  function flagpoleActiveRailStyle(_position, _visible) {
+    // Pole must never act as a progress glow. Keep the node hidden always.
     var rail = $("flagpoleActiveRail");
-    rail.hidden = !visible;
-    if (visible) flagpoleScalePositionStyle(rail, position);
+    if (rail) rail.hidden = true;
+  }
+
+  function syncTunerAppearance(snapshot) {
+    var panel = document.querySelector(".flagpole-panel");
+    if (!panel) return;
+    var ui = String((snapshot && snapshot.broadcast_ui) || "");
+    var live = ui === "ON AIR";
+    panel.classList.toggle("tuner-live", live);
+    panel.classList.toggle("tuner-idle", !live);
+  }
+
+  function syncRaisedFlagArtwork(snapshot) {
+    var flag = $("raisedFlag");
+    var offImg = $("raisedFlagOffAir");
+    var onImg = $("raisedFlagOnAir");
+    if (!flag) return;
+    // Flag stays permanently raised at the top while the deck has live state.
+    flag.hidden = false;
+    flag.setAttribute("aria-hidden", "false");
+    var ui = String((snapshot && snapshot.broadcast_ui) || "");
+    // Orange only when authoritative state is ON AIR — not preview, STARTING,
+    // STOPPING, FAULT, or STATE UNKNOWN.
+    var live = ui === "ON AIR";
+    if (offImg) offImg.hidden = live;
+    if (onImg) onImg.hidden = !live;
+    syncTunerAppearance(snapshot);
   }
 
   function setRaisedFlagVisible(visible) {
-    $("raisedFlag").hidden = !visible;
+    var flag = $("raisedFlag");
+    if (!flag) return;
+    if (!visible) {
+      flag.hidden = true;
+      flag.setAttribute("aria-hidden", "true");
+      return;
+    }
+    syncRaisedFlagArtwork(state);
   }
 
   function ensureFlagpoleTicks(band) {
@@ -465,7 +498,23 @@
     var starting = broadcastUi === "STARTING BROADCAST…" ||
       broadcastUi === "STARTING";
     var stopping = broadcastUi === "STOPPING BROADCAST…";
-    setRaisedFlagVisible(onAir || starting || stopping);
+    syncRaisedFlagArtwork(snapshot);
+    var ticks = $("flagpoleTicks");
+    if (ticks) {
+      var tickNodes = ticks.querySelectorAll(".flagpole-tick");
+      for (var ti = 0; ti < tickNodes.length; ti += 1) {
+        tickNodes[ti].classList.remove("selected");
+      }
+      if (onAir || starting) {
+        for (var tj = 0; tj < tickNodes.length; tj += 1) {
+          var label = tickNodes[tj].querySelector("span");
+          if (label && label.textContent === frequency.toFixed(1)) {
+            tickNodes[tj].classList.add("selected");
+            break;
+          }
+        }
+      }
+    }
     var canStartFromPreset = !onAir && !starting && !stopping &&
       uiSynchronized && !blocked && !flagpoleTxCommandPending() &&
       (!snapshot.broadcast || snapshot.broadcast.ready !== false);
@@ -648,9 +697,14 @@
   }
 
   function profileDisplayName(s) {
+    var profileId = (s && s.hardware_profile) || "";
     var doc = (s && s.hardware_profile_doc) || {};
-    if (doc.display_name) return doc.display_name;
-    return (s && s.hardware_profile) || "—";
+    // Only treat display_name as the operating profile when a profile is
+    // actually selected. Unmatched boards use a stub doc that must not
+    // recycle the detected device-tree model as a profile name.
+    if (profileId && doc.display_name) return doc.display_name;
+    if (profileId) return profileId;
+    return "—";
   }
 
   function syncHardwareProfileOptions(s) {
@@ -1527,7 +1581,7 @@
       post("/api/tx/off", {}).then(function () {
         commandPending = null;
         txCommandPendingRevision = null;
-        toast("Pirate flag lowered. Broadcast is OFF AIR.");
+        toast("Broadcast stopped. Station is OFF AIR.");
         return refresh();
       }).catch(function (error) {
         commandPending = null;
@@ -1573,7 +1627,8 @@
       renderFlagpoleStatus(state);
       return;
     }
-    setRaisedFlagVisible(true);
+    // Keep B/W flag through STARTING; orange only after authoritative ON AIR.
+    syncRaisedFlagArtwork(state);
     commandPending = "txon";
     txCommandPendingRevision = Number(state.snapshot_revision);
     $("flagpoleHandle").disabled = true;
@@ -1603,6 +1658,9 @@
   function flagpolePositionFromPointer(event, applyGrabOffset) {
     var rect = $("flagpoleTrack").getBoundingClientRect();
     var handleHeight = $("flagpoleHandle").getBoundingClientRect().height || 43;
+    // Grab offset maps from the handle center. Do not OR with the raw
+    // (uncompensated) hit: grabbing the lower half at 87.1–88.2 puts raw
+    // below OFF_HIT_ENTER while the handle center is still on-frequency.
     return window.PifmFlagpole.pointerPosition(
       event.clientY - (applyGrabOffset ? flagpoleGrabOffsetY : 0),
       rect.top,
@@ -1649,9 +1707,9 @@
       event.preventDefault();
       var position = flagpolePositionFromPointer(event, true);
       flagpoleGesture.release(position, state.frequency_band);
-      try { handle.releasePointerCapture(event.pointerId); } catch (error) {}
       flagpolePointerId = null;
       flagpoleGrabOffsetY = 0;
+      try { handle.releasePointerCapture(event.pointerId); } catch (error) {}
     });
     handle.addEventListener("pointercancel", function () {
       flagpolePointerId = null;
@@ -1659,9 +1717,16 @@
       flagpoleGesture.cancel("pointer cancelled");
     });
     handle.addEventListener("lostpointercapture", function () {
-      if (flagpoleGesture.isActive()) {
-        flagpolePointerId = null;
-        flagpoleGrabOffsetY = 0;
+      // Browsers can drop capture when the pointer leaves the element bounds.
+      // Commit the last preview instead of silently cancelling — that was the
+      // primary cause of failed OFF AIR selections.
+      if (!flagpoleGesture.isActive()) return;
+      var position = handle._previewPosition;
+      flagpolePointerId = null;
+      flagpoleGrabOffsetY = 0;
+      if (position != null && state && state.frequency_band) {
+        flagpoleGesture.release(position, state.frequency_band);
+      } else {
         flagpoleGesture.cancel("pointer capture lost");
       }
     });

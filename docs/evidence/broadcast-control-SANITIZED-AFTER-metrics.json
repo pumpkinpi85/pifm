@@ -1,0 +1,39 @@
+{
+  "metrics": {
+    "assets": {
+      "pole": "http://127.0.0.1:8765/images/broadcast-control/broadcast-flagpole.png?v=5",
+      "off": "http://127.0.0.1:8765/images/broadcast-control/broadcast-flag-off.png?v=5",
+      "on": "http://127.0.0.1:8765/images/broadcast-control/broadcast-flag-on.png?v=5",
+      "handle": "http://127.0.0.1:8765/images/broadcast-control/broadcast-tuner-handle.png?v=5"
+    },
+    "pole": {
+      "w": 46,
+      "h": 641,
+      "left": "-1.9px",
+      "top": "0px"
+    },
+    "flag": {
+      "w": 162.7,
+      "h": 108.4,
+      "left": "13.4px",
+      "top": "13.6px"
+    },
+    "travel": {
+      "top": "128px",
+      "bottom": "20px",
+      "h": 493
+    },
+    "handle": {
+      "z": "13",
+      "h": 43,
+      "bottom": "0px"
+    },
+    "offDetentPx": 45,
+    "sameAsApproved": {
+      "poleH": true,
+      "flagBox": true,
+      "travelTop": true
+    }
+  },
+  "missing_or_errors": []
+}

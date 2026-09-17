@@ -33,7 +33,7 @@ The Pi runs the station. The browser is a remote control.
 
 ## Features
 
-- Browser **Broadcast Deck** with brass handle / pirate-flag tuner metaphor
+- Browser **Broadcast Deck** with brass handle / PumpkinPi flag tuner metaphor
 - Explicit **OFF AIR** detent and masthead **Stop Broadcast**
 - Music library, playlists, and queue (upload never starts RF)
 - Station frequency (`87.1–108.2` MHz in `0.1` MHz steps) and RDS identity

@@ -27,6 +27,7 @@ if [[ "$APPLY" != "--apply" ]]; then
   echo "Proposed reversible changes:"
   echo "  - set dtparam=audio=off in /boot/config.txt"
   echo "  - set the default boot target to multi-user.target"
+  echo "  - stop and mask user pulseaudio/pipewire sessions that steal PWM"
   echo "Run with --apply to create a backup and apply these settings."
   exit 0
 fi
@@ -64,6 +65,36 @@ path.write_text("\n".join(out) + "\n")
 PY
 
 systemctl set-default multi-user.target
+
+# Console / VNC user sessions often start pulseaudio even on multi-user.target.
+# That contends for PWM the same way a desktop does — stop and mask it.
+PIFM_SERVICE_USER="${PIFM_USER:-pi}"
+PIFM_SERVICE_UID="$(id -u "$PIFM_SERVICE_USER" 2>/dev/null || true)"
+USER_AUDIO_UNITS=(
+  pulseaudio.socket pulseaudio.service
+  pipewire.socket pipewire.service
+  pipewire-pulse.socket pipewire-pulse.service
+)
+USER_AUDIO_MASKED=0
+if [[ -n "$PIFM_SERVICE_UID" ]]; then
+  RUNTIME_DIR="/run/user/$PIFM_SERVICE_UID"
+  if [[ -d "$RUNTIME_DIR" ]]; then
+    sudo -u "$PIFM_SERVICE_USER" XDG_RUNTIME_DIR="$RUNTIME_DIR" \
+      systemctl --user stop "${USER_AUDIO_UNITS[@]}" \
+      2>/dev/null || true
+    sudo -u "$PIFM_SERVICE_USER" XDG_RUNTIME_DIR="$RUNTIME_DIR" \
+      systemctl --user mask "${USER_AUDIO_UNITS[@]}" \
+      2>/dev/null || true
+    USER_AUDIO_MASKED=1
+  fi
+  # Also kill any leftover process if user systemd is not available.
+  pkill -u "$PIFM_SERVICE_USER" -x pulseaudio 2>/dev/null || true
+  pkill -u "$PIFM_SERVICE_USER" -x pipewire 2>/dev/null || true
+fi
+printf '%s\n' "$PIFM_SERVICE_USER" > "$BACKUP_DIR/audio-service-user.txt"
+printf '%s\n' "$USER_AUDIO_MASKED" > "$BACKUP_DIR/user-audio-masked.txt"
+printf '%s\n' "${USER_AUDIO_UNITS[@]}" > "$BACKUP_DIR/user-audio-units.txt"
+
 cat > "$BACKUP_DIR/rollback.sh" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
@@ -72,11 +103,26 @@ TARGET="\$(cat "$BACKUP_DIR/default-target.txt")"
 if [[ -n "\$TARGET" ]]; then
   ln -sfn "\$TARGET" /etc/systemd/system/default.target
 fi
+AUDIO_USER="\$(cat "$BACKUP_DIR/audio-service-user.txt" 2>/dev/null || true)"
+AUDIO_MASKED="\$(cat "$BACKUP_DIR/user-audio-masked.txt" 2>/dev/null || echo 0)"
+if [[ "\$AUDIO_MASKED" == "1" && -n "\$AUDIO_USER" ]]; then
+  AUDIO_UID="\$(id -u "\$AUDIO_USER" 2>/dev/null || true)"
+  if [[ -n "\$AUDIO_UID" ]]; then
+    RUNTIME_DIR="/run/user/\$AUDIO_UID"
+    mapfile -t AUDIO_UNITS < "$BACKUP_DIR/user-audio-units.txt"
+    if [[ -d "\$RUNTIME_DIR" && \${#AUDIO_UNITS[@]} -gt 0 ]]; then
+      sudo -u "\$AUDIO_USER" XDG_RUNTIME_DIR="\$RUNTIME_DIR" \\
+        systemctl --user unmask "\${AUDIO_UNITS[@]}" \\
+        2>/dev/null || true
+    fi
+  fi
+fi
 echo "Hardware settings restored. Reboot when safe."
 EOF
 chmod 700 "$BACKUP_DIR/rollback.sh"
 
 echo "A+ hardware prerequisites applied."
 echo "Backup and rollback: $BACKUP_DIR"
-echo "Reboot is required. piFM remains OFF AIR."
+echo "Reboot only if boot config or default target changed; pulseaudio stop is immediate."
+echo "piFM remains OFF AIR until you deliberately go on air."
 "$ROOT/scripts/hardware-readiness.py" --profile raspberry-pi-a-plus || true

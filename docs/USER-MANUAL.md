@@ -9,7 +9,7 @@ Related detail: [music.md](music.md) (media contract), [configuration.md](config
 
 | Tab | Purpose |
 |-----|---------|
-| **Broadcast** | On-air status, now playing, Ship’s Log, brass handle / pirate flag |
+| **Broadcast** | On-air status, now playing, Ship’s Log, brass handle / PumpkinPi flag |
 | **Music** | Library, playlists, queue, uploads |
 | **Station** | Exact frequency and RDS identity |
 | **System** | Hardware readiness, diagnostics, recovery, quiet-network tool |
@@ -19,22 +19,25 @@ Related detail: [music.md](music.md) (media contract), [configuration.md](config
 
 | Term | Meaning |
 |------|---------|
-| **OFF AIR** | No transmission intent; handle at bottom detent; flag hidden |
-| **ON AIR** | Authoritative transmitting state; flag raised after confirmed start |
+| **OFF AIR** | No transmission intent; handle at bottom detent; black/white PumpkinPi flag |
+| **ON AIR** | Authoritative transmitting state; orange PumpkinPi flag after confirmed start |
 | **Stop Broadcast** | Absolute RF stop (also available from the masthead) |
-| **Brass handle** | Broadcast + frequency control on the flagpole |
-| **Pirate flag** | Visible only when broadcast startup/ON AIR is authoritative |
+| **Brass handle** | Separate movable control for broadcast + frequency on the flagpole |
+| **PumpkinPi flag** | Permanently raised at the top; black/white = OFF AIR; orange = confirmed ON AIR |
 | **Music program** | Play / Pause / Prev / Next — not RF start/stop |
 | **Queue** | Current order of the active playlist |
 | **Station frequency** | One canonical `frequency_mhz` shared by Station and Broadcast |
 
-## Broadcast control (brass handle / pirate flag)
+## Broadcast control (brass handle / PumpkinPi flag)
 
-- The pirate flag stays **hidden** while OFF AIR and during preview.
-- After release **and confirmation**, the raised flag shows broadcast startup.
-- The brass handle rests in the bottom **OFF AIR** detent when stopped.
+- The PumpkinPi flag stays **permanently raised** at the top of the pole.
+- While **OFF AIR** (and during safe preview) the flag shows the black/white emblem.
+- After release **and authoritative ON AIR confirmation**, the emblem lights orange
+  in the same size and position (no layout shift).
+- The brass handle is a **separate** interactive control; it is not part of the pole art.
+- The handle rests in the bottom **OFF AIR** detent when stopped.
 - A small upward hop enters the tuner at `87.1 MHz`; travel covers through
-  `108.2 MHz` in `0.1 MHz` steps.
+  `108.2 MHz` in `0.1 MHz` steps. There is no halfway threshold or dead travel zone.
 - Release in the lower detent zone selects OFF AIR. The detent is sized so the
   visible stop zone is usable.
 - Station remains the precision frequency editor. Its configured frequency is

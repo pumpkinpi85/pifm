@@ -303,9 +303,6 @@ class Controller:
                     hw.get("hardware_status") or "UNKNOWN"
                 ).upper()
                 detected = hw.get("detected_hardware") or {}
-                detected_status = str(
-                    detected.get("status") or "UNKNOWN"
-                ).upper()
                 hardware_ok = hardware_status in ("SUPPORTED", "EXPERIMENTAL")
                 items.append(
                     {
@@ -316,9 +313,10 @@ class Controller:
                             detected.get("display_name")
                             or profile.get("display_name")
                             or "Unknown hardware",
-                            detected_status
-                            if detected.get("detected")
-                            else hardware_status,
+                            # Match ok/readiness: operating hardware_status, not
+                            # raw detected status (UNKNOWN under manual mismatch
+                            # while hardware_status is EXPERIMENTAL).
+                            hardware_status,
                         ),
                         "severity": True,
                         "operator_hint": (
@@ -329,20 +327,37 @@ class Controller:
                     }
                 )
                 environment = check_host_prerequisites(profile)
+                failed_env = [
+                    check
+                    for check in (environment.get("checks") or [])
+                    if not check.get("ok")
+                ]
+                if environment.get("ready"):
+                    env_detail = "Headless mode and onboard audio settings are ready"
+                    env_hint = (
+                        "Prepare the Raspberry Pi hardware environment before going on air."
+                    )
+                elif failed_env:
+                    env_detail = (
+                        str(failed_env[0].get("label") or "Hardware setting")
+                        + " needs attention"
+                    )
+                    env_hint = str(failed_env[0].get("action") or "").strip() or (
+                        "Prepare the Raspberry Pi hardware environment before going on air."
+                    )
+                else:
+                    env_detail = "A required hardware setting needs attention"
+                    env_hint = (
+                        "Prepare the Raspberry Pi hardware environment before going on air."
+                    )
                 items.append(
                     {
                         "id": "hardware_environment",
                         "label": "Hardware environment ready",
                         "ok": bool(environment.get("ready")),
-                        "detail": (
-                            "Headless mode and onboard audio settings are ready"
-                            if environment.get("ready")
-                            else "A required hardware setting needs attention"
-                        ),
-                        "severity": True,
-                        "operator_hint": (
-                            "Prepare the Raspberry Pi hardware environment before going on air."
-                        ),
+                        "detail": env_detail,
+                        "advisory": True,
+                        "operator_hint": env_hint,
                         "cta": "system",
                         "cta_label": "Open System",
                     }

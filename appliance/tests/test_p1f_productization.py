@@ -58,6 +58,27 @@ class HardwareDetectionTests(unittest.TestCase):
         self.assertIsNone(resolved["hardware_profile"])
         self.assertEqual(resolved["hardware_profile_doc"]["status"], "UNKNOWN")
 
+    def test_unmatched_board_stub_does_not_copy_device_tree_as_profile_name(self):
+        """Stub profile doc must not recycle detected identity as a selection."""
+        with patch(
+            "appliance.hardware_profile.detect_board_hints",
+            return_value={
+                "model": "Raspberry Pi 5 Model B Rev 1.0",
+                "revision": "d04170",
+            },
+        ):
+            resolved = resolve_hardware_profile(
+                ROOT, profile_mode="auto", include_detection=True
+            )
+        self.assertIsNone(resolved["hardware_profile"])
+        self.assertFalse(resolved["hardware_profile_found"])
+        self.assertIsNone(resolved["hardware_profile_doc"].get("display_name"))
+        self.assertEqual(
+            resolved["detected_hardware"]["display_name"],
+            "Raspberry Pi 5 Model B Rev 1.0",
+        )
+        self.assertEqual(resolved["hardware_status"], "UNKNOWN")
+
     def test_manual_profile_does_not_claim_unknown_board_supported(self):
         with patch(
             "appliance.hardware_profile.detect_board_hints",
@@ -157,6 +178,56 @@ class HardwareDetectionTests(unittest.TestCase):
             self.assertFalse(result["ready"])
             self.assertFalse(result["onboard_audio_disabled"])
             self.assertFalse(result["headless"])
+            headless = next(
+                check for check in result["checks"] if check["id"] == "headless"
+            )
+            self.assertIn("multi-user.target", headless["action"])
+
+    def test_pulseaudio_on_multi_user_explains_real_blocker(self):
+        with tempfile.TemporaryDirectory() as td:
+            system_root = Path(td)
+            (system_root / "boot").mkdir(parents=True)
+            (system_root / "boot" / "config.txt").write_text(
+                "dtparam=audio=off\n"
+            )
+            (system_root / "proc").mkdir()
+            (system_root / "proc" / "modules").write_text("")
+            (system_root / "proc" / "99").mkdir(parents=True)
+            (system_root / "proc" / "99" / "comm").write_text("pulseaudio\n")
+            target = system_root / "etc" / "systemd" / "system" / "default.target"
+            target.parent.mkdir(parents=True)
+            target.symlink_to("/lib/systemd/system/multi-user.target")
+            profile = resolve_hardware_profile(
+                ROOT, "raspberry-pi-a-plus", include_detection=False
+            )["hardware_profile_doc"]
+            result = check_host_prerequisites(
+                profile, system_root=system_root, use_cache=False
+            )
+            self.assertFalse(result["ready"])
+            self.assertEqual(result["desktop_processes"], ["pulseaudio"])
+            headless = next(
+                check for check in result["checks"] if check["id"] == "headless"
+            )
+            self.assertIn("pulseaudio", headless["action"])
+            self.assertIn("configure-hardware.sh --apply", headless["action"])
+            self.assertIn("already set", headless["action"])
+
+    def test_configure_hardware_rollback_unmasks_user_audio(self):
+        script = (ROOT / "scripts" / "configure-hardware.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("systemctl --user mask", script)
+        # Generated rollback must reverse the mask, not only boot config/target.
+        self.assertIn("systemctl --user unmask", script)
+        self.assertIn("user-audio-masked.txt", script)
+        self.assertIn("user-audio-units.txt", script)
+        rollback_start = script.index('cat > "$BACKUP_DIR/rollback.sh"')
+        rollback_block = script[
+            rollback_start : script.index("chmod 700", rollback_start)
+        ]
+        self.assertIn("unmask", rollback_block)
+        self.assertIn("config.txt", rollback_block)
+        self.assertIn("default-target.txt", rollback_block)
 
 
 class HardwareProfilePersistenceTests(unittest.TestCase):

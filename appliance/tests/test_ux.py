@@ -81,6 +81,14 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("txCommandPendingRevision", self.js)
         self.assertIn("flagpoleScalePositionStyle", self.js)
         self.assertIn("(handleHeight / 2)", self.js)
+        # Grab-adjusted mapping only — raw below OFF_HIT_ENTER must not force OFF
+        # while the handle center is still on 87.1–88.2 FM.
+        self.assertIn(
+            "event.clientY - (applyGrabOffset ? flagpoleGrabOffsetY : 0)",
+            self.js,
+        )
+        self.assertNotIn("Prefer OFF if either mapping", self.js)
+        self.assertNotIn("Math.min(raw, adjusted", self.js)
         self.assertIn("STOP BROADCAST requested", self.js)
         self.assertIn('"X-PiFM-Authority-ID"', self.js)
         self.assertIn("FAULT · POSITION UNKNOWN", self.js)
@@ -95,34 +103,73 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("touch-action: none", self.css)
         self.assertIn("flagpoleActiveRailStyle", self.js)
         self.assertIn("setRaisedFlagVisible", self.js)
-        self.assertIn("setRaisedFlagVisible(true)", self.js)
+        self.assertIn("syncRaisedFlagArtwork", self.js)
+        self.assertIn('ui === "ON AIR"', self.js)
         self.assertIn("TUNER_MIN_POSITION", self.js)
         self.assertIn("connectionCoordinator.acceptLiveSnapshot(result.status)", self.js)
 
     def test_flagpole_uses_supplied_physical_artwork_and_reference_layout(self):
         assets = STATIC / "images" / "broadcast-control"
         for name in (
-            "flagpole.png",
-            "pirate-flag.png",
-            "flag-ropes.png",
-            "slider-handle.png",
-            "slider-handle-active.png",
-            "slider-handle-pressed.png",
+            "broadcast-flagpole.png",
+            "broadcast-flag-off.png",
+            "broadcast-flag-on.png",
+            "broadcast-tuner-handle.png",
+            "broadcast-tuner-handle-active.png",
+            "broadcast-tuner-handle-pressed.png",
         ):
             self.assertTrue((assets / name).is_file(), name)
+        self.assertIn("broadcast-flag-on.png", self.broadcast)
+        self.assertNotIn("flag-on-air-animation", self.html)
+        self.assertNotIn("PifmOnAirFlagAnimation", self.js)
+        self.assertNotIn("flag-on-air-seamless", self.html)
+        self.assertNotIn("flag-on-air-extreme", self.html)
+        self.assertNotIn("flag_on_001", self.html)
+        for name in (
+            "broadcast-flagpole.png",
+            "broadcast-flag-off.png",
+            "broadcast-flag-on.png",
+            "broadcast-tuner-handle.png",
+            "broadcast-tuner-handle-active.png",
+            "broadcast-tuner-handle-pressed.png",
+        ):
             self.assertIn("/images/broadcast-control/{}".format(name), self.broadcast)
-        self.assertNotIn("pirate-flag-waving.png", self.broadcast)
+        # Abandoned experimental artwork must not remain in production markup
+        for stale in (
+            "/images/broadcast-control/flagpole.png",
+            "/images/broadcast-control/flagpole-clean.png",
+            "/images/broadcast-control/flagpole-long.png",
+            "/images/broadcast-control/flagpole-candidate.png",
+            "/images/broadcast-control/flag-ropes.png",
+            "/images/broadcast-control/pirate-flag.png",
+            "pirate-flag-waving.png",
+            "pirate-flag-candidate.png",
+            "pirate-flag-offair",
+            "pirate-flag-onair",
+            "/images/broadcast-control/flag-on-air-seamless-100",
+            "/images/broadcast-control/flag-on-air-extreme-80",
+            "/js/flag-on-air-animation.js",
+            "flag_on_001.png",
+            "/images/broadcast-control/slider-handle.png",
+            "/images/broadcast-control/slider-handle-active.png",
+            "/images/broadcast-control/slider-handle-pressed.png",
+        ):
+            self.assertNotIn(stale, self.broadcast)
+            self.assertNotIn(stale, self.html)
+        self.assertNotIn("raised-flag-rope", self.broadcast)
         self.assertIn("grid-template-columns: minmax(0, 1fr) 184px", self.css)
         self.assertIn("height: 43px", self.css)
         self.assertIn('class="raised-flag"', self.broadcast)
-        self.assertIn('id="raisedFlag" class="raised-flag" hidden', self.broadcast)
+        self.assertIn('id="raisedFlag" class="raised-flag"', self.broadcast)
+        self.assertIn('id="raisedFlagOffAir"', self.broadcast)
+        self.assertIn('id="raisedFlagOnAir"', self.broadcast)
         self.assertIn('class="flagpole-travel"', self.broadcast)
         self.assertIn('id="flagpolePreset"', self.broadcast)
         self.assertIn('aria-label="Start broadcasting at the selected frequency"', self.broadcast)
         self.assertIn('class="flagpole-off-label"', self.broadcast)
         self.assertNotIn('class="flagpole-detent"', self.broadcast)
         self.assertNotIn("rgba(205,100,80,0.78)", self.css)
-        self.assertIn("clip-path: polygon(", self.css)
+        self.assertNotIn("clip-path: polygon(", self.css)
         self.assertLess(
             self.broadcast.index('class="raised-flag"'),
             self.broadcast.index('id="flagpoleHandle"'),
@@ -133,8 +180,9 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn('class="panel ships-log-panel"', self.broadcast)
         self.assertLess(
             self.broadcast.index('class="panel ships-log-panel"'),
-            self.broadcast.index('class="panel flagpole-panel"'),
+            self.broadcast.index('class="panel flagpole-panel tuner-idle"'),
         )
+        self.assertIn('class="panel flagpole-panel tuner-idle"', self.broadcast)
 
     def test_program_reset_lives_on_music_page(self):
         self.assertIn('data-testid="stop-music"', self.music)
@@ -158,7 +206,8 @@ class OperatorUxStaticTests(unittest.TestCase):
         banned_demo = "Star" + " Wars"
         self.assertNotIn(banned_demo, help_html)
         self.assertIn("Choose your music", help_html)
-        self.assertIn("pirate flag remains hidden while OFF AIR", help_html)
+        self.assertIn("PumpkinPi flag stays raised", help_html)
+        self.assertIn("black-and-white emblem", help_html)
         self.assertNotIn("Practice Mode", help_html)
         self.assertNotIn("Sandbox", help_html)
         self.assertIn("DOCS &amp; PROJECT", help_html)
@@ -212,6 +261,8 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("detected_hardware", self.js)
         self.assertIn("FM output: GPIO ", self.js)
         self.assertIn("does not rewrite detected hardware", self.html)
+        # Unmatched boards: never treat stub doc.display_name as a profile.
+        self.assertIn("if (profileId && doc.display_name)", self.js)
 
     def test_broadcast_recovery_status_is_explained_under_system(self):
         self.assertIn("BROADCAST RECOVERY", self.html)
@@ -299,6 +350,42 @@ class OperatorBlockerTests(unittest.TestCase):
         self.assertFalse(bc["ready"])
         msgs = " ".join(b["message"] for b in bc["blockers"])
         self.assertIn("System", msgs)
+
+    def test_hardware_checklist_detail_matches_operating_status(self):
+        """Manual mismatch: ok from EXPERIMENTAL must not show detected UNKNOWN."""
+        self.ctrl.config.update({"tx_backend": "pi_fm_rds"})
+        hw_identity = {
+            "hardware": {
+                "hardware_status": "EXPERIMENTAL",
+                "hardware_profile_doc": {
+                    "id": "raspberry-pi-a-plus",
+                    "display_name": "Raspberry Pi Model A+ (Rev 1.1)",
+                    "status": "SUPPORTED",
+                },
+                "detected_hardware": {
+                    "detected": True,
+                    "display_name": "Raspberry Pi 5 Model B Rev 1.0",
+                    "status": "UNKNOWN",
+                },
+            }
+        }
+        with patch.object(
+            self.ctrl, "_static_identity_unlocked", return_value=hw_identity
+        ), patch(
+            "appliance.controller.check_host_prerequisites",
+            return_value={"ready": True, "checks": []},
+        ), patch(
+            "appliance.controller.probe_real_tx_readiness",
+            return_value={"ready": True, "summary": "ok"},
+        ):
+            bc = self.ctrl.broadcast_checklist()
+        hardware = next(i for i in bc["items"] if i["id"] == "hardware")
+        self.assertTrue(hardware["ok"])
+        self.assertEqual(
+            hardware["detail"],
+            "Raspberry Pi 5 Model B Rev 1.0 · EXPERIMENTAL",
+        )
+        self.assertNotIn("UNKNOWN", hardware["detail"])
 
     def test_stop_available_flags_in_status(self):
         st = self.ctrl.status()
