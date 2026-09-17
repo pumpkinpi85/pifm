@@ -116,6 +116,7 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn('class="flagpole-travel"', self.broadcast)
         self.assertIn('id="flagpolePreset"', self.broadcast)
         self.assertIn('aria-label="Start broadcasting at the selected frequency"', self.broadcast)
+        self.assertIn('class="flagpole-off-label"', self.broadcast)
         self.assertNotIn('class="flagpole-detent"', self.broadcast)
         self.assertNotIn("rgba(205,100,80,0.78)", self.css)
         self.assertLess(

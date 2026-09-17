@@ -8,8 +8,8 @@
   the bottom **OFF AIR** detent when transmission is stopped.
 - A small upward hop enters the tuner at `87.1 MHz`; the remaining handle
   travel covers the complete range through `108.2 MHz` in `0.1 MHz` steps.
-- Release below 3% travel selects OFF AIR. Release from 3% through 6% snaps to
-  the 6% lowest-frequency position, creating the mechanical detent gap.
+- Release below 5% travel selects OFF AIR. Release from 5% through 10% snaps to
+  the 10% lowest-frequency position, creating the mechanical detent gap.
 - Return the handle to the bottom detent to end transmission.
 - The masthead **STOP BROADCAST** remains available during STARTING, ON AIR,
   FAULT, or unknown state.

@@ -9,8 +9,8 @@
 }(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var OFF_DETENT_TRIGGER = 0.03;
-  var TUNER_MIN_POSITION = 0.06;
+  var OFF_DETENT_TRIGGER = 0.05;
+  var TUNER_MIN_POSITION = 0.10;
 
   function clampPosition(position) {
     var value = Number(position);

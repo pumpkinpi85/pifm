@@ -135,7 +135,7 @@ evidence must not be presented as validation of a newer SHA.
 
 - Centre PLAY/PAUSE primary; PREV/NEXT secondary
 - Broadcast uses one vertical brass handle: the bottom is a small OFF AIR
-  detent, `87.1 MHz` begins at 6% travel, and `108.2 MHz` is at the top
+  detent, `87.1 MHz` begins at 10% travel, and `108.2 MHz` is at the top
 - Pointer movement is preview-only; release makes one canonical backend command
 - The pirate flag remains raised as static identity artwork. OFF AIR renders the
   handle at the bottom while an actionable marker shows the Station frequency;

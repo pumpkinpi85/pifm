@@ -475,7 +475,7 @@ button:disabled {
   z-index: 6;
   top: 128px;
   right: 0;
-  bottom: 36px;
+  bottom: 20px;
   left: 0;
 }
 .flagpole-mast {
@@ -525,7 +525,7 @@ button:disabled {
   content: "";
   position: absolute;
   top: 22px;
-  bottom: 48px;
+  bottom: 67px;
   left: 51px;
   width: 1px;
   background: rgba(224,176,96,0.8);
@@ -561,6 +561,17 @@ button:disabled {
   color: #c4b28f;
   background: #101520;
   font: 0.54rem var(--mono);
+}
+.flagpole-off-label {
+  position: absolute;
+  z-index: 11;
+  left: 51px;
+  bottom: 17px;
+  color: #bfa56f;
+  font: 700 0.54rem var(--mono);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 6px rgba(224,176,96,0.22);
+  pointer-events: none;
 }
 .flagpole-preset {
   position: absolute;

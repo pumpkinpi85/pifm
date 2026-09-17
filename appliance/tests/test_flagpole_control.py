@@ -29,11 +29,11 @@ class FlagpoleMappingTests(unittest.TestCase):
             """
             const assert = require("assert");
             const band = {min_units: 871, max_units: 1082, scale: 10};
-            assert.strictEqual(flagpole.OFF_DETENT_TRIGGER, 0.03);
-            assert.strictEqual(flagpole.TUNER_MIN_POSITION, 0.06);
-            assert.strictEqual(flagpole.positionToFrequency(0.029999, band), null);
-            assert.strictEqual(flagpole.positionToFrequency(0.03, band), 87.1);
-            assert.strictEqual(flagpole.positionToFrequency(0.06, band), 87.1);
+            assert.strictEqual(flagpole.OFF_DETENT_TRIGGER, 0.05);
+            assert.strictEqual(flagpole.TUNER_MIN_POSITION, 0.10);
+            assert.strictEqual(flagpole.positionToFrequency(0.049999, band), null);
+            assert.strictEqual(flagpole.positionToFrequency(0.05, band), 87.1);
+            assert.strictEqual(flagpole.positionToFrequency(0.10, band), 87.1);
             assert.strictEqual(flagpole.positionToFrequency(1, band), 108.2);
             for (let units = band.min_units; units <= band.max_units; units += 1) {
               const frequency = units / band.scale;
@@ -56,7 +56,7 @@ class FlagpoleMappingTests(unittest.TestCase):
               onCommit: value => commits.push(value)
             });
             gesture.begin(0.01, band);
-            gesture.move(0.06, band);
+            gesture.move(0.10, band);
             gesture.move(0.75, band);
             assert.strictEqual(commits.length, 0);
             const target = gesture.release(0.75, band);
@@ -84,8 +84,8 @@ class FlagpoleMappingTests(unittest.TestCase):
             gesture.cancel("disconnect");
             assert.strictEqual(cancelled, 1);
             assert.strictEqual(gesture.release(0.9, band), null);
-            gesture.begin(0.02, band);
-            gesture.release(0.02, band);
+            gesture.begin(0.04, band);
+            gesture.release(0.04, band);
             assert.strictEqual(commits.length, 1);
             assert.strictEqual(commits[0].desired_broadcast, "off");
             assert.strictEqual(commits[0].frequency_mhz, null);
@@ -97,18 +97,18 @@ class FlagpoleMappingTests(unittest.TestCase):
             """
             const assert = require("assert");
             const band = {min_units: 871, max_units: 1082, scale: 10};
-            assert.deepStrictEqual(flagpole.targetForPosition(0.02, band), {
+            assert.deepStrictEqual(flagpole.targetForPosition(0.04, band), {
               position: 0,
               desired_broadcast: "off",
               frequency_mhz: null
             });
-            assert.deepStrictEqual(flagpole.targetForPosition(0.04, band), {
-              position: 0.06,
+            assert.deepStrictEqual(flagpole.targetForPosition(0.06, band), {
+              position: 0.10,
               desired_broadcast: "on",
               frequency_mhz: 87.1
             });
-            assert.deepStrictEqual(flagpole.targetForPosition(0.06, band), {
-              position: 0.06,
+            assert.deepStrictEqual(flagpole.targetForPosition(0.10, band), {
+              position: 0.10,
               desired_broadcast: "on",
               frequency_mhz: 87.1
             });
