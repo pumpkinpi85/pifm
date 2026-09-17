@@ -111,6 +111,10 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn('class="flagpole-off-zone"', self.html)
         self.assertIn("flagpole-off-wash", self.html)
         self.assertIn(".flagpole-panel.tuner-off-lit", self.css)
+        self.assertIn(
+            ".flagpole-panel.tuner-live:not(.tuner-off-lit)",
+            self.css,
+        )
         self.assertIn("connectionCoordinator.acceptLiveSnapshot(result.status)", self.js)
 
     def test_flagpole_uses_supplied_physical_artwork_and_reference_layout(self):

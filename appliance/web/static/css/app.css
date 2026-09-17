@@ -652,11 +652,12 @@ button:disabled {
     0 0 8px rgba(255, 180, 40, 0.75),
     0 0 16px rgba(255, 140, 0, 0.45);
 }
-.flagpole-panel.tuner-live .flagpole-off-label {
+/* Dim the OFF pocket while ON AIR only when OFF is not being previewed. */
+.flagpole-panel.tuner-live:not(.tuner-off-lit) .flagpole-off-label {
   color: rgba(255, 179, 26, 0.42);
   text-shadow: none;
 }
-.flagpole-panel.tuner-live .flagpole-off-wash {
+.flagpole-panel.tuner-live:not(.tuner-off-lit) .flagpole-off-wash {
   opacity: 0.35;
   background: linear-gradient(
     180deg,
