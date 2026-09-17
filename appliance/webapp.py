@@ -37,7 +37,8 @@ def _system_health() -> Dict[str, Any]:
         "ethernet": None,
     }
     try:
-        out["hostname"] = open("/etc/hostname").read().strip()
+        with open("/etc/hostname") as handle:
+            out["hostname"] = handle.read().strip()
     except OSError:
         out["hostname"] = os.uname().nodename
     try:

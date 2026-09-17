@@ -51,7 +51,10 @@ class NetworkManager:
             oper = None
             ip = None
             try:
-                oper = open("/sys/class/net/{}/operstate".format(self.iface)).read().strip()
+                with open(
+                    "/sys/class/net/{}/operstate".format(self.iface)
+                ) as handle:
+                    oper = handle.read().strip()
             except OSError:
                 oper = "missing"
             try:
