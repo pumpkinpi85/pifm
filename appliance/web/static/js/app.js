@@ -888,7 +888,24 @@
       programUi === "PAUSING…" || programUi === "CHANGING TRACK…" ||
       commandPending === "play" || commandPending === "pause" ||
       commandPending === "next" || commandPending === "prev";
-    if (busyProgram) {
+    // Fault / STATE UNKNOWN / POSSIBLE TX: never claim NOW PLAYING.
+    // OFF AIR may arm a music program without RF — never call that NOW PLAYING.
+    if (unknown || faulted) {
+      nowLabel.textContent = possible ? "CHECK TRANSMITTER" : "NEEDS ATTENTION";
+      nowLabel.className = "player-mode mode-busy";
+      var safetyTrack = s.now_playing || s.current_track || s.first_up;
+      $("nowTrack").textContent = safetyTrack
+        ? trackTitle(safetyTrack)
+        : "Resolve broadcast state first";
+      $("nowPlaylist").textContent = plName;
+      upLabel.textContent = "UP NEXT";
+      $("nowNext").textContent = (s.up_next || s.next_track)
+        ? trackLabel(s.up_next || s.next_track)
+        : "—";
+      setPlayPause(
+        program === "paused" ? "resume" : (program === "playing" ? "pause" : "play")
+      );
+    } else if (busyProgram) {
       var busyText = programUi || (
         commandPending === "pause" ? "PAUSING…" :
         commandPending === "play" ? (program === "paused" ? "RESUMING…" : "STARTING MUSIC…") :
@@ -903,19 +920,30 @@
       $("nowNext").textContent = (s.up_next || s.next_track) ? trackLabel(s.up_next || s.next_track) : "—";
       setPlayPause("busy", busyText.indexOf("PAUS") === 0 ? "PAUSING…" : (busyText.indexOf("RESUM") === 0 ? "RESUMING…" : "STARTING…"));
     } else if (program === "playing" && s.now_playing) {
-      nowLabel.textContent = "NOW PLAYING";
-      nowLabel.className = "player-mode mode-playing";
+      if (onAir) {
+        nowLabel.textContent = "NOW PLAYING";
+        nowLabel.className = "player-mode mode-playing";
+      } else {
+        nowLabel.textContent = "PROGRAM READY";
+        nowLabel.className = "player-mode mode-ready";
+      }
       $("nowTrack").textContent = trackTitle(s.now_playing);
       $("nowPlaylist").textContent = plName + (trackArtist(s.now_playing) ? (" · " + trackArtist(s.now_playing)) : "");
       upLabel.textContent = "UP NEXT";
       $("nowNext").textContent = s.up_next ? trackLabel(s.up_next) : "—";
       setPlayPause("pause");
     } else if (program === "paused" && (s.now_playing || s.current_track)) {
-      nowLabel.textContent = "PAUSED";
-      nowLabel.className = "player-mode mode-paused";
+      if (onAir) {
+        nowLabel.textContent = "PAUSED";
+        nowLabel.className = "player-mode mode-paused";
+        $("nowPlaylist").textContent = plName + " · FM still ON AIR";
+      } else {
+        nowLabel.textContent = "PROGRAM PAUSED";
+        nowLabel.className = "player-mode mode-paused";
+        $("nowPlaylist").textContent = plName;
+      }
       var pausedTrack = s.now_playing || s.current_track;
       $("nowTrack").textContent = trackTitle(pausedTrack);
-      $("nowPlaylist").textContent = plName;
       upLabel.textContent = "UP NEXT";
       $("nowNext").textContent = (s.up_next || s.next_track) ? trackLabel(s.up_next || s.next_track) : "—";
       setPlayPause("resume");

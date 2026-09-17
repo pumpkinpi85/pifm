@@ -223,15 +223,22 @@ class ControllerTests(unittest.TestCase):
         self.assertNotEqual(self.ctrl.sm.state, State.ON_AIR)
 
     def test_play_pause_next_do_not_start_tx(self):
-        self.ctrl.play()
+        st = self.ctrl.play()
         self.assertFalse(self.ctrl.tx.is_running())
         self.assertNotEqual(self.ctrl.sm.state, State.ON_AIR)
+        self.assertEqual(st["broadcast_state"], "off")
+        self.assertEqual(st["broadcast_ui"], "OFF")
+        self.assertEqual(st["program_state"], "playing")
         self.ctrl.next_track()
         self.assertFalse(self.ctrl.tx.is_running())
-        self.ctrl.pause()
+        st = self.ctrl.pause()
         self.assertFalse(self.ctrl.tx.is_running())
-        self.ctrl.stop_playback()
+        self.assertEqual(st["broadcast_state"], "off")
+        self.assertEqual(st["program_state"], "paused")
+        st = self.ctrl.stop_playback()
         self.assertFalse(self.ctrl.tx.is_running())
+        self.assertEqual(st["program_state"], "stopped")
+        self.assertEqual(st["broadcast_state"], "off")
 
     def test_explicit_on_air_and_off(self):
         st = self.ctrl.go_on_air()

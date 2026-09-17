@@ -166,10 +166,16 @@ class OperatorUxStaticTests(unittest.TestCase):
         self.assertIn("Ready to broadcast", self.js)
         self.assertIn('nowLabel.textContent = "READY"', self.js)
         self.assertIn('nowLabel.textContent = "NOW PLAYING"', self.js)
+        self.assertIn('nowLabel.textContent = "PROGRAM READY"', self.js)
+        self.assertIn('nowLabel.textContent = "PROGRAM PAUSED"', self.js)
         self.assertIn('nowLabel.textContent = "PAUSED"', self.js)
+        self.assertIn("FM still ON AIR", self.js)
         self.assertIn("THEN", self.js)
         self.assertIn("transport-play", self.js)
         self.assertNotIn("NOW PLAYING — PAUSED", self.js)
+        # NOW PLAYING is reserved for authoritative ON AIR + program playing.
+        self.assertIn("never claim NOW PLAYING", self.js)
+        self.assertIn('possible ? "CHECK TRANSMITTER" : "NEEDS ATTENTION"', self.js)
 
     def test_short_first_run_flow_exists_and_finishes_off_air(self):
         for label in ("WELCOME", "HARDWARE", "STATION", "MUSIC", "BROADCAST"):
