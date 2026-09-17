@@ -62,11 +62,15 @@ Stop Broadcast.
 
 ## Music / Library / Playlists / Queue
 
-Uploading and organizing music **never** starts RF.
+Uploading and organizing music **never** starts RF. How much you can store
+depends on free disk on the Pi (typically the microSD card): your library plus
+WAV-cache headroom share that space with the OS.
 
 1. Open **Music**.
 2. Drag files into **Add Music** or choose files.
 3. Accepted filename families: MP3, WAV, FLAC, M4A, AAC, OGG (see [music.md](music.md)).
+   When needed, the appliance uses FFmpeg to prepare seekable WAV for broadcast;
+   suitable WAVs may skip conversion.
 4. Create or select a playlist; set it active.
 5. Use Play / Pause / Prev / Next to control the music program only.
 
@@ -85,7 +89,8 @@ Choose only frequencies and conditions you are legally allowed to use.
 
 ## System / Diagnostics
 
-- Hardware profile and environment readiness
+- System shows hardware profile / readiness. Auto-detect can identify the board;
+  only the Model A+ is a SUPPORTED profile today. See [HARDWARE.md](HARDWARE.md).
 - Broadcast recovery intent (armed ON vs disarmed OFF)
 - Fault reason and transmitter diagnostics
 - Quiet network (interference troubleshooting) — **does not** stop FM

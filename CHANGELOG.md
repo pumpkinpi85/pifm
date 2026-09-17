@@ -16,6 +16,9 @@
   distributable demo track (artist credit: Brynja Vinter) and seed it into
   fresh installs without overwriting operator media.
   No other appliance behaviour change versus the A+-validated 0.6.1 line.
+- Document honest operator guidance for SD/library storage sizing, FFmpeg
+  prepare-when-needed behaviour, and auto-detect limits (only A+ maps to
+  SUPPORTED; recognition does not invent support for newer boards).
 
 ## 0.6.1 — A+ stress-audit remediation
 

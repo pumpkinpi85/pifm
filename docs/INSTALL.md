@@ -11,6 +11,10 @@ FM transmission. After install the service should report **OFF AIR**.
    enable SSH if you will administer the Pi remotely.
 4. Write the image, insert the card, and boot.
 
+Card capacity is an operator choice: Raspberry Pi OS needs some space, and the
+rest is mainly your music library plus disposable WAV-cache growth. A larger
+card simply holds more media; piFM does not require one fixed large size.
+
 For the physically validated Model A+ path, plan on a **headless**
 (`multi-user.target`) boot with **onboard audio disabled**. See
 [HARDWARE.md](HARDWARE.md).
@@ -35,8 +39,9 @@ For the physically validated Model A+ path, plan on a **headless**
 sudo apt install -y git python3 ffmpeg libsndfile1-dev build-essential rsync
 ```
 
-`ffmpeg` is required for media validation and seekable-WAV preparation.
-`libsndfile1-dev` and a C toolchain are required to build PiFmRds.
+`ffmpeg` is required for media validation and, when needed, conversion to a
+seekable WAV that `pi_fm_rds` can play. Suitable seekable PCM WAVs may skip
+conversion. `libsndfile1-dev` and a C toolchain are required to build PiFmRds.
 
 ## 4. Build and install `pi_fm_rds`
 
@@ -211,9 +216,11 @@ Host non-RF validation before claiming a candidate ready:
 ## Non-Pi / mock validation hosts
 
 `PIFM_TX_BACKEND=mock` is for lifecycle testing only and produces no RF. On a
-real Raspberry Pi the default `hardware_profile_mode=auto` detects the board.
-On a laptop/VM used only to exercise documentation, set in
-`config/appliance.json`:
+real Raspberry Pi, `hardware_profile_mode=auto` reads board identity from the
+host. **Only a detected Model A+** currently maps to the SUPPORTED profile;
+other boards are not auto-promoted to SUPPORTED and do not receive extra
+runtime features from recognition alone. On a laptop/VM used only to exercise
+documentation, set in `config/appliance.json`:
 
 ```json
 "tx_backend": "mock",

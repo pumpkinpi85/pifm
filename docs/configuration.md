@@ -12,12 +12,12 @@ See `examples/config.example.json`.
 | `frequency_mhz` | Operator-chosen piFM tuning frequency, `87.1–108.2` MHz in `0.1` MHz increments |
 | `rds_ps` / `rds_rt` / `rds_pi` | RDS identity |
 | `hardware_profile` | e.g. `raspberry-pi-a-plus` |
-| `hardware_profile_mode` | `auto` (recommended) or explicit `manual` override |
+| `hardware_profile_mode` | `auto` (default): read board identity; only A+ maps to SUPPORTED today. `manual`: operator override (experimental until evidence matches) |
 | `setup_completed` | Fresh-install first-run state; pre-P1F configs default complete |
 | `network_iface` | e.g. `eth0` or `wlan0` |
 | `gpio_enabled` | Optional panel LED/switch (default false) |
 | `tx_pin` | Documented RF GPIO BCM (default 4) |
-| `wav_cache_max_mb` | Disposable seekable-WAV cache budget (default 1024 MiB) |
+| `wav_cache_max_mb` | Disposable seekable-WAV cache budget (default 1024 MiB); share the SD/disk with your library |
 | `wav_cache_min_free_mb` | Free storage retained before conversion (default 256 MiB) |
 | `cache_warming_enabled` | Optional OFF-AIR-only speculative preparation; default `false` |
 

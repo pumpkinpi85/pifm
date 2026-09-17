@@ -31,6 +31,11 @@ deliberate repair operation.
 
 ## Playback preparation and storage bounds
 
+Library size is limited by free space on the microSD (or other boot/storage)
+device: OS files, your uploaded music, playlists/database, and the disposable
+WAV cache all share that disk. Choose a card large enough for the music you
+intend to keep, plus headroom for conversion cache and normal system use.
+
 The supported path is:
 
 1. upload and stream to a temporary file

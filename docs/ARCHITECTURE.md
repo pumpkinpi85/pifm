@@ -66,9 +66,12 @@ cannot mutate a restarted process.
 ## Hardware profiles
 
 Profiles under `hardware/profiles/` describe detection hints, GPIO defaults,
-prerequisites, and support classification. They adapt behaviour; they do not
-create separate product editions. Unknown boards fail closed for live TX
-readiness rather than guessing.
+prerequisites, and support classification. They adapt documented defaults; they
+do not create separate product editions. Today only `raspberry-pi-a-plus` is
+SUPPORTED. Auto-detect may read board identity, but unrecognized or unvalidated
+boards stay UNKNOWN/EXPERIMENTAL and are not granted extra capability by
+recognition alone. Unknown boards fail closed for live TX readiness rather than
+guessing.
 
 ## Media validation / transcoding
 

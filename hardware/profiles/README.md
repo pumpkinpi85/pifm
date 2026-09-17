@@ -14,4 +14,5 @@ Only `raspberry-pi-a-plus` is SUPPORTED in the public candidate.
 Runtime resolution: `appliance/hardware_profile.py` loads
 `hardware/profiles/<id>.json`, exposes the document via `/api/status`, and may
 include read-only `/proc` board hints. Config key `hardware_profile` selects the
-profile. Detection never invents SUPPORTED status for unvalidated boards.
+profile. Detection never invents SUPPORTED status for unvalidated boards and
+does not grant newer boards extra features merely because they are recognized.

@@ -33,6 +33,26 @@ https://github.com/ChristopheJacquet/PiFmRds
 Product profile JSON for the validated board:
 `hardware/profiles/raspberry-pi-a-plus.json`
 
+## Automatic board detection (honest limits)
+
+With `hardware_profile_mode=auto` (the default), piFM reads board identity
+hints from the host (for example model/revision text under `/proc`).
+
+What that means today:
+
+- **Model A+ Rev 1.1** can be matched to the shipped `raspberry-pi-a-plus`
+  profile and treated as **SUPPORTED**.
+- **Other boards** are not mapped to additional SUPPORTED profiles. Recognition
+  does **not** unlock faster paths, larger limits, or a higher support tier.
+- Boards listed as EXPERIMENTAL in the matrix above are documentation guidance
+  only until physically validated; auto-detect does not promote them.
+- If evidence does not match a known SUPPORTED profile, status stays
+  **UNKNOWN** (or the operator may set an explicit manual profile, which remains
+  experimental until detection and evidence agree).
+
+In short: detection answers “what board is this?” for the A+ support path. It
+does not invent support for newer hardware.
+
 ## Raspberry Pi Model A+ — wiring beginners need
 
 piFM / PiFmRds reference RF output:

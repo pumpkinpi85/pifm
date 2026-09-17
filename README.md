@@ -36,14 +36,15 @@ The Pi runs the station. The browser is a remote control.
 - Authoritative appliance state with reconnect-safe browser synchronization
 - Persisted operator broadcast intent with safe recovery gates
 - Bounded FFmpeg preparation and WAV-cache limits sized for A+-class hardware
-- Evidence-based hardware profiles (A+ physically validated)
+- When needed, FFmpeg prepares seekable WAV for `pi_fm_rds` (suitable WAVs may skip conversion)
+- Evidence-based hardware profiles (only the A+ is physically validated / SUPPORTED)
 
 ## Minimum hardware
 
 | Item | Notes |
 |------|--------|
 | Raspberry Pi Model A+ Rev 1.1 (or stronger experimental board) | A+ is the validated floor |
-| microSD card | Fresh Raspberry Pi OS Lite recommended |
+| microSD card | Size depends on OS plus how much music you keep and WAV-cache headroom; larger cards store more library media |
 | Power supply | Adequate for your Pi model |
 | Network (optional for RF) | Needed for install and browser control; not required to stay on air |
 | RF path | GPIO 4 / header pin 7 → your filter/load/antenna (operator-supplied) |
@@ -57,8 +58,10 @@ The Pi runs the station. The browser is a remote control.
 | Raspberry Pi 2 / 3 / 4 | **EXPERIMENTAL / NOT PHYSICALLY VALIDATED** |
 | Raspberry Pi 5 | **UNSUPPORTED** |
 
-Full matrix, wiring, and headless/onboard-audio requirements:
-[docs/HARDWARE.md](docs/HARDWARE.md)
+Auto-detection can identify board text from the Pi, but **only the Model A+**
+maps to a SUPPORTED hardware profile today. A newer board is not automatically
+granted extra features or a higher support tier just because it is recognized.
+Full matrix and detection rules: [docs/HARDWARE.md](docs/HARDWARE.md)
 
 ## Quick start
 
