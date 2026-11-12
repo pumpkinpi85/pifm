@@ -122,7 +122,9 @@ the installer stops with a clear error when it does not. A user named `pi` is
 not required and is not the default. `scripts/configure-hardware.sh` uses the
 same rule when it stops a desktop audio session. Remote deploy ownership
 follows `PIFM_USER` when set, otherwise the SSH account, and refuses to chown
-the station to root.
+the station to root. `deploy-sha.sh --restart` and `rollback.sh --restart`
+rewrite `User=` / `Group=` in the installed unit to that same account. They
+do not leave the template's `pi` token in the live service.
 
 The installer:
 

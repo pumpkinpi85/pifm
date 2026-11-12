@@ -481,6 +481,30 @@ class ServiceUserTests(unittest.TestCase):
         self.assertIn("pifm_resolve_service_user", install)
         self.assertIn("pifm_resolve_service_user", hardware)
         self.assertIn('s|User=pi|User=$SERVICE_USER|g', install)
+        apply = hardware.split('if [[ "$APPLY" != "--apply" ]];', 1)[1]
+        self.assertLess(
+            apply.index("pifm_resolve_service_user"),
+            apply.index("systemctl set-default"),
+        )
+        self.assertLess(
+            apply.index("pifm_resolve_service_user"),
+            apply.index('out.append("dtparam=audio=off")'),
+        )
+        for rel in ("scripts/deploy-sha.sh", "scripts/rollback.sh"):
+            script = (ROOT / rel).read_text(encoding="utf-8")
+            restart = script.split('if [[ "$RESTART" -eq 1 ]];', 1)[1]
+            self.assertIn("s|User=pi|User=", restart, rel)
+            self.assertIn("s|Group=pi|Group=", restart, rel)
+            self.assertNotIn(
+                'sudo cp "$TARGET/systemd/pifm-appliance.service"',
+                restart,
+                rel,
+            )
+            self.assertNotIn(
+                'sudo cp "\\$TARGET/systemd/pifm-appliance.service"',
+                restart,
+                rel,
+            )
         install_doc = (ROOT / "docs" / "INSTALL.md").read_text(encoding="utf-8")
         self.assertIn("A user named `pi` is", install_doc)
         self.assertIn("not required", install_doc)

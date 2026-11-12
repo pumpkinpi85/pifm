@@ -39,6 +39,10 @@ if [[ "$(id -u)" -ne 0 ]]; then
   exit 1
 fi
 
+# Resolve the account before any boot or target change. A missing user must
+# leave the machine untouched, because the rollback helper is written later.
+pifm_resolve_service_user
+
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 BACKUP_DIR="/var/lib/pifm/hardware-backups/$STAMP"
 mkdir -p "$BACKUP_DIR"
@@ -70,7 +74,6 @@ systemctl set-default multi-user.target
 
 # Console / VNC user sessions often start pulseaudio even on multi-user.target.
 # That contends for PWM the same way a desktop does — stop and mask it.
-pifm_resolve_service_user
 PIFM_SERVICE_UID="$(id -u "$PIFM_SERVICE_USER")"
 USER_AUDIO_UNITS=(
   pulseaudio.socket pulseaudio.service

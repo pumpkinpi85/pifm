@@ -77,7 +77,26 @@ EOF
 if [[ "$RESTART" -eq 1 ]]; then
   ssh -o BatchMode=yes "$REMOTE" bash -s <<EOF
 set -euo pipefail
-sudo cp "$TARGET/systemd/pifm-appliance.service" /etc/systemd/system/pifm-appliance.service
+TARGET="$TARGET"
+OWNER="${PIFM_USER:-}"
+if [[ -z "\$OWNER" ]]; then
+  OWNER="\$(id -un)"
+fi
+if [[ -z "\$OWNER" || "\$OWNER" == "root" ]]; then
+  echo "Could not determine a non-root installing user on the station. Set PIFM_USER to an existing account. A user named pi is not required." >&2
+  exit 1
+fi
+if ! id "\$OWNER" >/dev/null 2>&1; then
+  echo "Service user '\$OWNER' does not exist. Set PIFM_USER to an existing account. A user named pi is not required." >&2
+  exit 1
+fi
+UNIT_TMP=\$(mktemp)
+sed \\
+  -e "s|User=pi|User=\$OWNER|g" \\
+  -e "s|Group=pi|Group=\$OWNER|g" \\
+  "\$TARGET/systemd/pifm-appliance.service" > "\$UNIT_TMP"
+sudo cp "\$UNIT_TMP" /etc/systemd/system/pifm-appliance.service
+rm -f "\$UNIT_TMP"
 sudo systemctl daemon-reload
 sudo systemctl restart pifm-appliance.service
 sleep 3

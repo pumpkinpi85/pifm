@@ -16,7 +16,9 @@
   track counts (`1 track` / `N tracks`).
 - Default `install.sh`, hardware configuration, and remote deploy ownership to
   the installing user. `PIFM_USER` still overrides. A missing account fails
-  with a clear message. A user named `pi` is not required.
+  with a clear message. A user named `pi` is not required. Remote restart and
+  rollback rewrite the systemd unit to that account, and hardware setup
+  resolves the account before it changes boot configuration.
 - Run `scripts/run-validation.sh` from GitHub Actions on pull requests and on
   the default branch.
 
