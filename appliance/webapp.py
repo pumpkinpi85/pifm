@@ -51,11 +51,6 @@ def _system_health() -> Dict[str, Any]:
     except OSError:
         pass
     try:
-        # fallback vcgencmd not required
-        pass
-    except Exception:
-        pass
-    try:
         usage = shutil.disk_usage("/")
         out["disk_free_gb"] = round(usage.free / (1024**3), 2)
         out["disk_total_gb"] = round(usage.total / (1024**3), 2)
@@ -512,6 +507,10 @@ class Handler(BaseHTTPRequestHandler):
             ctype = "application/javascript"
         elif file_path.suffix == ".svg":
             ctype = "image/svg+xml"
+        elif file_path.suffix == ".png":
+            ctype = "image/png"
+        elif file_path.suffix == ".ico":
+            ctype = "image/x-icon"
         return self._send(200, data, ctype)
 
 

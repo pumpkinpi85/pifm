@@ -108,13 +108,23 @@ Useful variants:
 | Skip TX build (mock / pre-provisioned host) | `sudo PIFM_SKIP_PIFMRDS_BUILD=1 ./scripts/install.sh` |
 | Apply A+ headless/onboard-audio prerequisites | `sudo PIFM_CONFIGURE_HARDWARE=1 ./scripts/install.sh` |
 | Lifecycle-only (no live TX backend) | `sudo PIFM_TX_BACKEND=mock ./scripts/install.sh` |
-| Non-root service user | `sudo PIFM_USER=myuser ./scripts/install.sh` |
+| Service account override | `sudo PIFM_USER=myuser ./scripts/install.sh` |
 | Alternate prefix | `sudo PIFM_PREFIX=/srv/pifm ./scripts/install.sh` |
 
 When `tx_backend` is `pi_fm_rds` and `/usr/local/bin/pi_fm_rds` is missing,
 `install.sh` runs `scripts/install-pi-fm-rds.sh`, which checks out
 `ChristopheJacquet/PiFmRds` at the SHA in `third_party/pifmrds.pin`, builds
 on-device, and installs the binary to `/usr/local/bin/pi_fm_rds`.
+
+`install.sh` runs the service as the installing user (the account that invoked
+`sudo`). `PIFM_USER` overrides that choice. The account must already exist;
+the installer stops with a clear error when it does not. A user named `pi` is
+not required and is not the default. `scripts/configure-hardware.sh` uses the
+same rule when it stops a desktop audio session. Remote deploy ownership
+follows `PIFM_USER` when set, otherwise the SSH account, and refuses to chown
+the station to root. `deploy-sha.sh --restart` and `rollback.sh --restart`
+rewrite `User=` / `Group=` in the installed unit to that same account. They
+do not leave the template's `pi` token in the live service.
 
 The installer:
 
@@ -131,6 +141,10 @@ Fresh installs seed **The Sky Belongs to No King** by **Brynja Vinter** from
 `examples/demo/` into `data/library/demo/` when that file is not already
 present, and create a `default` playlist for it when no playlist exists yet.
 Existing operator media and playlists are never overwritten by this seed.
+The first appliance start also seeds empty starter playlists (`favorites`,
+`classical`, `rock`, `jazz`, `custom`, and `default` when it is still
+missing) unless the playlist directory already has other playlists. Deleted
+starters are not restored later. See [music.md](music.md).
 
 ## First-run setup
 
@@ -197,7 +211,7 @@ restore from backup.
 Remote example (SSH destination is whatever host you administer):
 
 ```bash
-./scripts/station-backup.sh --remote pi@station.local --root /opt/pifm --dest /home/pi/backups
+./scripts/station-backup.sh --remote user@station.local --root /opt/pifm --dest /home/user/backups
 ```
 
 Restore by stopping the service, restoring the backup archive into the install

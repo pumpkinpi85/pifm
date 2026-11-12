@@ -5,8 +5,11 @@
 #   ./scripts/deploy-sha.sh --sha HEAD --target /tmp/pifm-target --dry-run
 #
 # Authorized remote cutover (requires explicit flag):
-#   ./scripts/deploy-sha.sh --sha HEAD --remote pi@station.local --target /opt/pifm \
+#   ./scripts/deploy-sha.sh --sha HEAD --remote user@station.local --target /opt/pifm \
 #       --authorize-cutover [--legacy-root <current-install-root>]
+# Remote ownership follows PIFM_USER when set, otherwise the SSH account.
+# A user named pi is not required. The backup parent defaults to
+# /home/<that-user>/backups unless --backup-parent is set.
 #
 # Does not start RF. Service restart is separate unless --restart is passed
 # with --authorize-cutover.
@@ -103,9 +106,9 @@ PY
 fi
 
 # ---- Authorized remote deploy ----
-BACKUP_PARENT="${BACKUP_PARENT:-/home/pi/backups}"
+# Empty BACKUP_PARENT is resolved on the station to /home/<owner>/backups.
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 REMOTE_STAGE="/tmp/pifm-stage-$FULL_SHA"
-REMOTE_PREV="$BACKUP_PARENT/previous-app-$FULL_SHA-$(date -u +%Y%m%dT%H%M%SZ)"
 REMOTE_TARBALL="/tmp/pifm-stage-$FULL_SHA.tgz"
 
 echo "Packaging stage"
@@ -124,7 +127,22 @@ STAGE="$REMOTE_STAGE"
 TARGET="$TARGET"
 LEGACY="${LEGACY_ROOT}"
 BACKUP_PARENT="$BACKUP_PARENT"
-PREV="$REMOTE_PREV"
+OWNER="${PIFM_USER:-}"
+if [[ -z "\$OWNER" ]]; then
+  OWNER="\$(id -un)"
+fi
+if [[ -z "\$OWNER" || "\$OWNER" == "root" ]]; then
+  echo "Could not determine a non-root installing user on the station. Set PIFM_USER to an existing account. A user named pi is not required." >&2
+  exit 1
+fi
+if ! id "\$OWNER" >/dev/null 2>&1; then
+  echo "Service user '\$OWNER' does not exist. Set PIFM_USER to an existing account. A user named pi is not required." >&2
+  exit 1
+fi
+if [[ -z "\$BACKUP_PARENT" ]]; then
+  BACKUP_PARENT="/home/\$OWNER/backups"
+fi
+PREV="\$BACKUP_PARENT/previous-app-$FULL_SHA-$STAMP"
 rm -rf /tmp/pifm_ops
 mkdir -p /tmp/pifm_ops
 tar -C /tmp/pifm_ops -xzf /tmp/pifm-ops-bundle.tgz
@@ -132,7 +150,7 @@ OPS=/tmp/pifm_ops/pifm_station_ops.py
 TGZ=/tmp/pifm-stage-$FULL_SHA.tgz
 
 sudo mkdir -p "\$TARGET" "\$BACKUP_PARENT"
-sudo chown -R pi:pi "\$TARGET" "\$BACKUP_PARENT" || true
+sudo chown -R "\$OWNER:\$OWNER" "\$TARGET" "\$BACKUP_PARENT"
 
 rm -rf "\$STAGE"
 mkdir -p "\$STAGE"
@@ -201,7 +219,7 @@ if [[ "\$((TXC+FTC))" -ne 0 ]]; then
   echo "FAIL: transmitter processes present after deploy" >&2
   exit 1
 fi
-echo "REMOTE_DEPLOY_OK previous=$REMOTE_PREV"
+echo "REMOTE_DEPLOY_OK previous=\$PREV"
 REMOTE_SCRIPT
 
 rm -f "$LOCAL_TGZ"
@@ -212,7 +230,25 @@ if [[ "$RESTART" -eq 1 ]]; then
   ssh -o BatchMode=yes "$REMOTE" bash -s <<EOF
 set -euo pipefail
 TARGET="$TARGET"
-sudo cp "\$TARGET/systemd/pifm-appliance.service" /etc/systemd/system/pifm-appliance.service
+OWNER="${PIFM_USER:-}"
+if [[ -z "\$OWNER" ]]; then
+  OWNER="\$(id -un)"
+fi
+if [[ -z "\$OWNER" || "\$OWNER" == "root" ]]; then
+  echo "Could not determine a non-root installing user on the station. Set PIFM_USER to an existing account. A user named pi is not required." >&2
+  exit 1
+fi
+if ! id "\$OWNER" >/dev/null 2>&1; then
+  echo "Service user '\$OWNER' does not exist. Set PIFM_USER to an existing account. A user named pi is not required." >&2
+  exit 1
+fi
+UNIT_TMP=\$(mktemp)
+sed \\
+  -e "s|User=pi|User=\$OWNER|g" \\
+  -e "s|Group=pi|Group=\$OWNER|g" \\
+  "\$TARGET/systemd/pifm-appliance.service" > "\$UNIT_TMP"
+sudo cp "\$UNIT_TMP" /etc/systemd/system/pifm-appliance.service
+rm -f "\$UNIT_TMP"
 sudo systemctl daemon-reload
 sudo systemctl enable pifm-appliance.service
 sudo systemctl restart pifm-appliance.service

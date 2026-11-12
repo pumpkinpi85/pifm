@@ -2,9 +2,8 @@
 
 ## Reporting
 
-Report security issues privately to the maintainers of the canonical repository
-**github.com/pumpkinpi85/pifm** (GitHub Security Advisories when that public
-repo exists, or the contact listed on the pumpkinpi85 project page). Please do
+Report security issues privately to the maintainers of the public repository
+**github.com/pumpkinpi85/pifm** using GitHub Security Advisories. Please do
 **not** open public issues that include exploit details for remote compromise
 of appliances.
 

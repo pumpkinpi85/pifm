@@ -96,7 +96,7 @@ Choose only frequencies and conditions you are legally allowed to use.
   only the Model A+ is a SUPPORTED profile today. See [HARDWARE.md](HARDWARE.md).
 - Broadcast recovery intent (armed ON vs disarmed OFF)
 - Fault reason and transmitter diagnostics
-- Quiet network (interference troubleshooting) — **does not** stop FM
+- Quiet network (interference troubleshooting) — **does not** stop FM. The shipped default (`rf_quiet_mode: simulate`) also **does not** turn the network off. A real timed cut is an explicit config opt-in; see [configuration.md](configuration.md).
 
 ## Authoritative state and reconnection
 

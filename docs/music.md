@@ -86,6 +86,21 @@ first run useful without hiding a second queue or filesystem workflow.
 - **Queue:** the active playlist's current order. Reordering while idle persists
   that order to the playlist. Read/status requests never shuffle or mutate it.
 
+## Starter playlists
+
+The first time the appliance starts against an empty playlist directory, or a
+directory that contains only the installer's `default` playlist, it creates
+empty starter playlists: `default`, `favorites`, `classical`, `rock`, `jazz`,
+and `custom`. An existing `default` playlist, including the demo track, is
+left as it is.
+
+That seed runs once. Deleting a starter playlist is permanent: later starts
+do not recreate it. Playlists you create are kept across restarts. If the
+directory already contains any playlist other than `default`, piFM treats the
+library as already in use and does not add the missing starters. The seed
+marker and deletion history live inside `data/playlists/` (hidden JSON files)
+and must stay with playlist backups.
+
 Shuffle is applied only at an explicit queue rebuild boundary. Repeat controls
 what happens at the end of the program. Pause/reset affect music; only the
 **OFF AIR detent / Stop Broadcast** is the absolute RF stop.

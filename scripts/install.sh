@@ -6,8 +6,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck disable=SC1090
 source "$ROOT/third_party/pifmrds.pin"
+# shellcheck disable=SC1091
+source "$ROOT/scripts/service-user.sh"
+pifm_resolve_service_user
+SERVICE_USER="$PIFM_SERVICE_USER"
+export PIFM_USER="$SERVICE_USER"
 PREFIX="${PIFM_PREFIX:-/opt/pifm}"
-SERVICE_USER="${PIFM_USER:-pi}"
 PI_FM_RDS_SRC="${PI_FM_RDS_SRC:-}"
 PI_FM_RDS_BIN="${PI_FM_RDS_BIN:-$PIFMRDS_BINARY_PATH}"
 # Production default is pi_fm_rds. Use PIFM_TX_BACKEND=mock for clean-room

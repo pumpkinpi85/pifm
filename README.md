@@ -131,7 +131,7 @@ receiver for experimentation. See [docs/rf-and-law.md](docs/rf-and-law.md).
 
 ## Support / contributing
 
-When published, the intended canonical home is
+The canonical public repository is
 **https://github.com/pumpkinpi85/pifm** under the **pumpkinpi85** account.
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
@@ -141,6 +141,6 @@ GPL-3.0 — see [LICENSE](LICENSE) and [third_party/NOTICE.md](third_party/NOTIC
 
 ## Status
 
-Product candidate **0.6.2** (P1H public-release documentation & sanitation) on
-top of the A+-validated **0.6.1** appliance behaviour. GitHub publication and
-any further RF work remain separately authorized founder gates.
+Public release **0.6.2** (P1H public-release documentation & sanitation) on
+top of the A+-validated **0.6.1** appliance behaviour. This repository is the
+public canonical home. Further RF work on hardware stays separately authorized.

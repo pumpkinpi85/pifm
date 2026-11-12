@@ -6,6 +6,9 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
+# install.sh, deploy-sha.sh --restart, and rollback.sh --restart rewrite
+# these two lines to the resolved service account.
+# "pi" is only the substitution token. A user named pi is not required.
 User=pi
 Group=pi
 WorkingDirectory=/opt/pifm
