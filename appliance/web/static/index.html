@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>piFM Pirate Radio</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="stylesheet" href="/css/app.css?v=31" />
 </head>
 <body>
@@ -358,9 +359,13 @@
       <div class="panel rf-quiet-panel">
         <div class="label">INTERFERENCE TROUBLESHOOTING</div>
         <p class="warn-box" data-testid="rf-quiet-warning">
-          <strong>Quiet network for interference test</strong> turns off the network connection.
+          <strong>Quiet network for interference test</strong> uses the shipped default
+          <code>rf_quiet_mode: simulate</code>. That mode records a quiet state in this
+          console and <strong>does not</strong> turn the network connection off.
           It <strong>does not</strong> stop the FM broadcast.
-          You may lose access to this web page until the network returns.
+          A real network cut stays off unless <code>rf_quiet_mode</code> is set to
+          <code>timed</code> in the appliance config. Timed mode can take the link
+          down until it recovers, and you may lose this page while it is down.
         </p>
         <button type="button" id="btnRfQuiet" class="secondary">Quiet network for interference test</button>
         <button type="button" id="btnRfRestore" class="ghost">Restore network now</button>
@@ -404,7 +409,7 @@
         <h3>Play / Previous / Next</h3>
         <p>These change the music program. They do not start a broadcast by themselves.</p>
         <h3>Quiet network vs Stop Broadcast</h3>
-        <p>Quiet network is an interference troubleshooting tool. It does not stop the FM broadcast.</p>
+        <p>Quiet network is an interference troubleshooting tool. The shipped simulate default does not turn the network off, and it does not stop the FM broadcast. Set <code>rf_quiet_mode</code> to <code>timed</code> only when you explicitly want a short network cut.</p>
         <h3>Needs Attention / Possible Transmission</h3>
         <p>If the console shows <strong>Needs Attention</strong>, <strong>State Unknown</strong>, or <strong>Possible Transmission</strong>, press <strong>Stop Broadcast</strong>, then use System → Fault Recovery if needed.</p>
       </div>
@@ -428,6 +433,7 @@
   <div id="faultLine" class="fault-banner" hidden></div>
   <script src="/js/connection.js?v=18"></script>
   <script src="/js/flagpole.js?v=25"></script>
-  <script src="/js/app.js?v=35"></script>
+  <script src="/js/copy.js?v=1"></script>
+  <script src="/js/app.js?v=36"></script>
 </body>
 </html>

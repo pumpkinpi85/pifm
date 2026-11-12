@@ -3,6 +3,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck disable=SC1091
+source "$ROOT/scripts/service-user.sh"
 APPLY="${1:-}"
 MODEL_FILE="/proc/device-tree/model"
 BOOT_CONFIG="/boot/config.txt"
@@ -68,8 +70,8 @@ systemctl set-default multi-user.target
 
 # Console / VNC user sessions often start pulseaudio even on multi-user.target.
 # That contends for PWM the same way a desktop does — stop and mask it.
-PIFM_SERVICE_USER="${PIFM_USER:-pi}"
-PIFM_SERVICE_UID="$(id -u "$PIFM_SERVICE_USER" 2>/dev/null || true)"
+pifm_resolve_service_user
+PIFM_SERVICE_UID="$(id -u "$PIFM_SERVICE_USER")"
 USER_AUDIO_UNITS=(
   pulseaudio.socket pulseaudio.service
   pipewire.socket pipewire.service

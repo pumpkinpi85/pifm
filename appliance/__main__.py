@@ -72,16 +72,8 @@ def main(argv=None) -> int:
         playlists_dir=config.resolve("playlists_dir"),
         db_path=root / "data" / "library.sqlite3",
     )
-    library.ensure_default_playlists(
-        [
-            "default",
-            "favorites",
-            "classical",
-            "rock",
-            "jazz",
-            "custom",
-        ]
-    )
+    # Starters are seeded once. A playlist the operator deletes stays deleted.
+    library.ensure_default_playlists()
     library.reindex()
 
     controller = Controller(config, library, events)

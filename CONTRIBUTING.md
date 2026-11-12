@@ -22,7 +22,7 @@ daemon stacks, chatty polling, unbounded logging, or re-transcoding on every pla
 
 ## Pull requests
 
-When published, the canonical repository is **github.com/pumpkinpi85/pifm**.
+The canonical public repository is **github.com/pumpkinpi85/pifm**.
 Fork, branch, and open a PR against that repo. Maintainers under the
 **pumpkinpi85** account merge to `main` and cut releases. Do not expect direct
 push access. Do not open PRs against any other organization for this project.

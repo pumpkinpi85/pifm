@@ -10,10 +10,23 @@ import time
 import uuid
 from contextlib import closing
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 AUDIO_FORMATS = ("mp3", "wav", "flac", "m4a", "aac", "ogg")
 AUDIO_EXT = frozenset("." + item for item in AUDIO_FORMATS)
+
+# Empty starter playlists created once, on a library that has not been used.
+# `default` may already exist when the installer seeded the demo track.
+STARTER_PLAYLIST_NAMES = (
+    "default",
+    "favorites",
+    "classical",
+    "rock",
+    "jazz",
+    "custom",
+)
+_SEED_MARKER_NAME = ".starter-playlists.json"
+_LIFECYCLE_NAME = ".playlist-lifecycle.json"
 
 
 def _parse_name(stem: str) -> Tuple[str, str]:
@@ -221,7 +234,7 @@ class Library:
 
     def list_playlists(self) -> List[Dict[str, Any]]:
         out = []
-        for path in sorted(self.playlists_dir.glob("*.json")):
+        for path in self._playlist_json_paths():
             try:
                 data = json.loads(path.read_text())
                 tracks = data.get("tracks") or []
@@ -265,7 +278,10 @@ class Library:
         tmp = path.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(payload, indent=2) + "\n")
         os.replace(str(tmp), str(path))
-        return self.load_playlist(path.stem)
+        saved = self.load_playlist(path.stem)
+        if self._playlist_lifecycle_state(saved["id"]) == "deleted":
+            self._record_playlist_state(saved["id"], "present", "save_playlist")
+        return saved
 
     def create_playlist(self, name: str) -> Dict[str, Any]:
         pid = re.sub(r"[^a-zA-Z0-9_-]+", "_", name).strip("_").lower() or "playlist"
@@ -345,9 +361,177 @@ class Library:
         path = self._playlist_path(playlist_id)
         if path.exists():
             path.unlink()
+        self._record_playlist_state(playlist_id, "deleted", "delete_playlist")
 
-    def ensure_default_playlists(self, names: List[str]) -> None:
-        for name in names:
-            path = self._playlist_path(name)
-            if not path.exists():
-                self.save_playlist(name, {"name": name, "tracks": []})
+    def ensure_default_playlists(
+        self, names: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """Seed starter playlists once.
+
+        A later start must not recreate a playlist the operator deleted.
+        A library that already contains any playlist other than the installer's
+        optional ``default`` demo playlist is marked seeded without filling in
+        missing names. Those missing names are recorded as deleted so removing
+        the seed marker later still cannot resurrect them.
+        """
+        requested = list(STARTER_PLAYLIST_NAMES if names is None else names)
+        marker = self.playlists_dir / _SEED_MARKER_NAME
+        if marker.is_file() and self._seed_marker_state(marker) != "in_progress":
+            return {
+                "seeded": True,
+                "already_seeded": True,
+                "created": [],
+                "skipped_existing_library": False,
+            }
+        existing = self._playlist_ids_on_disk()
+        if not marker.is_file() and existing - {"default"}:
+            for name in requested:
+                if name in existing:
+                    continue
+                if self._playlist_lifecycle_state(name) == "deleted":
+                    continue
+                self._record_playlist_state(
+                    name, "deleted", "ensure_default_playlists"
+                )
+            self._write_seed_marker(
+                marker,
+                requested,
+                created=[],
+                skipped_existing_library=True,
+            )
+            return {
+                "seeded": True,
+                "already_seeded": False,
+                "created": [],
+                "skipped_existing_library": True,
+            }
+        if not marker.is_file():
+            self._write_seed_marker(
+                marker,
+                requested,
+                created=[],
+                skipped_existing_library=False,
+                state="in_progress",
+            )
+        deleted = {
+            playlist_id
+            for playlist_id, entry in (
+                self._read_lifecycle().get("playlists") or {}
+            ).items()
+            if isinstance(entry, dict) and entry.get("state") == "deleted"
+        }
+        existing = self._playlist_ids_on_disk()
+        created = []
+        for name in requested:
+            if name in deleted or name in existing:
+                continue
+            self.save_playlist(name, {"name": name, "tracks": []})
+            created.append(name)
+        self._write_seed_marker(
+            marker,
+            requested,
+            created=created,
+            skipped_existing_library=False,
+        )
+        return {
+            "seeded": True,
+            "already_seeded": False,
+            "created": created,
+            "skipped_existing_library": False,
+        }
+
+    def _playlist_json_paths(self) -> List[Path]:
+        paths = []
+        for path in sorted(self.playlists_dir.glob("*.json")):
+            if not path.is_file() or path.name.startswith("."):
+                continue
+            paths.append(path)
+        return paths
+
+    def _playlist_ids_on_disk(self) -> Set[str]:
+        return {path.stem for path in self._playlist_json_paths()}
+
+    def _lifecycle_path(self) -> Path:
+        return self.playlists_dir / _LIFECYCLE_NAME
+
+    def _read_lifecycle(self) -> Dict[str, Any]:
+        path = self._lifecycle_path()
+        if not path.is_file():
+            return {"playlists": {}}
+        try:
+            data = json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError):
+            return {"playlists": {}}
+        if not isinstance(data, dict):
+            return {"playlists": {}}
+        playlists = data.get("playlists")
+        if not isinstance(playlists, dict):
+            data["playlists"] = {}
+        return data
+
+    def _write_lifecycle(self, data: Dict[str, Any]) -> None:
+        self._atomic_write_text(
+            self._lifecycle_path(), json.dumps(data, indent=2) + "\n"
+        )
+
+    def _playlist_lifecycle_state(self, playlist_id: str) -> Optional[str]:
+        entry = (self._read_lifecycle().get("playlists") or {}).get(playlist_id)
+        if not isinstance(entry, dict):
+            return None
+        state = entry.get("state")
+        if not isinstance(state, str):
+            return None
+        return state
+
+    def _record_playlist_state(
+        self, playlist_id: str, state: str, source: str
+    ) -> None:
+        data = self._read_lifecycle()
+        playlists = data.setdefault("playlists", {})
+        entry = playlists.get(playlist_id)
+        if not isinstance(entry, dict):
+            entry = {"events": []}
+            playlists[playlist_id] = entry
+        events = entry.get("events")
+        if not isinstance(events, list):
+            events = []
+            entry["events"] = events
+        events.append({"at": time.time(), "state": state, "source": source})
+        entry["state"] = state
+        self._write_lifecycle(data)
+
+    def _seed_marker_state(self, marker: Path) -> str:
+        try:
+            data = json.loads(marker.read_text())
+        except (OSError, json.JSONDecodeError):
+            return "complete"
+        if isinstance(data, dict) and data.get("state") == "in_progress":
+            return "in_progress"
+        return "complete"
+
+    def _write_seed_marker(
+        self,
+        marker: Path,
+        names: List[str],
+        created: List[str],
+        skipped_existing_library: bool,
+        state: str = "complete",
+    ) -> None:
+        now = time.time()
+        payload = {
+            "state": state,
+            "seeded_at": now,
+            "names": list(names),
+            "created": list(created),
+            "skipped_existing_library": skipped_existing_library,
+            "source": "ensure_default_playlists",
+        }
+        if state == "complete":
+            payload["completed_at"] = now
+        self._atomic_write_text(marker, json.dumps(payload, indent=2) + "\n")
+
+    def _atomic_write_text(self, path: Path, text: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(text)
+        os.replace(str(tmp), str(path))

@@ -12,7 +12,7 @@ the product defaults committed to Git.
 |------|--------|
 | `config/appliance.json` | CONFIGURATION |
 | `data/library/` | MEDIA |
-| `data/playlists/` | PLAYLIST / OPERATOR DATA |
+| `data/playlists/` | PLAYLIST / OPERATOR DATA. Includes starter-playlist seed state (`.starter-playlists.json`) and deletion history (`.playlist-lifecycle.json`). Keep those files so a deleted starter is not recreated after restore. |
 | `data/library.sqlite3` | PLAYLIST / OPERATOR DATA |
 | `data/recovery/` | OPERATOR BROADCAST INTENT |
 

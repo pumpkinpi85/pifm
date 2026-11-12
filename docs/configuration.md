@@ -52,3 +52,18 @@ loading clearly.
 The product default is always `0.0`. Do not guess a board correction or alter
 source audio to compensate. A measured value belongs in the station's local
 `appliance.json` and its validation evidence, not an A+-specific code fork.
+
+## Quiet network
+
+`rf_quiet_mode` and `rf_quiet_seconds` control the System page interference
+tool. Quiet network never starts or stops FM.
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `rf_quiet_mode` | `simulate` | Shipped default. Updates appliance state only. The shipped default `simulate` does not take the network interface down. `timed` is an explicit opt-in that briefly takes `network_iface` down and schedules link recovery. |
+| `rf_quiet_seconds` | `60` | How long a quiet period lasts before automatic restore. Values below 15 are raised to 15. |
+
+There is no Deck control that switches the mode. To take the network down for
+real, set `rf_quiet_mode` to `timed` in `config/appliance.json` and restart the
+service. Leave the shipped default at `simulate` unless that cut is intended.
+The web console's confirm text follows the configured mode.

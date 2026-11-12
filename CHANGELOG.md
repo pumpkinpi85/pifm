@@ -1,6 +1,26 @@
 # Changelog
 
-## Unreleased — Canonical Broadcast Control artwork & sanitation
+## Unreleased
+
+- Describe the shipped `rf_quiet_mode: simulate` default honestly in the Deck
+  and in `docs/configuration.md`. Simulate does not take the network down.
+  `timed` remains an explicit opt-in. `rf_quiet_seconds` is documented there.
+- Seed starter playlists (`default`, `favorites`, `classical`, `rock`, `jazz`,
+  `custom`) only on first run. A deleted starter stays deleted across restarts,
+  and playlists the operator creates still persist.
+- Fix the first-run hardware heading so it no longer reads "Hardware not
+  detected detected".
+- Update README, SECURITY, and CONTRIBUTING now that the public repository
+  exists. `software_version` stays 0.6.2.
+- Serve `/favicon.ico` from the Broadcast Control flag artwork, and pluralize
+  track counts (`1 track` / `N tracks`).
+- Default `install.sh`, hardware configuration, and remote deploy ownership to
+  the installing user. `PIFM_USER` still overrides. A missing account fails
+  with a clear message. A user named `pi` is not required.
+- Run `scripts/run-validation.sh` from GitHub Actions on pull requests and on
+  the default branch.
+
+### Canonical Broadcast Control artwork & sanitation
 
 - Freeze approved Broadcast Control assets as canonical production names:
   `broadcast-flagpole.png`, `broadcast-flag-off.png`, `broadcast-flag-on.png`,

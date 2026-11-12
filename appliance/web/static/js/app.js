@@ -819,7 +819,9 @@
     if (!wizard) return;
     wizard.hidden = !s.setup_required;
     if (!s.setup_required) return;
-    $("setupHardwareName").textContent = hardwareLabel(s) + " detected";
+    $("setupHardwareName").textContent = window.PifmCopy.hardwareSetupHeading(
+      hardwareLabel(s)
+    );
     var hwStatus = hardwareSupportStatus(s);
     $("setupHardwareStatus").textContent =
       hwStatus === "SUPPORTED" ? "Supported for piFM" : hwStatus;
@@ -1065,7 +1067,9 @@
       if (s.active_playlist) {
         $("activePlSummary").textContent =
           plName +
-          (bc.track_count != null ? (" · " + bc.track_count + " track" + (bc.track_count === 1 ? "" : "s")) : "");
+          (bc.track_count != null
+            ? (" · " + window.PifmCopy.trackCountLabel(bc.track_count))
+            : "");
       } else {
         $("activePlSummary").textContent = "No playlist selected";
       }
@@ -1078,8 +1082,12 @@
       : (net.ip ? "Connected" : "Disconnected");
     if ($("netSummary")) $("netSummary").textContent = netLabel;
     if ($("netDetail")) {
+      var modeNote = net.mode === "timed"
+        ? " · timed mode can take the link down"
+        : " · simulate mode leaves the network up";
       $("netDetail").textContent =
         (net.ip ? ("IP " + net.ip) : "No IP address") +
+        modeNote +
         (net.quiet_remaining_s != null ? " · restores in ~" + net.quiet_remaining_s + "s" : "");
     }
 
@@ -1449,7 +1457,7 @@
           '" data-playlist-drop="' + esc(id) + '">' +
           '<span class="title">' + esc(label) +
           (active ? " · ACTIVE" : "") +
-          ' <span class="meta">(' + n + " tracks)</span></span>" +
+          ' <span class="meta">(' + window.PifmCopy.trackCountLabel(n) + ")</span></span>" +
           '<span><button type="button" data-use="' + esc(id) + '">Select</button> ' +
           '<button type="button" data-edit="' + esc(id) + '">View / Edit</button> ' +
           '<button type="button" data-dup="' + esc(id) + '">Duplicate</button> ' +
@@ -1623,7 +1631,8 @@
     } else {
       msg =
         "Start broadcasting at " + frequency + " FM?\n\n" +
-        "Playlist: " + pl + " (" + (bc.track_count || 0) + " tracks)\n" +
+        "Playlist: " + pl + " (" +
+        window.PifmCopy.trackCountLabel(bc.track_count || 0) + ")\n" +
         "Station: " + (bc.rds_ps || "?") + "\n\n" +
         "This starts the selected program AND the FM transmitter.\n" +
         (harness
@@ -1854,13 +1863,7 @@
     var net = (state && state.network) || {};
     var mode = net.mode || "simulate";
     var secs = net.recovery_seconds || 60;
-    if (!confirm(
-      "Quiet network for interference test?\n\n" +
-      "This turns OFF the network connection.\n" +
-      "It does NOT stop the FM broadcast.\n" +
-      "You may lose this web page until the network returns (~" + secs + "s).\n\n" +
-      "Mode: " + mode
-    )) return;
+    if (!confirm(window.PifmCopy.quietNetworkConfirmMessage(mode, secs))) return;
     var n = 3;
     function tick() {
       if (n > 0) {
@@ -1994,7 +1997,7 @@
 
   $("btnReindex").addEventListener("click", function () {
     post("/api/library/reindex", {}).then(function (r) {
-      toast("Music refreshed (" + (r.indexed != null ? r.indexed : "") + " tracks).");
+      toast("Music refreshed (" + window.PifmCopy.trackCountLabel(r.indexed) + ").");
       libraryLoadedOnce = false;
       loadLibrary();
       refresh();

@@ -6,6 +6,8 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
+# install.sh rewrites these two lines to the resolved service account.
+# "pi" is only the substitution token. A user named pi is not required.
 User=pi
 Group=pi
 WorkingDirectory=/opt/pifm

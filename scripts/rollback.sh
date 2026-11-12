@@ -6,8 +6,8 @@
 # Local:
 #   ./scripts/rollback.sh --previous /path/to/previous-app --target /opt/pifm
 # Authorized remote:
-#   ./scripts/rollback.sh --previous /home/pi/backups/previous-app-... --target /opt/pifm \
-#       --remote pi@station.local --authorize-cutover [--restart]
+#   ./scripts/rollback.sh --previous /home/user/backups/previous-app-... --target /opt/pifm \
+#       --remote user@station.local --authorize-cutover [--restart]
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 OPS="$ROOT_DIR/scripts/pifm_station_ops.py"
