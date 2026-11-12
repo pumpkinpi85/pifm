@@ -73,6 +73,14 @@ boards stay UNKNOWN/EXPERIMENTAL and are not granted extra capability by
 recognition alone. Unknown boards fail closed for live TX readiness rather than
 guessing.
 
+## Optional panel
+
+The status LED and shutdown switch stay off unless `gpio_enabled` is true and
+the matching `led_enabled` or `switch_enabled` flag is set. A falling edge on
+the switch requests shutdown after STOP and never starts TX. The LED is steady
+only while a transmitter process is running. FM output remains GPIO 4. See
+[HARDWARE.md](HARDWARE.md#optional-panel-controls).
+
 ## Media validation / transcoding
 
 - Six filename families: MP3, WAV, FLAC, M4A, AAC, OGG.

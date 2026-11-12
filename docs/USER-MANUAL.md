@@ -98,6 +98,17 @@ Choose only frequencies and conditions you are legally allowed to use.
 - Fault reason and transmitter diagnostics
 - Quiet network (interference troubleshooting) — **does not** stop FM. The shipped default (`rf_quiet_mode: simulate`) also **does not** turn the network off. A real timed cut is an explicit config opt-in; see [configuration.md](configuration.md).
 
+## Optional status LED and shutdown switch
+
+These are optional and off by default. The Deck works without them. Wiring,
+the one helper, and the default pins are in
+[HARDWARE.md](HARDWARE.md#optional-panel-controls). Help → Optional LED and
+shutdown switch opens the same drawings from this install.
+
+The lamp is steady only while a transmitter is actually running. The shutdown
+switch asks the Pi to shut down after Stop Broadcast. It does not start a
+broadcast.
+
 ## Authoritative state and reconnection
 
 The Raspberry Pi is always authoritative. If the browser disconnects:

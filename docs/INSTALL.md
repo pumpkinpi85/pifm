@@ -269,8 +269,33 @@ documentation, set in `config/appliance.json`:
 Then complete Music + Station setup until Broadcast reports READY / OFF AIR.
 Do not treat mock-host readiness as physical hardware validation.
 
+## Optional status LED and shutdown switch
+
+Not required. The Broadcast Deck works with neither fitted, and both stay off
+until you enable them. Wiring diagrams and the default pins (LED BCM 18 /
+header 12, shutdown switch BCM 5 / header 29) are in
+[HARDWARE.md](HARDWARE.md#optional-panel-controls). Use 3.3 V and a series
+resistor. Never use 5 V for these GPIOs. The shutdown switch is not Raspberry
+Pi supply wiring. FM output stays BCM 4 / header pin 7.
+
+Stop the appliance service first, then run one helper. Each command sets the
+selection. It does not change the FM pin, does not restart the service, and
+does not start a transmitter.
+
+```bash
+python3 scripts/enable-optional-panel.py --dry-run --led
+python3 scripts/enable-optional-panel.py --led
+python3 scripts/enable-optional-panel.py --switch
+python3 scripts/enable-optional-panel.py --both
+```
+
+Start the service yourself afterwards, and only when the station should
+remain OFF AIR. The Deck Help item **Optional LED and shutdown switch** opens
+the same drawings from this install.
+
 ## Next steps
 
 - Wire RF carefully: [HARDWARE.md](HARDWARE.md)
+- Optional status LED or shutdown switch: [HARDWARE.md](HARDWARE.md#optional-panel-controls)
 - Learn the Deck: [USER-MANUAL.md](USER-MANUAL.md)
 - If something fails: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)

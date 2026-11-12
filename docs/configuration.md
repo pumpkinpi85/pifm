@@ -15,8 +15,11 @@ See `examples/config.example.json`.
 | `hardware_profile_mode` | `auto` (default): read board identity; only A+ maps to SUPPORTED today. `manual`: operator override (experimental until evidence matches) |
 | `setup_completed` | Fresh-install first-run state; pre-P1F configs default complete |
 | `network_iface` | e.g. `eth0` or `wlan0` |
-| `gpio_enabled` | Optional panel LED/switch (default false) |
-| `tx_pin` | Documented RF GPIO BCM (default 4) |
+| `gpio_enabled` | Master flag for the optional panel (default false). False keeps the LED and the shutdown switch off |
+| `led_enabled` | Status LED on BCM 18 when `gpio_enabled` is true. Missing on an older file follows `gpio_enabled` |
+| `switch_enabled` | Shutdown switch on BCM 5 when `gpio_enabled` is true. Missing on an older file follows `gpio_enabled` |
+| `led_pin` / `switch_pin` | Panel BCM numbers (defaults 18 and 5). The helper writes these defaults. Not the FM pin |
+| `tx_pin` | Documented RF GPIO BCM (default 4). One map for 40-pin boards. The panel helper does not change it |
 | `wav_cache_max_mb` | Disposable seekable-WAV cache budget (default 1024 MiB); share the SD/disk with your library |
 | `wav_cache_min_free_mb` | Free storage retained before conversion (default 256 MiB) |
 | `cache_warming_enabled` | Optional OFF-AIR-only speculative preparation; default `false` |

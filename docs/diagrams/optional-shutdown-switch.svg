@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 540" role="img" aria-labelledby="title desc">
+  <title id="title">Optional shutdown switch wiring</title>
+  <desc id="desc">Header pin 29, BCM 5, shutdown switch to ground through a series resistor. The pin is held at 3.3 V by the internal pull-up. Never use 5 V. Closing the switch does not start a broadcast.</desc>
+  <rect width="920" height="540" fill="#0c0d10"/>
+  <text x="40" y="48" fill="#e0b060" font-family="sans-serif" font-size="24">OPTIONAL SHUTDOWN SWITCH</text>
+  <text x="40" y="78" fill="#9aa3b5" font-family="sans-serif" font-size="15">BCM 5  |  header pin 29  |  3.3 V internal pull-up  |  never 5 V</text>
+
+  <g font-family="sans-serif">
+    <rect x="36" y="118" width="200" height="132" rx="8" fill="#1b2030" stroke="#e0b060" stroke-width="3"/>
+    <text x="52" y="150" fill="#e0b060" font-size="16">Header pin 29</text>
+    <text x="52" y="176" fill="#e8e4d8" font-size="15">BCM 5</text>
+    <text x="52" y="202" fill="#9aa3b5" font-size="13">3.3 V pull-up</text>
+    <text x="52" y="224" fill="#9aa3b5" font-size="13">inside the Pi</text>
+
+    <rect x="296" y="118" width="170" height="132" rx="8" fill="#1b2030" stroke="#e0b060" stroke-width="3"/>
+    <text x="312" y="158" fill="#e8e4d8" font-size="16">Series resistor</text>
+    <polyline points="328,210 344,190 360,222 376,190 392,222 408,210" fill="none" stroke="#e0b060" stroke-width="3"/>
+
+    <rect x="526" y="118" width="180" height="132" rx="8" fill="#1b2030" stroke="#e8e4d8" stroke-width="3"/>
+    <text x="542" y="158" fill="#e8e4d8" font-size="16">Shutdown switch</text>
+    <path d="M552 214 H590" stroke="#e0b060" stroke-width="3"/>
+    <path d="M628 214 H666" stroke="#e0b060" stroke-width="3"/>
+    <path d="M590 214 L630 188" stroke="#e0b060" stroke-width="3"/>
+    <text x="548" y="236" fill="#9aa3b5" font-size="12">closes to ground</text>
+
+    <rect x="766" y="118" width="118" height="132" rx="8" fill="#1b2030" stroke="#5ecf8a" stroke-width="3"/>
+    <text x="786" y="178" fill="#5ecf8a" font-size="16">Ground</text>
+    <text x="784" y="204" fill="#9aa3b5" font-size="13">GND pin</text>
+  </g>
+
+  <path d="M236 184 H296 M466 184 H526 M706 184 H766" stroke="#e8e4d8" stroke-width="4"/>
+  <path d="M280 176 L296 184 L280 192 M510 176 L526 184 L510 192 M750 176 L766 184 L750 192" fill="none" stroke="#e8e4d8" stroke-width="3"/>
+
+  <text x="40" y="304" fill="#e8e4d8" font-family="sans-serif" font-size="16">Pin 29 → series resistor → shutdown switch → ground</text>
+  <text x="40" y="336" fill="#9aa3b5" font-family="sans-serif" font-size="15">Open, the pin sits at 3.3 V. Closed, it falls and requests shutdown after STOP.</text>
+  <text x="40" y="364" fill="#9aa3b5" font-family="sans-serif" font-size="15">The shutdown switch never starts a broadcast.</text>
+  <text x="40" y="406" fill="#c44b4b" font-family="sans-serif" font-size="15">Never tie BCM 5 to 5 V. This is not Raspberry Pi supply wiring.</text>
+  <text x="40" y="440" fill="#e0b060" font-family="sans-serif" font-size="15">FM output stays header pin 7 / BCM 4. This drawing does not move it.</text>
+  <text x="40" y="486" fill="#9aa3b5" font-family="sans-serif" font-size="14">Shutdown switch only. The status LED is a separate optional circuit.</text>
+</svg>

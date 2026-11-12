@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Add original wiring diagrams for an optional status LED (BCM 18 / header 12),
+  an optional shutdown switch (BCM 5 / header 29), and both. Each circuit uses
+  3.3 V and a series resistor. The shutdown switch is not supply wiring. FM
+  output stays BCM 4 / header pin 7. `software_version` stays 0.6.2.
+- Add `scripts/enable-optional-panel.py` (`--led`, `--switch`, `--both`) to
+  write those default pins and enable only the requested part. It does not
+  change `tx_pin`, restart the service, or start a transmitter.
+- Split `led_enabled` and `switch_enabled` so LED-only and switch-only are
+  possible. `gpio_enabled` stays default off. An older file that sets only
+  `gpio_enabled: true` still enables both. The switch still requests shutdown
+  after STOP and does not start TX.
+- Use the reference-station GPIO loader: try the imported `RPi.GPIO`, then
+  `/usr/lib/python3/dist-packages` when the first copy fails (including when
+  it can only open `/dev/mem`). The status LED is steady only while a
+  transmitter is running; OFF and READY stay dark; FAULT blinks; ON AIR
+  without a running transmitter stays dark.
+- Serve the install's optional-panel page, diagrams, and helper from Broadcast
+  Deck Help so the drawings work offline.
 - Describe the shipped `rf_quiet_mode: simulate` default honestly in the Deck
   and in `docs/configuration.md`. Simulate does not take the network down.
   `timed` remains an explicit opt-in. `rf_quiet_seconds` is documented there.

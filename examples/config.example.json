@@ -21,6 +21,8 @@
   "hardware_profile_mode": "auto",
   "setup_completed": false,
   "gpio_enabled": false,
+  "led_enabled": false,
+  "switch_enabled": false,
   "local_monitor": false,
   "wav_cache_max_mb": 1024,
   "wav_cache_min_free_mb": 256,

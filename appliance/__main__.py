@@ -13,7 +13,7 @@ from pathlib import Path
 from .config import Config, default_config_path, discover_root
 from .controller import Controller
 from .events import EventLog
-from .gpio_controls import GpioControls
+from .gpio_controls import GpioControls, broadcast_led_pattern
 from .library import Library
 from .tx import kill_all_transmitters
 from .webapp import serve
@@ -95,6 +95,8 @@ def main(argv=None) -> int:
         enabled=bool(config.get("gpio_enabled")),
         on_shutdown=on_shutdown,
         events=events,
+        led_enabled=bool(config.get("led_enabled")),
+        switch_enabled=bool(config.get("switch_enabled")),
     )
     gpio.start()
 
@@ -123,15 +125,12 @@ def main(argv=None) -> int:
     try:
         while not stop["flag"]:
             controller.watchdog()
-            st = controller.sm.state.value
-            if st == "ON_AIR":
-                gpio.set_pattern("on_air")
-            elif st == "READY":
-                gpio.set_pattern("ready")
-            elif st == "FAULT":
-                gpio.set_pattern("fault")
-            else:
-                gpio.set_pattern("off")
+            gpio.set_pattern(
+                broadcast_led_pattern(
+                    controller.sm.state.value,
+                    controller.tx.is_running(),
+                )
+            )
             time.sleep(0.5)
     finally:
         controller.service_shutdown()

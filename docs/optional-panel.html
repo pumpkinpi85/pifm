@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Optional LED and shutdown switch</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      background: #0c0d10;
+      color: #e8e4d8;
+      font-family: sans-serif;
+      line-height: 1.45;
+    }
+    main { max-width: 920px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+    h1, h2 { color: #e0b060; font-weight: 600; }
+    h1 { font-size: 1.7rem; margin-bottom: 0.25rem; }
+    a { color: #e0b060; }
+    p, li { color: #c8c2b4; }
+    .lede { color: #9aa3b5; }
+    figure { margin: 1.25rem 0; }
+    img { width: 100%; height: auto; background: #0c0d10; }
+    figcaption { color: #9aa3b5; font-size: 0.92rem; margin-top: 0.35rem; }
+    pre {
+      background: #151820;
+      color: #e8e4d8;
+      padding: 0.9rem 1rem;
+      overflow: auto;
+      border: 1px solid #58647a;
+    }
+    .warn { color: #c44b4b; }
+    nav.back { margin: 0 0 1rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <nav class="back"><a href="/">Back to the Broadcast Deck</a></nav>
+    <h1>Optional LED and shutdown switch</h1>
+    <p class="lede">These drawings, the helper, and the hardware notes ship with this install. They open from the Pi with no GitHub connection.</p>
+    <p>The status LED and the shutdown switch are optional. The Broadcast Deck works without either of them. Both stay off until you enable them. FM output stays header pin 7 / BCM 4. These pages do not move that pin.</p>
+
+    <h2>Status LED only</h2>
+    <p>Header pin 12, BCM 18, through a series resistor, then the LED, then ground. GPIO high is 3.3 V. Never use 5 V on this pin.</p>
+    <figure>
+      <img src="diagrams/optional-led.svg" alt="Status LED on header pin 12, BCM 18, through a series resistor to ground at 3.3 V">
+      <figcaption><a href="diagrams/optional-led.svg">Status LED diagram</a></figcaption>
+    </figure>
+
+    <h2>Shutdown switch only</h2>
+    <p>Header pin 29, BCM 5, through a series resistor, then the shutdown switch, then ground. The Pi holds the pin at 3.3 V with its internal pull-up until the switch closes. Never tie this pin to 5 V. This is not Raspberry Pi supply wiring.</p>
+    <figure>
+      <img src="diagrams/optional-shutdown-switch.svg" alt="Shutdown switch on header pin 29, BCM 5, through a series resistor to ground, with a 3.3 V pull-up">
+      <figcaption><a href="diagrams/optional-shutdown-switch.svg">Shutdown switch diagram</a></figcaption>
+    </figure>
+
+    <h2>LED and shutdown switch</h2>
+    <p>Use both circuits when you want the lamp and the shutdown switch. They share a ground pin. They do not share a GPIO.</p>
+    <figure>
+      <img src="diagrams/optional-led-and-shutdown-switch.svg" alt="Status LED on BCM 18 and shutdown switch on BCM 5, each with a series resistor to ground, 3.3 V only">
+      <figcaption><a href="diagrams/optional-led-and-shutdown-switch.svg">LED and shutdown switch diagram</a></figcaption>
+    </figure>
+
+    <h2>What the lamp and the switch do</h2>
+    <ul>
+      <li>The lamp is steady only while a transmitter is actually running.</li>
+      <li>OFF and READY stay dark. FAULT blinks. ON AIR with no running transmitter stays dark.</li>
+      <li>The shutdown switch requests shutdown after STOP. It never starts a broadcast.</li>
+    </ul>
+
+    <h2>Enable only what you wired</h2>
+    <p>Stop the appliance service first. One helper writes the documented default pins and turns on the part you name. <code>--led</code> is the LED only. <code>--switch</code> is the shutdown switch only. <code>--both</code> enables both. Each run sets that selection. The helper does not change the FM pin, does not restart the service, and does not start a transmitter.</p>
+    <pre>python3 scripts/enable-optional-panel.py --led
+python3 scripts/enable-optional-panel.py --switch
+python3 scripts/enable-optional-panel.py --both</pre>
+    <p>Add <code>--dry-run</code> to preview. After it writes the config, start the service yourself only when the station should remain OFF AIR. To turn the panel off again, set <code>gpio_enabled</code> to false in the appliance config and start the service the same way. The Deck has no GPIO control for this.</p>
+    <p><a href="/scripts/enable-optional-panel.py">Read the helper that ships with this install</a></p>
+
+    <h2>Same notes on disk</h2>
+    <ul>
+      <li><a href="HARDWARE.md">Hardware guide</a> — pins, board matrix, and this panel</li>
+      <li><a href="diagrams/raspberry-pi-header.svg">40-pin header</a> — FM output is header pin 7 / BCM 4</li>
+      <li><a href="diagrams/minimal-rf-path.svg">Minimal RF path</a> — unchanged by this panel</li>
+      <li><a href="INSTALL.md">Install guide</a></li>
+    </ul>
+    <p class="warn">Never use 5 V for the LED or the shutdown switch. Filtering, antenna, and legal authorization for FM stay your responsibility.</p>
+    <nav class="back"><a href="/">Back to the Broadcast Deck</a></nav>
+  </main>
+</body>
+</html>

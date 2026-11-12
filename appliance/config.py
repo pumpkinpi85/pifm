@@ -36,6 +36,8 @@ DEFAULTS = {
     "hardware_profile_mode": "auto",
     "setup_completed": True,
     "gpio_enabled": False,
+    "led_enabled": False,
+    "switch_enabled": False,
     "local_monitor": False,
     "wav_cache_max_mb": 1024,
     "wav_cache_min_free_mb": 256,
@@ -112,6 +114,7 @@ class Config:
 
     def load(self) -> None:
         data = deepcopy(DEFAULTS)
+        loaded = {}  # type: Dict[str, Any]
         if self.path.exists():
             loaded = json.loads(self.path.read_text())
             if not isinstance(loaded, dict):
@@ -121,6 +124,12 @@ class Config:
             loaded.pop("state", None)
             loaded.pop("on_air", None)
             data.update(loaded)
+        # Older files enabled the LED and the shutdown switch together.
+        # Missing part flags keep that behaviour. Explicit flags can split them.
+        if "led_enabled" not in loaded:
+            data["led_enabled"] = data.get("gpio_enabled") is True
+        if "switch_enabled" not in loaded:
+            data["switch_enabled"] = data.get("gpio_enabled") is True
         # Preserve legacy in-range values without silently rounding human data.
         # Readiness blocks off-grid values until the operator corrects Station.
         self._validate(data, enforce_frequency_grid=False)
@@ -181,6 +190,11 @@ class Config:
         if not isinstance(setup_completed, bool):
             raise ConfigError("setup_completed must be true or false")
         data["setup_completed"] = setup_completed
+        for key in ("gpio_enabled", "led_enabled", "switch_enabled"):
+            value = data.get(key, False)
+            if not isinstance(value, bool):
+                raise ConfigError("{} must be true or false".format(key))
+            data[key] = value
         for key in ("wav_cache_max_mb", "wav_cache_min_free_mb"):
             value = data.get(key)
             if isinstance(value, bool):
