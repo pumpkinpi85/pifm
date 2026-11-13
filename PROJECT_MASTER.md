@@ -58,7 +58,7 @@ unnecessary polling, excessive logging, repeated transcoding, excessive SD write
 - Library: filesystem + SQLite index
 - Web: stdlib `ThreadingHTTPServer`, static HTML/CSS/JS
 - Live updates: SSE (`/api/events/stream`) + light polling fallback
-- Optional GPIO LED/switch via `RPi.GPIO` (disabled by default)
+- Optional GPIO status LED and shutdown switch (default off; LED-only or switch-only). If a shadowed `RPi.GPIO` can only open `/dev/mem`, the loader tries the dist-packages copy. The lamp is steady only while a transmitter is running.
 
 ## 6. TRANSMITTER ARCHITECTURE
 

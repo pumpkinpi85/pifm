@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 760" role="img" aria-labelledby="title desc">
+  <title id="title">Optional status LED and shutdown switch wiring</title>
+  <desc id="desc">Status LED on header pin 12 BCM 18 through a series resistor to ground, and a shutdown switch on header pin 29 BCM 5 through a series resistor to ground. Both use 3.3 V, never 5 V. FM output stays header pin 7.</desc>
+  <rect width="920" height="760" fill="#0c0d10"/>
+  <text x="40" y="48" fill="#e0b060" font-family="sans-serif" font-size="24">LED AND SHUTDOWN SWITCH</text>
+  <text x="40" y="78" fill="#9aa3b5" font-family="sans-serif" font-size="15">Both optional circuits  |  3.3 V only  |  never 5 V  |  FM pin unchanged</text>
+
+  <text x="40" y="124" fill="#e0b060" font-family="sans-serif" font-size="18">Status LED  ·  BCM 18  ·  header pin 12</text>
+  <g font-family="sans-serif">
+    <rect x="36" y="144" width="180" height="96" rx="8" fill="#1b2030" stroke="#e0b060" stroke-width="3"/>
+    <text x="52" y="180" fill="#e8e4d8" font-size="15">Pin 12 / BCM 18</text>
+    <text x="52" y="206" fill="#9aa3b5" font-size="13">3.3 V GPIO high</text>
+    <rect x="276" y="144" width="170" height="96" rx="8" fill="#1b2030" stroke="#e0b060" stroke-width="3"/>
+    <text x="292" y="180" fill="#e8e4d8" font-size="15">Series resistor</text>
+    <polyline points="300,208 316,190 332,218 348,190 364,218 380,208" fill="none" stroke="#e0b060" stroke-width="3"/>
+    <rect x="506" y="144" width="150" height="96" rx="8" fill="#1b2030" stroke="#e8e4d8" stroke-width="3"/>
+    <text x="538" y="180" fill="#e8e4d8" font-size="15">Status LED</text>
+    <polygon points="540,200 576,216 540,232" fill="none" stroke="#e0b060" stroke-width="3"/>
+    <path d="M576 200 V232" fill="none" stroke="#e0b060" stroke-width="3"/>
+    <rect x="716" y="144" width="164" height="96" rx="8" fill="#1b2030" stroke="#5ecf8a" stroke-width="3"/>
+    <text x="756" y="186" fill="#5ecf8a" font-size="15">Ground</text>
+    <text x="748" y="212" fill="#9aa3b5" font-size="13">any GND pin</text>
+  </g>
+  <path d="M216 192 H276 M446 192 H506 M656 192 H716" stroke="#e8e4d8" stroke-width="4"/>
+  <path d="M260 184 L276 192 L260 200 M490 184 L506 192 L490 200 M700 184 L716 192 L700 200" fill="none" stroke="#e8e4d8" stroke-width="3"/>
+
+  <text x="40" y="300" fill="#e0b060" font-family="sans-serif" font-size="18">Shutdown switch  ·  BCM 5  ·  header pin 29</text>
+  <g font-family="sans-serif">
+    <rect x="36" y="320" width="180" height="110" rx="8" fill="#1b2030" stroke="#e0b060" stroke-width="3"/>
+    <text x="52" y="356" fill="#e8e4d8" font-size="15">Pin 29 / BCM 5</text>
+    <text x="52" y="382" fill="#9aa3b5" font-size="13">3.3 V pull-up</text>
+    <text x="52" y="404" fill="#9aa3b5" font-size="13">inside the Pi</text>
+    <rect x="276" y="320" width="170" height="110" rx="8" fill="#1b2030" stroke="#e0b060" stroke-width="3"/>
+    <text x="292" y="362" fill="#e8e4d8" font-size="15">Series resistor</text>
+    <polyline points="300,390 316,372 332,400 348,372 364,400 380,390" fill="none" stroke="#e0b060" stroke-width="3"/>
+    <rect x="506" y="320" width="170" height="110" rx="8" fill="#1b2030" stroke="#e8e4d8" stroke-width="3"/>
+    <text x="522" y="362" fill="#e8e4d8" font-size="15">Shutdown switch</text>
+    <path d="M528 400 H566" stroke="#e0b060" stroke-width="3"/>
+    <path d="M604 400 H642" stroke="#e0b060" stroke-width="3"/>
+    <path d="M566 400 L606 376" stroke="#e0b060" stroke-width="3"/>
+    <rect x="736" y="320" width="144" height="110" rx="8" fill="#1b2030" stroke="#5ecf8a" stroke-width="3"/>
+    <text x="770" y="372" fill="#5ecf8a" font-size="15">Ground</text>
+    <text x="766" y="398" fill="#9aa3b5" font-size="13">GND pin</text>
+  </g>
+  <path d="M216 374 H276 M446 374 H506 M676 374 H736" stroke="#e8e4d8" stroke-width="4"/>
+  <path d="M260 366 L276 374 L260 382 M490 366 L506 374 L490 382 M720 366 L736 374 L720 382" fill="none" stroke="#e8e4d8" stroke-width="3"/>
+
+  <text x="40" y="480" fill="#9aa3b5" font-family="sans-serif" font-size="15">The two circuits share a ground pin. They do not share a GPIO.</text>
+  <text x="40" y="512" fill="#9aa3b5" font-family="sans-serif" font-size="15">Lamp: steady only while a transmitter is running. OFF and READY stay dark.</text>
+  <text x="40" y="540" fill="#9aa3b5" font-family="sans-serif" font-size="15">Shutdown switch: falling edge requests shutdown after STOP. It never starts TX.</text>
+  <text x="40" y="582" fill="#c44b4b" font-family="sans-serif" font-size="15">Never use 5 V for these GPIOs. This is not Raspberry Pi supply wiring.</text>
+  <text x="40" y="616" fill="#e0b060" font-family="sans-serif" font-size="15">FM output stays header pin 7 / BCM 4. This drawing does not move it.</text>
+  <text x="40" y="680" fill="#9aa3b5" font-family="sans-serif" font-size="14">40-pin boards in the piFM matrix use that same FM pin. Pi 5 is unsupported.</text>
+</svg>

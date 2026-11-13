@@ -589,6 +589,10 @@ class Controller:
                 "setup_completed": bool(cfg.get("setup_completed", True)),
                 "setup_required": not bool(cfg.get("setup_completed", True)),
                 "gpio_enabled": bool(cfg.get("gpio_enabled")),
+                "led_enabled": bool(cfg.get("gpio_enabled"))
+                and bool(cfg.get("led_enabled")),
+                "switch_enabled": bool(cfg.get("gpio_enabled"))
+                and bool(cfg.get("switch_enabled")),
                 "broadcast_recovery": self.recovery.status(),
                 "broadcast": checklist,
                 "queue": self.queue_snapshot(),

@@ -5,7 +5,7 @@ Public manuals (start here):
 | Doc | Topic |
 |-----|--------|
 | [INSTALL.md](INSTALL.md) | Blank-card install, update, backup, rollback |
-| [HARDWARE.md](HARDWARE.md) | Board matrix, GPIO pin 7 / BCM 4, A+ prerequisites |
+| [HARDWARE.md](HARDWARE.md) | Board matrix, GPIO pin 7 / BCM 4, optional LED and shutdown switch, A+ prerequisites |
 | [USER-MANUAL.md](USER-MANUAL.md) | Broadcast Deck daily operation |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common failures |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Engineering overview |

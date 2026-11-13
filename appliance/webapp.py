@@ -21,6 +21,75 @@ if TYPE_CHECKING:
     from .library import Library
 
 STATIC_DIR = Path(__file__).resolve().parent / "web" / "static"
+INSTALL_ROOT = Path(__file__).resolve().parents[1]
+PUBLIC_DOC_SUFFIXES = {".svg", ".md", ".html", ".txt"}
+PANEL_HELPER_URL = "/scripts/enable-optional-panel.py"
+
+
+def is_public_install_url(url_path: str) -> bool:
+    """True for the offline docs and the one optional-panel helper."""
+    raw = unquote(url_path.split("?", 1)[0])
+    return (
+        raw == "/docs"
+        or raw.startswith("/docs/")
+        or raw == "/scripts"
+        or raw.startswith("/scripts/")
+    )
+
+
+def lookup_public_install_file(
+    url_path: str, root: Optional[Path] = None
+) -> Tuple[int, Optional[Path]]:
+    """Resolve one install file, or reject path traversal.
+
+    Returns ``(200, path)``, ``(403, None)``, or ``(404, None)``.
+    Callers should use this only for :func:`is_public_install_url` paths.
+    """
+    raw = unquote(url_path.split("?", 1)[0])
+    if "\x00" in raw or "\\" in raw:
+        return 403, None
+    base = (root or INSTALL_ROOT).resolve()
+    if raw == PANEL_HELPER_URL:
+        scripts = (base / "scripts").resolve()
+        helper = (scripts / "enable-optional-panel.py").resolve()
+        try:
+            helper.relative_to(scripts)
+        except ValueError:
+            return 403, None
+        if helper.is_file():
+            return 200, helper
+        return 404, None
+    if raw == "/scripts" or raw.startswith("/scripts/"):
+        return 403, None
+    if raw == "/docs" or raw == "/docs/":
+        return 403, None
+    if not raw.startswith("/docs/"):
+        return 403, None
+    parts = raw[len("/docs/") :].split("/")
+    if any(part in ("", ".", "..") for part in parts):
+        return 403, None
+    if Path(parts[-1]).suffix.lower() not in PUBLIC_DOC_SUFFIXES:
+        return 403, None
+    docs = (base / "docs").resolve()
+    candidate = docs.joinpath(*parts).resolve()
+    try:
+        candidate.relative_to(docs)
+    except ValueError:
+        return 403, None
+    if not candidate.is_file():
+        return 404, None
+    return 200, candidate
+
+
+def _install_content_type(path: Path) -> str:
+    suffix = path.suffix.lower()
+    if suffix == ".html":
+        return "text/html; charset=utf-8"
+    if suffix == ".svg":
+        return "image/svg+xml"
+    if suffix in (".md", ".txt", ".py"):
+        return "text/plain; charset=utf-8"
+    return "text/plain; charset=utf-8"
 
 
 def _json_bytes(obj: Any, code: int = 200) -> Tuple[int, bytes, str]:
@@ -192,6 +261,8 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/media/capabilities":
                 code, body, ct = _json_bytes(media_capabilities())
                 return self._send(code, body, ct)
+            if is_public_install_url(path):
+                return self._install_file(path)
             # static
             return self._static(path)
         except FileNotFoundError as exc:
@@ -512,6 +583,16 @@ class Handler(BaseHTTPRequestHandler):
         elif file_path.suffix == ".ico":
             ctype = "image/x-icon"
         return self._send(200, data, ctype)
+
+    def _install_file(self, path: str) -> None:
+        code, file_path = lookup_public_install_file(path)
+        if code != 200 or file_path is None:
+            if code == 403:
+                return self._send(403, b"forbidden", "text/plain")
+            return self._send(404, b"not found", "text/plain")
+        return self._send(
+            200, file_path.read_bytes(), _install_content_type(file_path)
+        )
 
 
 def serve(

@@ -124,12 +124,53 @@ sudo PIFM_CONFIGURE_HARDWARE=1 ./scripts/install.sh
 
 ## Optional panel controls
 
-When `gpio_enabled` is true (default **false**):
+The status LED and the shutdown switch are optional. The Broadcast Deck works
+without them, and both stay off until you enable them. FM output stays BCM
+**4** / header pin **7** on every 40-pin board in the matrix above. These
+drawings do not move that pin. Raspberry Pi 5 remains **UNSUPPORTED**.
 
-- LED on `led_pin` (default BCM 18) reflects READY / ON AIR / FAULT patterns
-- Falling edge on `switch_pin` (default BCM 5) requests shutdown after STOP
+| Part | BCM | Header pin | Behaviour when enabled |
+|------|-----|------------|------------------------|
+| Status LED | 18 | 12 | Steady only while a transmitter is actually running. OFF and READY stay dark. FAULT blinks. ON AIR with no running transmitter stays dark. |
+| Shutdown switch | 5 | 29 | A falling edge (the switch closes to ground) requests shutdown after STOP. It never starts a broadcast. |
 
-These are conveniences, not required for Broadcast Deck operation.
+`gpio_enabled` is the master flag and defaults to **false**. `led_enabled`
+and `switch_enabled` choose the parts. A config that sets only
+`gpio_enabled: true` still enables both, which is the previous behaviour.
+`gpio_enabled: false` keeps both parts off even if a part flag is true.
+
+Put a series resistor between BCM 18 and the LED. GPIO high is **3.3 V**.
+The shutdown-switch drawing also shows a series resistor between BCM 5 and
+the switch; a modest value (for example 1 kΩ) still lets the switch pull the
+pin down. piFM enables the BCM 5 internal pull-up to 3.3 V. Do not connect
+either GPIO to **5 V**. The shutdown switch is not Raspberry Pi supply wiring.
+
+![Status LED only](diagrams/optional-led.svg)
+
+![Shutdown switch only](diagrams/optional-shutdown-switch.svg)
+
+![Status LED and shutdown switch](diagrams/optional-led-and-shutdown-switch.svg)
+
+Stop the appliance service, then from the install:
+
+```bash
+python3 scripts/enable-optional-panel.py --led
+python3 scripts/enable-optional-panel.py --switch
+python3 scripts/enable-optional-panel.py --both
+```
+
+`--led` enables only the LED. `--switch` enables only the shutdown switch.
+`--both` enables both. Each run sets that selection and writes the default
+pins above. The helper does not change `tx_pin`, does not restart the
+service, and does not start a transmitter. Add `--dry-run` to preview.
+Start the service yourself afterwards, and only when the station should
+remain OFF AIR.
+
+To turn the panel off, set `gpio_enabled` to false and start the service
+again the same way. The Deck has no GPIO on/off control.
+
+Help → **Optional LED and shutdown switch** opens these drawings from the
+install, including when GitHub is unreachable.
 
 ## Promoting a board to SUPPORTED
 
